@@ -37,25 +37,21 @@ const LoginPage = () => {
       [name]: value
     }));
   };
-  
+  // Update the handleSubmit function in LoginPage.jsx
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
-      const response = await axios.post('http://localhost:8000/api/login', formData);
-      
-      if (response.data.status === 'success') {
-        const completeConnectionDetails = {
-          ...response.data.connection_details,
-          password: formData.password
-        };
-        login(completeConnectionDetails);
+      const success = await login(formData);
+      if (success) {
         navigate('/export');
+      } else {
+        setError('Authentication failed. Please check your credentials.');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Connection failed. Please check your credentials.');
+      setError(err.response?.data?.detail || 'Failed to connect to the database');
     } finally {
       setLoading(false);
     }

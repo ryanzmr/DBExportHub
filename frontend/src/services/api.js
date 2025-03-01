@@ -36,9 +36,14 @@ const apiService = {
   // Data export
   exportData: async (params) => {
     try {
+      // Create an AbortController for cancellation
+      const controller = new AbortController();
+      const signal = controller.signal;
+      
       // For file downloads, we need to set responseType to blob
       const response = await apiClient.post('/api/export', params, {
         responseType: 'blob',
+        signal: signal
       });
       
       // Create a download link and trigger it
@@ -61,8 +66,15 @@ const apiService = {
       link.click();
       document.body.removeChild(link);
       
-      return { status: 'success', message: 'Export completed successfully' };
+      return { 
+        status: 'success', 
+        message: 'Export completed successfully',
+        controller: controller // Return controller for cancellation
+      };
     } catch (error) {
+      if (error.name === 'AbortError') {
+        return { status: 'cancelled', message: 'Export was cancelled' };
+      }
       throw error.response?.data || error.message;
     }
   },

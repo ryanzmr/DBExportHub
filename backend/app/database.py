@@ -1,5 +1,6 @@
 import pyodbc
 import pandas as pd
+import numpy as np
 from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
 
@@ -9,13 +10,21 @@ def create_connection_string(server: str, database: str, username: str, password
     """Create a connection string for SQL Server"""
     return f"DRIVER={{{settings.DB_DRIVER}}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
 
-def test_connection(connection_string: str) -> bool:
+# Check if this function exists and is properly implemented
+def test_connection(server, database, username, password):
     """Test database connection with provided credentials"""
     try:
+        connection_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
+        import pyodbc
         conn = pyodbc.connect(connection_string)
-        conn.close()
-        return True
+        # Test the connection with a simple query
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchall()
+        cursor.close()
+        return conn
     except Exception as e:
+        print(f"Connection test failed: {str(e)}")
         raise Exception(f"Failed to connect to database: {str(e)}")
 
 @contextmanager
@@ -56,37 +65,46 @@ def execute_stored_procedure(conn, procedure_name: str, params: Dict[str, Any]) 
     except Exception as e:
         raise Exception(f"Error executing stored procedure: {str(e)}")
 
-def execute_query(conn, query: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
-    """Execute a SQL query and return results as a list of dictionaries"""
+# Replace the direct pandas read_sql with a more efficient approach
+def execute_query(query, conn, params=None):
     try:
-        cursor = conn.cursor()
-        
-        # Execute query
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        
-        # Get column names
-        if cursor.description:
-            columns = [column[0] for column in cursor.description]
-            
-            # Fetch all rows and convert to dictionaries
-            rows = []
-            for row in cursor.fetchall():
-                rows.append(dict(zip(columns, row)))
+        # For large datasets, use chunking to improve performance
+        if isinstance(query, str) and "LIMIT" not in query.upper() and "TOP" not in query.upper():
+            # Try to create an engine from the connection string or object
+            try:
+                from sqlalchemy import create_engine
+                from sqlalchemy.engine import Connection
                 
-            return rows
-        return []
+                if not isinstance(conn, Connection):
+                    # Use pandas directly with the connection
+                    import pandas as pd
+                    return pd.read_sql(query, conn, params=params)
+            except:
+                # Fall back to chunked reading if SQLAlchemy conversion fails
+                import pandas as pd
+                
+                # Use chunksize for large datasets
+                chunks = []
+                for chunk in pd.read_sql(query, conn, params=params, chunksize=10000):
+                    chunks.append(chunk)
+                return pd.concat(chunks) if chunks else pd.DataFrame()
+        
+        # For smaller datasets or already limited queries
+        return pd.read_sql(query, conn, params=params)
     except Exception as e:
-        raise Exception(f"Error executing query: {str(e)}")
+        print(f"Error executing query: {e}")
+        raise
 
 def query_to_dataframe(conn, query: str, params: Optional[List[Any]] = None) -> pd.DataFrame:
     """Execute a SQL query and return results as a pandas DataFrame"""
     try:
         if params:
-            return pd.read_sql(query, conn, params=params)
+            df = pd.read_sql(query, conn, params=params)
         else:
-            return pd.read_sql(query, conn)
+            df = pd.read_sql(query, conn)
+        
+        # Replace NaN values with None for JSON serialization
+        df = df.replace({np.nan: None})
+        return df
     except Exception as e:
         raise Exception(f"Error executing query to DataFrame: {str(e)}")
