@@ -7,7 +7,6 @@ import {
   TextField,
   Button,
   Grid,
-  Divider,
   Alert,
   CircularProgress,
   Paper,
@@ -20,9 +19,12 @@ import {
   IconButton,
   Tooltip,
   AppBar,
-  Toolbar
+  Toolbar,
+  useTheme,
+  Chip
 } from '@mui/material';
-import { LogoutOutlined, RefreshOutlined, DownloadOutlined, PreviewOutlined } from '@mui/icons-material';
+import LoadingButton from '../components/LoadingButton';
+import { LogoutOutlined, RefreshOutlined, DownloadOutlined, PreviewOutlined, Storage } from '@mui/icons-material';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
@@ -30,6 +32,7 @@ import { useAuth } from '../App';
 const ExportPage = () => {
   const navigate = useNavigate();
   const { connectionDetails, logout } = useAuth();
+  const theme = useTheme();
   
   const [formData, setFormData] = useState({
     fromMonth: new Date().getFullYear() * 100 + 1, // Default to current year January (YYYYMM)
@@ -144,12 +147,30 @@ const ExportPage = () => {
   
   return (
     <Box sx={{ pb: 4 }}>
-      <AppBar position="static" color="primary" sx={{ mb: 4 }}>
+      <AppBar 
+        position="static" 
+        sx={{
+          mb: 4,
+          background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`
+        }}
+      >
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            DBExportHub - {connectionDetails?.database} @ {connectionDetails?.server}
-          </Typography>
-          <Button color="inherit" onClick={handleLogout} startIcon={<LogoutOutlined />}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <Storage sx={{ mr: 2 }} />
+            <Typography variant="h6" component="div">
+              DBExportHub
+            </Typography>
+            <Chip
+              label={`${connectionDetails?.database} @ ${connectionDetails?.server}`}
+              sx={{ ml: 2, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+            />
+          </Box>
+          <Button 
+            color="inherit" 
+            onClick={handleLogout} 
+            startIcon={<LogoutOutlined />}
+            sx={{ borderRadius: 20 }}
+          >
             Logout
           </Button>
         </Toolbar>
@@ -157,11 +178,14 @@ const ExportPage = () => {
       
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Export Parameters
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Storage sx={{ color: theme.palette.primary.main, mr: 2 }} />
+                <Typography variant="h6">
+                  Export Parameters
+                </Typography>
+              </Box>
               
               {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -269,61 +293,92 @@ const ExportPage = () => {
                 placeholder="Optional"
               />
               
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={handlePreview}
-                  disabled={loading}
-                  startIcon={<PreviewOutlined />}
-                >
-                  {loading ? <CircularProgress size={24} /> : 'Preview'}
-                </Button>
-                
-                <Button
+              <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                <LoadingButton
                   variant="contained"
-                  color="primary"
-                  onClick={handleExport}
-                  disabled={exporting}
-                  startIcon={<DownloadOutlined />}
+                  onClick={handlePreview}
+                  loading={loading}
+                  startIcon={<PreviewOutlined />}
+                  sx={{ flex: 1 }}
                 >
-                  {exporting ? <CircularProgress size={24} /> : 'Export to Excel'}
-                </Button>
+                  Preview
+                </LoadingButton>
+                
+                <LoadingButton
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleExport}
+                  loading={exporting}
+                  disabled={previewData.length === 0}
+                  startIcon={<DownloadOutlined />}
+                  sx={{ flex: 1 }}
+                >
+                  Export
+                </LoadingButton>
               </Box>
             </CardContent>
           </Card>
         </Grid>
         
         <Grid item xs={12} md={8}>
-          <Card>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                 <Typography variant="h6">
-                  Data Preview {previewCount > 0 && `(${previewCount} records)`}
+                  Data Preview
                 </Typography>
-                
-                {previewData.length > 0 && (
-                  <Tooltip title="Refresh Preview">
-                    <IconButton onClick={handlePreview} disabled={loading}>
-                      <RefreshOutlined />
-                    </IconButton>
-                  </Tooltip>
+                {previewCount > 0 && (
+                  <Chip
+                    label={`Total Records: ${previewCount}`}
+                    color="primary"
+                    variant="outlined"
+                  />
                 )}
               </Box>
               
               {previewData.length > 0 ? (
-                <TableContainer component={Paper} className="data-table-container">
-                  <Table className="preview-table" size="small">
+                <TableContainer 
+                component={Paper} 
+                sx={{ 
+                  maxHeight: 'calc(100vh - 300px)',
+                  overflowY: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                    height: '8px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'rgba(0,0,0,0.2)',
+                    borderRadius: '4px',
+                  },
+                }}
+              >
+                <Table stickyHeader>
                     <TableHead>
                       <TableRow>
                         {tableHeaders.map((header) => (
-                          <TableCell key={header}>{header}</TableCell>
+                          <TableCell 
+                          key={header}
+                          sx={{
+                            fontWeight: 'bold',
+                            backgroundColor: theme.palette.primary.main,
+                            color: 'white'
+                          }}
+                        >
+                          {header}
+                        </TableCell>
                         ))}
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {previewData.map((row, index) => (
-                        <TableRow key={index}>
+                        <TableRow 
+                        key={index}
+                        sx={{
+                          '&:nth-of-type(odd)': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
                           {tableHeaders.map((header) => (
                             <TableCell key={`${index}-${header}`}>{row[header]}</TableCell>
                           ))}

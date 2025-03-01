@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings
-from typing import Optional, ClassVar
+from pydantic import BaseModel
+from typing import Optional, List
 import os
 from dotenv import load_dotenv
 import pathlib
@@ -10,13 +10,13 @@ load_dotenv()
 # Get the absolute path of the project root directory
 BASE_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
-class Settings(BaseSettings):
+class Settings(BaseModel):
     # API settings
     API_V1_STR: str = "/api"
     PROJECT_NAME: str = "DBExportHub"
     
     # CORS settings
-    BACKEND_CORS_ORIGINS: list = ["http://localhost", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000", "http://localhost:5173"]
     
     # Database settings (defaults, will be overridden by user input)
     DB_SERVER: Optional[str] = os.getenv("DB_SERVER", "localhost")
@@ -38,10 +38,6 @@ class Settings(BaseSettings):
     # Security settings
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-for-jwt-here")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 # Create settings instance
 settings = Settings()
