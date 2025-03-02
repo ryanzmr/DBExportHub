@@ -21,7 +21,9 @@ import {
   AppBar,
   Toolbar,
   useTheme,
-  Chip
+  Chip,
+  Select,
+  MenuItem
 } from '@mui/material';
 import LoadingButton from '../components/LoadingButton';
 import { LogoutOutlined, RefreshOutlined, DownloadOutlined, PreviewOutlined, Storage, CancelOutlined, RestartAltOutlined } from '@mui/icons-material';
@@ -61,7 +63,13 @@ const ExportPage = () => {
   };
   
   const [formData, setFormData] = useState(initialFormState);
+  // Add new state for advanced mode
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
+  // Add toggle handler for advanced mode
+  const handleAdvancedToggle = () => {
+    setShowAdvanced(prev => !prev);
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -502,66 +510,112 @@ const ExportPage = () => {
                 <Typography variant="h6">
                   Data Preview
                 </Typography>
-                {previewCount > 0 && (
-                  <Chip
-                    label={`Total Records: ${previewCount}`}
-                    color="primary"
-                    variant="outlined"
-                  />
-                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {previewCount > 0 && (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" color="textSecondary">
+                          Rows per page:
+                        </Typography>
+                        <Select
+                          value={formData.max_records}
+                          onChange={(e) => handleChange({ target: { name: 'max_records', value: e.target.value } })}
+                          size="small"
+                          sx={{ minWidth: 80 }}
+                        >
+                          <MenuItem value={10}>10</MenuItem>
+                          <MenuItem value={25}>25</MenuItem>
+                          <MenuItem value={50}>50</MenuItem>
+                          <MenuItem value={100}>100</MenuItem>
+                        </Select>
+                      </Box>
+                      <Chip
+                        label={`Total Records: ${previewCount}`}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    </>
+                  )}
+                </Box>
               </Box>
               
               {previewData.length > 0 ? (
-                <TableContainer 
-                component={Paper} 
-                sx={{ 
-                  maxHeight: 'calc(100vh - 300px)',
-                  overflowY: 'auto',
-                  '&::-webkit-scrollbar': {
-                    width: '8px',
-                    height: '8px',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: 'rgba(0,0,0,0.2)',
-                    borderRadius: '4px',
-                  },
-                }}
-              >
-                <Table stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        {tableHeaders.map((header) => (
-                          <TableCell 
-                          key={header}
-                          sx={{
-                            fontWeight: 'bold',
-                            backgroundColor: theme.palette.primary.main,
-                            color: 'white'
-                          }}
-                        >
-                          {header}
-                        </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {previewData.map((row, index) => (
-                        <TableRow 
-                        key={index}
-                        sx={{
-                          '&:nth-of-type(odd)': {
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }}
-                      >
+                <Box sx={{ width: '100%', overflow: 'hidden' }}>
+                  <TableContainer
+                    component={Paper}
+                    sx={{
+                      maxHeight: 'calc(100vh - 400px)',
+                      overflow: 'auto',
+                      '&::-webkit-scrollbar': {
+                        width: '8px',
+                        height: '8px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        backgroundColor: 'rgba(0,0,0,0.05)',
+                        borderRadius: '4px',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'rgba(0,0,0,0.2)',
+                        borderRadius: '4px',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0,0,0,0.3)',
+                        },
+                      },
+                    }}
+                  >
+                    <Table stickyHeader>
+                      <TableHead>
+                        <TableRow>
                           {tableHeaders.map((header) => (
-                            <TableCell key={`${index}-${header}`}>{row[header]}</TableCell>
+                            <TableCell
+                              key={header}
+                              sx={{
+                                fontWeight: 'bold',
+                                backgroundColor: theme.palette.primary.main,
+                                color: 'white',
+                                whiteSpace: 'nowrap',
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 1,
+                              }}
+                            >
+                              {header}
+                            </TableCell>
                           ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {previewData.map((row, index) => (
+                          <TableRow
+                            key={index}
+                            sx={{
+                              '&:nth-of-type(odd)': {
+                                backgroundColor: theme.palette.action.hover,
+                              },
+                              '&:hover': {
+                                backgroundColor: theme.palette.action.selected,
+                              },
+                            }}
+                          >
+                            {tableHeaders.map((header) => (
+                              <TableCell
+                                key={`${index}-${header}`}
+                                sx={{
+                                  whiteSpace: 'nowrap',
+                                  maxWidth: '200px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {row[header]}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
               ) : (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                   <Typography color="textSecondary">
