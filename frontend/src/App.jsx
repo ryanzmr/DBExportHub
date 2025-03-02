@@ -75,17 +75,20 @@ function App() {
     
     checkAuth();
   }, [navigate, location.pathname]);
-
   // Log navigation for debugging
   useEffect(() => {
     console.log('Current path:', location.pathname);
+    console.log('Auth state in navigation effect:', authState);
     
     // Redirect to export page if authenticated and on login page
     if (authState.isAuthenticated && location.pathname === '/login') {
-      navigate('/export');
+      console.log('Redirecting from login to export page due to authenticated state');
+      // Add a small delay to ensure state is fully updated before navigation
+      setTimeout(() => {
+        navigate('/export', { replace: true });
+      }, 100);
     }
-  }, [location, authState.isAuthenticated, navigate]);
-
+  }, [location, authState, navigate]);
   const login = async (connectionDetails) => {
     try {
       console.log('Login called with:', connectionDetails);
@@ -103,14 +106,6 @@ function App() {
         sessionStorage.setItem('tokenExpiry', tokenExpiry);
         sessionStorage.setItem('connectionDetails', JSON.stringify(connectionDetails));
         
-        // Update auth state
-        setAuthState({
-          isAuthenticated: true,
-          connectionDetails,
-          token,
-          tokenExpiry
-        });
-        
         // Set up axios interceptor for adding token to requests
         axios.interceptors.request.use(
           config => {
@@ -120,6 +115,24 @@ function App() {
           error => Promise.reject(error)
         );
         
+        // Update auth state - ensure this is the last operation
+        await new Promise(resolve => {
+          setAuthState({
+            isAuthenticated: true,
+            connectionDetails,
+            token,
+            tokenExpiry
+          });
+          // Give React time to process the state update
+          setTimeout(resolve, 50);
+        });
+        
+        console.log('Auth state updated:', {
+          isAuthenticated: true,
+          connectionDetails,
+          tokenExpiry
+        });
+        
         return true;
       }
       return false;
@@ -128,7 +141,6 @@ function App() {
       return false;
     }
   };
-
   const logout = () => {
     // Clear session storage
     sessionStorage.removeItem('authToken');
