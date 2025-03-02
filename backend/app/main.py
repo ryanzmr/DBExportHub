@@ -98,7 +98,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 # Preview data endpoint
-@app.post("/api/preview")
+@app.post("/api/export/preview")
 async def get_preview(params: ExportParameters):
     try:
         # Get preview data (first 100 records)

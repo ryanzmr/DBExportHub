@@ -16,7 +16,7 @@ const apiService = {
   // Authentication
   login: async (credentials) => {
     try {
-      const response = await apiClient.post('/api/login', credentials);
+      const response = await apiClient.post('/api/auth/login', credentials);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -26,7 +26,7 @@ const apiService = {
   // Data preview
   previewData: async (params) => {
     try {
-      const response = await apiClient.post('/api/preview', params);
+      const response = await apiClient.post('/api/export/preview', params);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

@@ -115,7 +115,7 @@ const ExportPage = () => {
       
       console.log('Preview request data:', requestData);
       
-      const response = await axios.post('http://localhost:8000/api/preview', requestData);
+      const response = await axios.post('http://localhost:8000/api/export/preview', requestData);
       
       // Make sure we're handling the response data correctly
       if (response.data && Array.isArray(response.data.data)) {
