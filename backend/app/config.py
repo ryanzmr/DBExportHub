@@ -15,7 +15,7 @@ class Settings:
 
     # Export settings
     EXPORT_STORED_PROCEDURE = "ExportData_New1"
-    EXPORT_TEMP_TABLE = "EXPTEMP"
+    EXPORT_TEMP_TABLE = "EXPDATA"
 
     # File storage settings
     TEMP_DIR = os.path.join(BASE_DIR, "temp")

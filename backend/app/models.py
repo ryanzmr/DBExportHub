@@ -45,8 +45,8 @@ class ExportResponse(BaseModel):
     message: str = "Export completed successfully"
 
 class HeaderStyle(BaseModel):
-    backgroundColor: str = "4472C4"  # Default blue
-    fontColor: str = "FFFFFF"        # Default white
+    backgroundColor: str = "82b1ff"  # Default blue
+    fontColor: str = "000000"        # Default white
 
 class ExcelFormat(BaseModel):
     fontName: str = "Times New Roman"
