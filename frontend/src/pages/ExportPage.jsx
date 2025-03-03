@@ -128,6 +128,8 @@ const ExportPage = () => {
   const [exporting, setExporting] = useState(false);
   const [exportCancelled, setExportCancelled] = useState(false);
   const exportControllerRef = useRef(null);
+  const previewControllerRef = useRef(null);
+  const [isOperationInProgress, setIsOperationInProgress] = useState(false);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -161,6 +163,11 @@ const ExportPage = () => {
   const handlePreview = async () => {
     setLoading(true);
     setError('');
+    setIsOperationInProgress(true);
+    
+    // Create an AbortController for the preview request
+    previewControllerRef.current = new AbortController();
+    const signal = previewControllerRef.current.signal;
     
     try {
       // Use connectionDetails from the component scope, not from useAuth() call
@@ -174,7 +181,9 @@ const ExportPage = () => {
       
       console.log('Preview request data:', requestData);
       
-      const response = await axios.post('http://localhost:8000/api/export/preview', requestData);
+      const response = await axios.post('http://localhost:8000/api/export/preview', requestData, {
+        signal: signal
+      });
       
       // Make sure we're handling the response data correctly
       if (response.data && Array.isArray(response.data.data)) {
@@ -188,7 +197,9 @@ const ExportPage = () => {
       }
     } catch (err) {
       console.error('Preview error:', err);
-      if (err.response?.status === 401) {
+      if (err.name === 'AbortError' || err.name === 'CanceledError' || axios.isCancel(err)) {
+        setError('Process canceled');
+      } else if (err.response?.status === 401) {
         // Token expired
         logout();
         navigate('/login');
@@ -203,12 +214,16 @@ const ExportPage = () => {
       }
     } finally {
       setLoading(false);
+      setIsOperationInProgress(false);
+      previewControllerRef.current = null;
     }
   };
+  
   const handleExport = async () => {
     setExporting(true);
     setError('');
     setExportCancelled(false);
+    setIsOperationInProgress(true);
     
     exportControllerRef.current = new AbortController();
     const signal = exportControllerRef.current.signal;
@@ -319,8 +334,8 @@ const ExportPage = () => {
       document.body.removeChild(link);
     } catch (err) {
       // Check if the error is due to cancellation
-      if (err.name === 'AbortError' || exportCancelled) {
-        setError('Export was cancelled');
+      if (err.name === 'AbortError' || err.name === 'CanceledError' || axios.isCancel(err) || exportCancelled) {
+        setError('Process canceled');
       } else if (err.code === 'ECONNABORTED') {
         setError('Export timed out. Try narrowing your search criteria for a smaller dataset.');
       } else {
@@ -344,12 +359,19 @@ const ExportPage = () => {
       }
       
       setExporting(false);
+      setIsOperationInProgress(false);
       exportControllerRef.current = null;
     }
   };
   
-  const handleCancelExport = () => {
-    if (exportControllerRef.current) {
+  // Unified cancel function that handles both preview and export cancellations
+  const handleCancel = () => {
+    if (loading && previewControllerRef.current) {
+      // Cancel preview operation
+      previewControllerRef.current.abort();
+      setLoading(false);
+    } else if (exporting && exportControllerRef.current) {
+      // Cancel export operation
       exportControllerRef.current.abort();
       setExportCancelled(true);
     }
@@ -635,14 +657,13 @@ const ExportPage = () => {
                   </Grid>
                 </Collapse>
               </Box>
-
               <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                 <Button
                   variant="contained"
                   color="primary"
                   onClick={handlePreview}
-                  startIcon={<PreviewOutlined />}
-                  disabled={loading}
+                  startIcon={loading ? null : <PreviewOutlined />}
+                  disabled={isOperationInProgress && !loading}
                 >
                   {loading ? <CircularProgress size={24} color="inherit" /> : "Preview"}
                 </Button>
@@ -651,31 +672,31 @@ const ExportPage = () => {
                   variant="contained"
                   color="secondary"
                   onClick={handleExport}
-                  startIcon={<DownloadOutlined />}
-                  disabled={previewData.length === 0 || exporting}
+                  startIcon={exporting ? null : <DownloadOutlined />}
+                  disabled={previewData.length === 0 || isOperationInProgress && !exporting}
                 >
-                  {exporting && !exportCancelled ? <CircularProgress size={24} color="inherit" /> : "Export"}
+                  {exporting ? <CircularProgress size={24} color="inherit" /> : "Export"}
                 </Button>
                 
-                {exporting ? (
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={handleCancelExport}
-                    startIcon={<CancelOutlined />}
-                  >
-                    Cancel
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    color="info"
-                    onClick={handleReset}
-                    startIcon={<RestartAltOutlined />}
-                  >
-                    Reset
-                  </Button>
-                )}
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={handleCancel}
+                  startIcon={<CancelOutlined />}
+                  disabled={!isOperationInProgress}
+                >
+                  Cancel
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  color="info"
+                  onClick={handleReset}
+                  startIcon={<RestartAltOutlined />}
+                  disabled={isOperationInProgress}
+                >
+                  Reset
+                </Button>
               </Box>
             </CardContent>
           </Card>
