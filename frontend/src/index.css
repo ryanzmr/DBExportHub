@@ -12,6 +12,19 @@ body {
   font-feature-settings: "kern" 1;
   font-kerning: normal;
 }
+/* Add this at the end of the file */
+/* Updating the existing MUI table header styles */
+.MuiTableCell-head {
+  color: #000000 !important;
+  font-weight: 700 !important;
+  background-color: #8bc1f7 !important; /* Adding the new background color */
+}
+
+/* This targets Material UI's table headers specifically */
+.MuiTableContainer-root .MuiTableHead-root .MuiTableRow-head .MuiTableCell-head {
+  color: #000000 !important;
+  background-color: #8bc1f7 !important; /* Adding the new background color */
+}
 
 .data-table-container {
   margin: 24px;

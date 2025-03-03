@@ -70,12 +70,12 @@ const DataTable = ({ data, loading, emptyMessage = 'No data to display' }) => {
   );
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden', boxShadow: 3 }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+    <Paper sx={{ width: '100%', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)' }}>
+      <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
         <TextField
           fullWidth
           variant="outlined"
-          placeholder="Search across all columns..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
@@ -86,10 +86,10 @@ const DataTable = ({ data, loading, emptyMessage = 'No data to display' }) => {
               </InputAdornment>
             ),
           }}
-          sx={{ maxWidth: 400 }}
+          sx={{ maxWidth: 200 }}
         />
       </Box>
-      <TableContainer sx={{ maxHeight: 440 }}>
+      <TableContainer sx={{ maxHeight: { xs: 400, sm: 500, md: 600 }, width: '100%', backgroundColor: '#fff', borderRadius: 0 }}>
         <Table stickyHeader size="small" aria-label="data table">
           <TableHead>
             <TableRow>
@@ -97,26 +97,30 @@ const DataTable = ({ data, loading, emptyMessage = 'No data to display' }) => {
                 <TableCell
                   key={column}
                   sx={{
-                    backgroundColor: '#f8f9fa',
-                    color: 'rgb(15, 23, 42)',
+                    backgroundColor: '#0d47a1',
+                    color: '#ffffff',
                     fontWeight: 600,
-                    borderBottom: '1px solid rgba(37, 99, 235, 0.1)',
+                    borderBottom: 'none',
                     position: 'sticky',
                     top: 0,
-                    zIndex: 10,
-                    fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-                    letterSpacing: '0.01em',
-                    padding: '1rem',
-                    transition: 'background-color 0.2s ease',
-                    fontSize: '0.875rem',
+                    zIndex: 999,
+                    padding: '8px 12px',
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    minHeight: '36px',
+                    letterSpacing: '0.02em',
+                    textTransform: 'uppercase',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                    '&:not(:last-child)': {
+                      borderRight: '1px solid rgba(255, 255, 255, 0.3)'
+                    },
                     '&:hover': {
-                      backgroundColor: 'rgba(37, 99, 235, 0.05)'
+                      backgroundColor: '#1565c0'
                     }
                   }}
                 >
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    {column}
-                  </Typography>
+                  {column}
                 </TableCell>
               ))}
             </TableRow>
@@ -129,11 +133,22 @@ const DataTable = ({ data, loading, emptyMessage = 'No data to display' }) => {
                   key={rowIndex}
                   hover
                   sx={{
+                    '&:nth-of-type(odd)': {
+                      backgroundColor: '#ffffff'
+                    },
                     '&:nth-of-type(even)': {
-                      backgroundColor: '#f8f9fa'
+                      backgroundColor: '#f5f5f5'
                     },
                     '&:hover': {
-                      backgroundColor: 'rgba(37, 99, 235, 0.05)'
+                      backgroundColor: '#e3f2fd'
+                    },
+                    '& td': {
+                      borderBottom: '1px solid #e0e0e0',
+                      borderRight: '1px solid #e0e0e0',
+                      padding: '4px 12px',
+                      '&:last-child': {
+                        borderRight: 'none'
+                      }
                     }
                   }}
                 >
@@ -141,16 +156,13 @@ const DataTable = ({ data, loading, emptyMessage = 'No data to display' }) => {
                     <TableCell 
                       key={`${rowIndex}-${column}`}
                       sx={{
-                        border: '1px solid rgba(37, 99, 235, 0.1)',
-                        backgroundColor: '#ffffff',
-                        color: 'rgb(55, 65, 81)',
+                        fontSize: '0.8125rem',
+                        color: '#424242',
+                        fontFamily: '"Segoe UI", "Roboto", "Helvetica", sans-serif',
+                        whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-                        fontSize: '0.875rem',
-                        padding: '1rem',
-                        lineHeight: '1.25rem'
+                        maxWidth: '200px'
                       }}
                     >
                       {row[column] !== null ? String(row[column]) : ''}
@@ -172,6 +184,16 @@ const DataTable = ({ data, loading, emptyMessage = 'No data to display' }) => {
         sx={{
           borderTop: 1,
           borderColor: 'divider',
+          '& .MuiTablePagination-toolbar': {
+            minHeight: '48px',
+            padding: '0 12px'
+          },
+          '& .MuiTablePagination-select': {
+            fontSize: '0.8125rem'
+          },
+          '& .MuiTablePagination-displayedRows': {
+            fontSize: '0.8125rem'
+          }
         }}
       />
     </Paper>
