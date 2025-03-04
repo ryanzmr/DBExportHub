@@ -12,19 +12,7 @@ from pydantic import BaseModel
 from .database import get_db_connection, test_connection
 from .models import ExportParameters, PreviewResponse
 from .api.export import generate_excel, preview_data, CustomJSONEncoder
-
-# Add LoginRequest model
-class LoginRequest(BaseModel):
-    server: str
-    database: str
-    username: str
-    password: str
-
-# Add these constants for JWT
-SECRET_KEY = "your-secret-key-here"  # Change this to a secure secret key
-ALGORITHM = "HS256"
-# Change this constant
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Changed from 5 to 30 minutes
+from .api.auth import LoginRequest, TokenRefreshRequest, create_access_token, get_current_connection, authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -48,23 +36,19 @@ async def root():
     return {"message": "Welcome to DBExportHub API"}
 
 # Login endpoint
-# Update the login endpoint to better handle errors and provide more debugging
 @app.post("/api/auth/login")
 async def login(connection_details: LoginRequest):
     try:
-        print(f"Login attempt for server: {connection_details.server}, database: {connection_details.database}")
+        # Log login attempt without sensitive information
+        print(f"Login attempt for server: {connection_details.server}, database: {connection_details.database}, username: {connection_details.username}")
         
-        # Verify database connection using test_connection
-        conn = test_connection(
-            connection_details.server,
-            connection_details.database,
-            connection_details.username,
-            connection_details.password
-        )
+        # Authenticate user by testing database connection
+        await authenticate_user(connection_details)
         
         print("Database connection successful")
         
         # If connection successful, create access token
+        # The create_access_token function will handle redacting sensitive information
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"connection": connection_details.dict()},
@@ -78,6 +62,9 @@ async def login(connection_details: LoginRequest):
             "token_type": "bearer",
             "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
         }
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        raise e
     except Exception as e:
         print(f"Login error: {str(e)}")
         import traceback
@@ -87,20 +74,76 @@ async def login(connection_details: LoginRequest):
             detail=f"Authentication failed: {str(e)}"
         )
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+# Token refresh endpoint
+@app.post("/api/auth/refresh")
+async def refresh_token(refresh_request: TokenRefreshRequest):
+    try:
+        # Decode the token without verifying expiration
+        try:
+            payload = jwt.decode(
+                refresh_request.token, 
+                SECRET_KEY, 
+                algorithms=[ALGORITHM],
+                options={"verify_exp": False}
+            )
+        except jwt.PyJWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token for refresh",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+            
+        # Extract connection details
+        connection = payload.get("connection")
+        if not connection:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token content",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+            
+        # Create a new token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"connection": connection},
+            expires_delta=access_token_expires
+        )
+        
+        return {
+            "token": access_token,
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Token refresh error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error refreshing token: {str(e)}"
+        )
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        raise e
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=401,
+            detail=f"Authentication failed: {str(e)}"
+        )
 
 # Preview data endpoint
 @app.post("/api/export/preview")
-async def get_preview(params: ExportParameters):
+async def get_preview(params: ExportParameters, connection: dict = Depends(get_current_connection)):
     try:
+        # Update params with connection details from token
+        params.server = connection["server"]
+        params.database = connection["database"]
+        params.username = connection["username"]
+        params.password = connection["password"]
+        
         # Get preview data (first 100 records)
         data = preview_data(params)
         
@@ -129,8 +172,14 @@ async def get_preview(params: ExportParameters):
 
 # Export data endpoint with streaming response
 @app.post("/api/export")
-async def export_data(params: ExportParameters):
+async def export_data(params: ExportParameters, connection: dict = Depends(get_current_connection)):
     try:
+        # Update params with connection details from token
+        params.server = connection["server"]
+        params.database = connection["database"]
+        params.username = connection["username"]
+        params.password = connection["password"]
+        
         # Generate Excel file
         file_path = generate_excel(params)
         
@@ -186,11 +235,14 @@ async def health_check():
     return {"status": "healthy"}
 # Add a cleanup endpoint
 @app.post("/api/cleanup")
-async def cleanup_connection(connection_info: dict):
+async def cleanup_connection(connection_info: dict = Depends(get_current_connection)):
     try:
-        print(f"Cleaning up connection for session: {connection_info.get('sessionId', 'unknown')}")
+        print(f"Cleaning up connection for session: {connection_info.get('server', 'unknown')}")
         # Implement any cleanup logic here if needed
         return {"status": "success", "message": "Connection cleaned up successfully"}
     except Exception as e:
         print(f"Cleanup error: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Cleanup error: {str(e)}"
+        )
