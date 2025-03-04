@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
+import re
 
 # Login request model
 class LoginRequest(BaseModel):
@@ -12,25 +13,48 @@ class LoginRequest(BaseModel):
 # Export parameters model based on the stored procedure parameters
 class ExportParameters(BaseModel):
     # Connection details (from login)
-    server: str
-    database: str
-    username: str
-    password: str
+    server: str = Field(..., description="SQL Server name or IP address")
+    database: str = Field(..., description="Database name")
+    username: str = Field(..., description="Database username")
+    password: str = Field(..., description="Database password")
     
     # Export parameters (matching the stored procedure parameters)
-    fromMonth: int = Field(..., description="Start month in format YYYYMM")
-    toMonth: int = Field(..., description="End month in format YYYYMM")
-    hs: Optional[str] = Field("", description="HS Code filter")
-    prod: Optional[str] = Field("", description="Product description filter")
-    iec: Optional[str] = Field("", description="IEC filter")
-    expCmp: Optional[str] = Field("", description="Exporter company filter")
-    forcount: Optional[str] = Field("", description="Foreign country filter")
-    forname: Optional[str] = Field("", description="Foreign importer name filter")
-    port: Optional[str] = Field("", description="Port filter")
+    fromMonth: int = Field(..., description="Start month in format YYYYMM (e.g., 202101)")
+    toMonth: int = Field(..., description="End month in format YYYYMM (e.g., 202112)")
+    hs: Optional[str] = Field("", description="HS Code filter (comma-separated values)")
+    prod: Optional[str] = Field("", description="Product description filter (use % for wildcard)")
+    iec: Optional[str] = Field("", description="IEC filter (comma-separated values)")
+    expCmp: Optional[str] = Field("", description="Exporter company filter (use % for wildcard)")
+    forcount: Optional[str] = Field("", description="Foreign country filter (comma-separated values)")
+    forname: Optional[str] = Field("", description="Foreign importer name filter (use % for wildcard)")
+    port: Optional[str] = Field("", description="Port filter (comma-separated values)")
     
     # Additional options
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
+    
+    @validator('fromMonth', 'toMonth')
+    def validate_month_format(cls, v):
+        # Ensure month is in YYYYMM format
+        if not re.match(r'^\d{6}$', str(v)):
+            raise ValueError('Month must be in YYYYMM format (e.g., 202101)')
+        return v
+    
+    @validator('toMonth')
+    def validate_date_range(cls, v, values):
+        # Ensure toMonth is greater than or equal to fromMonth
+        if 'fromMonth' in values and v < values['fromMonth']:
+            raise ValueError('End month must be greater than or equal to start month')
+        return v
+    
+    @validator('max_records')
+    def validate_max_records(cls, v):
+        # Ensure max_records is within a reasonable range
+        if v < 1:
+            raise ValueError('max_records must be at least 1')
+        if v > 1000:
+            raise ValueError('max_records cannot exceed 1000 for performance reasons')
+        return v
 
 # Preview response model
 class PreviewResponse(BaseModel):
