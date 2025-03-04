@@ -6,7 +6,6 @@ import {
   Grid
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 
 // Import extracted components
 import ExportHeader from '../components/ExportHeader';
@@ -18,11 +17,15 @@ import { fetchPreviewData, exportData, handleDownload, cleanupConnection, create
 
 /**
  * ExportPage component - Main page for data export functionality
+ * @param {Object} props - Component props
+ * @param {Object} props.connectionDetails - Connection details for the database
+ * @param {Function} props.logout - Function to handle logout
+ * @param {string} props.token - Authentication token
+ * @param {string} props.tokenExpiry - Token expiry timestamp
  * @returns {JSX.Element} - Rendered component
  */
-const ExportPage = () => {
+const ExportPage = ({ connectionDetails, logout, token, tokenExpiry }) => {
   const navigate = useNavigate();
-  const { connectionDetails, logout, token, tokenExpiry } = useAuth();
   
   // Check token validity on component mount
   useEffect(() => {
@@ -34,8 +37,8 @@ const ExportPage = () => {
   
   // Initial form state
   const initialFormState = {
-    fromMonth: null,
-    toMonth: null,
+    fromMonth: '',
+    toMonth: '',
     hs: '',
     prod: '',
     iec: '',

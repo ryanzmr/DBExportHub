@@ -21,25 +21,45 @@ export const fetchPreviewData = async (connectionDetails, formData, signal) => {
     
     console.log('Preview request data:', requestData);
     
+    // Get the authentication token from sessionStorage
+    const token = sessionStorage.getItem('authToken');
+    
     const response = await axios.post('http://localhost:8000/api/export/preview', requestData, {
-      signal: signal
+      signal: signal,
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
     });
     
     // Validate response data format
-    if (response.data && Array.isArray(response.data.data)) {
-      return {
-        data: response.data.data,
-        count: response.data.count || response.data.data.length,
-        error: null
-      };
-    } else {
-      console.error('Invalid preview data format:', response.data);
-      return {
-        data: [],
-        count: 0,
-        error: 'Invalid data format received from server'
-      };
+    console.log('Preview response:', response.data);
+    
+    // Check if response.data is an array (direct data) or has a data property
+    if (response.data) {
+      if (Array.isArray(response.data.data)) {
+        // Standard format with data property
+        return {
+          data: response.data.data,
+          count: response.data.count || response.data.data.length,
+          error: null
+        };
+      } else if (Array.isArray(response.data)) {
+        // Direct array format
+        return {
+          data: response.data,
+          count: response.data.length,
+          error: null
+        };
+      }
     }
+    
+    // If we get here, the format is invalid
+    console.error('Invalid preview data format:', response.data);
+    return {
+      data: [],
+      count: 0,
+      error: 'Invalid data format received from server'
+    };
   } catch (err) {
     console.error('Preview error:', err);
     let errorMessage = 'Error generating preview';

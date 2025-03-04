@@ -2,14 +2,14 @@ import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { LogoutOutlined } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 
-const Header = ({ title }) => {
+const Header = ({ title, isAuthenticated, onLogout }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
 
   const handleLogout = () => {
-    logout();
+    if (onLogout) {
+      onLogout();
+    }
     navigate('/login');
   };
 

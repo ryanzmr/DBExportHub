@@ -15,7 +15,6 @@ import {
 } from '@mui/material';
 import { Storage, Computer, AccountCircle, Key, ErrorOutline, Login, Dns, DataObject, Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
 // Import shared styles
 import { loginTextFieldStyle, primaryButtonStyle } from '../styles/formStyles';
 
@@ -121,9 +120,8 @@ const GlowingDot = ({ style }) => (
   />
 );
 
-const LoginPage = () => {
+const LoginPage = ({ login }) => {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   
@@ -381,505 +379,226 @@ const LoginPage = () => {
                 height: "15px",
                 borderRadius: "0 0 5px 5px",
                 background: "rgba(59, 130, 246, 0.15)",
-                bottom: "-18px",
-                left: 0,
-              },
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                width: "80px",
-                height: "15px",
-                background: "rgba(30, 64, 175, 0.2)",
-                bottom: "-9px",
-                left: 0,
-              },
-            }}
-          />
-          
-          {/* Data transfer lines */}
-          <Box
-            sx={{
-              position: "absolute",
-              width: "100px",
-              height: "2px",
-              background: "linear-gradient(90deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.4), rgba(59, 130, 246, 0))",
-              backgroundSize: "200% 100%",
-              animation: "dataFlow 3s linear infinite",
-              bottom: "10px",
-              left: "-80px",
-              transform: "rotate(15deg)",
-            }}
-          />
-          <Box
-            sx={{
-              position: "absolute",
-              width: "120px",
-              height: "2px",
-              background: "linear-gradient(90deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.4), rgba(59, 130, 246, 0))",
-              backgroundSize: "200% 100%",
-              animation: "dataFlow 4s linear infinite",
-              bottom: "25px",
-              right: "-100px",
-              transform: "rotate(-20deg)",
+                bottom: "-15px",
+                left: 0
+              }
             }}
           />
         </Box>
+
+        {/* Add more decorative elements */}
+        <FloatingText text="SELECT * FROM" style={{ top: "15%", left: "10%" }} />
+        <FloatingText text="JOIN tables ON" style={{ top: "25%", left: "65%" }} />
+        <FloatingText text="WHERE condition" style={{ top: "40%", left: "20%" }} />
+        <FloatingText text="GROUP BY column" style={{ top: "60%", left: "75%" }} />
+        <FloatingText text="ORDER BY column" style={{ top: "75%", left: "15%" }} />
+
+        <DatabaseIcon style={{ top: "20%", left: "25%" }} />
+        <DatabaseIcon style={{ top: "65%", left: "30%" }} />
+        <DatabaseIcon style={{ top: "35%", left: "80%" }} />
         
-        {/* Server Rack Visualization */}
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: "12%",
-            left: "8%",
-            width: "100px",
-            height: "140px",
-            border: "1px solid rgba(59, 130, 246, 0.2)",
-            borderRadius: "5px",
-            background: "rgba(15, 23, 42, 0.3)",
-            display: "flex",
-            flexDirection: "column",
-            padding: "5px",
-            gap: "5px",
-            animation: "float 15s ease-in-out infinite",
-            boxShadow: "0 0 15px rgba(59, 130, 246, 0.1)",
-          }}
-        >
-          {/* Server units */}
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Box
-              key={i}
-              sx={{
-                height: "20px",
-                width: "100%",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
-                borderRadius: "3px",
-                background: "rgba(30, 64, 175, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                padding: "0 5px",
-                justifyContent: "space-between",
-              }}
-            >
-              <Box sx={{ 
-                width: "5px", 
-                height: "5px", 
-                borderRadius: "50%", 
-                background: i % 2 === 0 ? "rgba(59, 130, 246, 0.5)" : "rgba(74, 222, 128, 0.5)",
-                boxShadow: i % 2 === 0 ? "0 0 5px rgba(59, 130, 246, 0.5)" : "0 0 5px rgba(74, 222, 128, 0.5)",
-              }} />
-              <Box sx={{ display: "flex", gap: "3px" }}>
-                {Array.from({ length: 3 }).map((_, j) => (
-                  <Box 
-                    key={j}
-                    sx={{ 
-                      width: "3px", 
-                      height: "8px", 
-                      background: "rgba(255, 255, 255, 0.2)",
-                    }} 
-                  />
-                ))}
-              </Box>
-            </Box>
-          ))}
-          
-          {/* Connection to cloud */}
-          <Box
-            sx={{
-              position: "absolute",
-              width: "150px",
-              height: "2px",
-              background: "linear-gradient(90deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0))",
-              backgroundSize: "200% 100%",
-              animation: "dataFlow 5s linear infinite",
-              top: "30%",
-              right: "-130px",
-              transform: "rotate(-10deg)",
-            }}
-          />
-        </Box>
+        <TableIcon style={{ top: "30%", left: "15%" }} />
+        <TableIcon style={{ top: "70%", left: "70%" }} />
         
-        {/* API Gateway Visualization */}
-        <Box
+        <DataFlow style={{ top: "25%", left: "35%", width: "100px" }} />
+        <DataFlow style={{ top: "45%", left: "60%", width: "120px", transform: "rotate(45deg)" }} />
+        <DataFlow style={{ top: "65%", left: "40%", width: "80px", transform: "rotate(-30deg)" }} />
+        
+        <CircleDecoration style={{ top: "40%", left: "50%", width: "300px", height: "300px" }} />
+        <CircleDecoration style={{ top: "20%", left: "70%", width: "150px", height: "150px" }} />
+        
+        <GlowingDot style={{ top: "30%", left: "40%" }} />
+        <GlowingDot style={{ top: "60%", left: "25%" }} />
+        <GlowingDot style={{ top: "25%", left: "85%" }} />
+        <GlowingDot style={{ top: "70%", left: "60%" }} />
+      </Box>
+
+      {/* Login Form */}
+      <Container maxWidth="sm" sx={{ position: "relative", zIndex: 1 }}>
+        <Paper
+          elevation={8}
           sx={{
-            position: "absolute",
-            top: "35%",
-            right: "25%",
-            width: "80px",
-            height: "80px",
-            border: "1px solid rgba(59, 130, 246, 0.3)",
-            borderRadius: "10px",
-            background: "rgba(15, 23, 42, 0.4)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "float 12s ease-in-out infinite",
-            boxShadow: "0 0 15px rgba(59, 130, 246, 0.1)",
+            p: { xs: 3, sm: 4 },
+            borderRadius: 2,
+            background: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            overflow: "hidden",
+            position: "relative",
             "&::before": {
               content: '""',
               position: "absolute",
-              width: "70%",
-              height: "70%",
-              border: "1px dashed rgba(59, 130, 246, 0.3)",
-              borderRadius: "50%",
-              animation: "rotate 20s linear infinite",
-            }
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "5px",
+              background: "linear-gradient(90deg, #1e40af, #3b82f6)",
+            },
           }}
         >
-          <Typography sx={{ fontSize: "8px", color: "rgba(255, 255, 255, 0.5)", mb: 0.5 }}>API</Typography>
-          <Box sx={{ 
-            width: "40px", 
-            height: "40px", 
-            display: "flex", 
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "3px" 
-          }}>
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Box 
-                key={i}
-                sx={{ 
-                  width: "25px", 
-                  height: "4px", 
-                  background: "rgba(59, 130, 246, 0.3)",
-                  borderRadius: "2px",
-                }} 
-              />
-            ))}
-          </Box>
-        </Box>
-        
-        {/* Data Warehouse */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: "60%",
-            left: "20%",
-            width: "100px",
-            height: "70px",
-            perspective: "500px",
-            animation: "float 16s ease-in-out infinite",
-          }}
-        >
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              position: "relative",
-              transformStyle: "preserve-3d",
-              transform: "rotateX(15deg) rotateY(15deg)",
-            }}
-          >
-            {/* Front face */}
-            <Box
-              sx={{
-                position: "absolute",
-                width: "100%",
-                height: "100%",
-                background: "rgba(30, 64, 175, 0.2)",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
-                borderRadius: "5px",
-                display: "flex",
-                flexDirection: "column",
-                padding: "5px",
-                gap: "3px",
-              }}
-            >
-              <Typography sx={{ fontSize: "7px", color: "rgba(255, 255, 255, 0.5)", textAlign: "center" }}>DATA WAREHOUSE</Typography>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Box 
-                  key={i}
-                  sx={{ 
-                    height: "5px", 
-                    width: `${70 + Math.random() * 20}%`, 
-                    background: "rgba(59, 130, 246, 0.2)",
-                    borderRadius: "2px",
-                  }} 
-                />
-              ))}
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <Box sx={{ mb: 3, textAlign: "center" }}>
+              <Typography
+                variant="h5"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  color: "#1a365d",
+                  mb: 1,
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Database Connection
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", mb: 2 }}
+              >
+                Enter your database credentials to access export functionality
+              </Typography>
             </Box>
-            
-            {/* Side face */}
-            <Box
-              sx={{
-                position: "absolute",
-                width: "15px",
-                height: "100%",
-                background: "rgba(15, 23, 42, 0.3)",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
-                borderRadius: "0 5px 5px 0",
-                transform: "rotateY(90deg) translateZ(100px) translateX(-7.5px)",
-              }}
-            />
-            
-            {/* Top face */}
-            <Box
-              sx={{
-                position: "absolute",
-                width: "100%",
-                height: "15px",
-                background: "rgba(59, 130, 246, 0.15)",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
-                borderRadius: "5px 5px 0 0",
-                transform: "rotateX(90deg) translateZ(7.5px) translateY(-7.5px)",
-              }}
-            />
-          </Box>
-        </Box>
-        
-        {/* Keep existing elements */}
-        {/* Large database server icon */}
-        <Box
-          sx={{
-            position: "absolute",
-            width: "120px",
-            height: "160px",
-            border: "2px solid rgba(59, 130, 246, 0.2)",
-            borderRadius: "10px",
-            background: "linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 64, 175, 0.3) 100%)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            top: "15%",
-            left: "10%",
-            animation: "float 20s ease-in-out infinite",
-            boxShadow: "0 0 20px rgba(59, 130, 246, 0.15)",
-          }}
-        >
-          <Dns sx={{ fontSize: 40, color: "rgba(255, 255, 255, 0.3)", mb: 1 }} />
-          <Box sx={{ width: "80%", height: "4px", background: "rgba(59, 130, 246, 0.3)", mb: 1, borderRadius: "2px" }} />
-          <Box sx={{ width: "60%", height: "4px", background: "rgba(59, 130, 246, 0.2)", mb: 1, borderRadius: "2px" }} />
-          <Box sx={{ width: "70%", height: "4px", background: "rgba(59, 130, 246, 0.2)", borderRadius: "2px" }} />
-        </Box>
-        
-        {/* Database cluster visualization */}
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: "15%",
-            right: "10%",
-            width: "180px",
-            height: "180px",
-            borderRadius: "50%",
-            border: "2px dashed rgba(59, 130, 246, 0.15)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "rotate 40s linear infinite",
-          }}
-        >
-          {/* Keep existing content */}
-        </Box>
-        
-        {/* Keep other existing elements */}
-      </Box>
 
-      {/* Login Form Paper */}
-      <Paper
-        elevation={24}
-        sx={{
-          maxWidth: { xs: 340, sm: 380 },
-          width: "90%",
-          position: "relative",
-          zIndex: 1,
-          background: "rgba(255, 255, 255, 0.98)",
-          backdropFilter: "blur(12px)",
-          borderRadius: 2.5,
-          overflow: "hidden",
-          p: { xs: 2, sm: 2.5 },
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <Box sx={{ textAlign: "center", mb: 2.5 }}>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 700,
-              background: "linear-gradient(45deg, #1e40af, #3b82f6)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              mb: 1,
-              fontFamily: "'Inter', sans-serif",
-            }}
-          >
-            Login
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: "text.secondary",
-              fontSize: "0.85rem",
-              fontFamily: "'Inter', sans-serif",
-            }}
-          >
-            Enter your database credentials
-          </Typography>
-        </Box>
-        
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Server"
-            name="server"
-            value={formData.server}
-            onChange={handleChange}
-            fullWidth
-            margin="dense"
-            required
-            placeholder="e.g., localhost\\SQLEXPRESS"
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Computer sx={{ color: "action.active", fontSize: 18 }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 1.5,
-                "&:hover fieldset": {
-                  borderColor: "primary.main",
-                },
-              },
-            }}
-          />
-          <TextField
-            label="Database"
-            name="database"
-            value={formData.database}
-            onChange={handleChange}
-            fullWidth
-            margin="dense"
-            required
-            placeholder="e.g., ExportDB"
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Storage sx={{ color: "action.active", fontSize: 18 }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 1.5,
-                "&:hover fieldset": {
-                  borderColor: "primary.main",
-                },
-              },
-            }}
-          />
-          <TextField
-            label="Username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            fullWidth
-            margin="dense"
-            required
-            placeholder="e.g., sa"
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <AccountCircle sx={{ color: "action.active", fontSize: 18 }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 1.5,
-                "&:hover fieldset": {
-                  borderColor: "primary.main",
-                },
-              },
-            }}
-          />
-          <TextField
-            label="Password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            value={formData.password}
-            onChange={handleChange}
-            fullWidth
-            margin="dense"
-            required
-            size="small"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Key sx={{ color: "action.active", fontSize: 18 }} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={handleTogglePasswordVisibility}
-                    sx={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      p: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      color: "action.active",
-                    }}
-                  >
-                    {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                  </Box>
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 1.5,
-                "&:hover fieldset": {
-                  borderColor: "primary.main",
-                },
-              },
-            }}
-          />
-          
-          {error && (
-            <Alert
-              severity="error"
-              icon={<ErrorOutline fontSize="small" />}
+            {error && (
+              <Alert
+                severity="error"
+                sx={{ mb: 3 }}
+                icon={<ErrorOutline />}
+              >
+                {error}
+              </Alert>
+            )}
+
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                id="server"
+                name="server"
+                label="Server"
+                placeholder="Enter server address"
+                value={formData.server}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Dns sx={{ color: theme.palette.primary.main }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={loginTextFieldStyle}
+              />
+            </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                id="database"
+                name="database"
+                label="Database"
+                placeholder="Enter database name"
+                value={formData.database}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Storage sx={{ color: theme.palette.primary.main }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={loginTextFieldStyle}
+              />
+            </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                id="username"
+                name="username"
+                label="Username"
+                placeholder="Enter username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <AccountCircle sx={{ color: theme.palette.primary.main }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={loginTextFieldStyle}
+              />
+            </Box>
+
+            <Box sx={{ mb: 4 }}>
+              <TextField
+                fullWidth
+                id="password"
+                name="password"
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Key sx={{ color: theme.palette.primary.main }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Button
+                        aria-label="toggle password visibility"
+                        onClick={handleTogglePasswordVisibility}
+                        onMouseDown={(e) => e.preventDefault()}
+                        edge="end"
+                        sx={{ minWidth: 'auto', p: 0.5 }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </Button>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={loginTextFieldStyle}
+              />
+            </Box>
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={loading}
+              startIcon={loading ? null : <Login />}
               sx={{
-                mt: 1.5,
-                py: 0.5,
-                borderRadius: 1.5,
-                alignItems: "center",
-                fontSize: "0.8rem",
-                "& .MuiAlert-icon": {
-                  color: "error.main",
-                  opacity: 0.8,
-                  fontSize: "1rem",
-                  mr: 1,
+                ...primaryButtonStyle,
+                py: 1.2,
+                fontSize: "1rem",
+                fontWeight: 600,
+                boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+                "&:hover": {
+                  boxShadow: "0 6px 16px rgba(59, 130, 246, 0.4)",
+                  transform: "translateY(-1px)",
                 },
+                transition: "all 0.2s ease",
               }}
             >
-              {error}
-            </Alert>
-          )}
-          
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            disabled={loading}
-            startIcon={loading ? null : <Login sx={{ fontSize: 18 }} />}
-            sx={primaryButtonStyle}
-          >
-            {loading ? <CircularProgress size={20} color="inherit" /> : "Connect"}
-          </Button>
-        </form>
-      </Paper>
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Connect"
+              )}
+            </Button>
+          </Box>
+        </Paper>
+      </Container>
     </Box>
   );
 };

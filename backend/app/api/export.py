@@ -6,6 +6,7 @@ from datetime import datetime
 import tempfile
 import uuid
 import pathlib
+import pyodbc
 from typing import List, Dict, Any, Optional
 
 from ..config import settings
@@ -34,13 +35,13 @@ def preview_data(params):
             sp_params = {
                 "fromMonth": params.fromMonth,
                 "ToMonth": params.toMonth,
-                "hs": params.hs or "",
-                "prod": params.prod or "",
-                "Iec": params.iec or "",
-                "ExpCmp": params.expCmp or "",
-                "forcount": params.forcount or "",
-                "forname": params.forname or "",
-                "port": params.port or ""
+                "hs": params.hs if params.hs else None,
+                "prod": params.prod if params.prod else None,
+                "Iec": params.iec if params.iec else None,
+                "ExpCmp": params.expCmp if params.expCmp else None,
+                "forcount": params.forcount if params.forcount else None,
+                "forname": params.forname if params.forname else None,
+                "port": params.port if params.port else None
             }
             
             print(f"Executing stored procedure with params: {sp_params}")
@@ -50,30 +51,37 @@ def preview_data(params):
             param_list = list(sp_params.values())
             sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
             
-            # Use cursor directly for executing stored procedure
-            cursor = conn.cursor()
-            cursor.execute(sp_call, param_list)
-            conn.commit()
-            cursor.close()
-            
-            # Then query the temp table for preview data
-            preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_TEMP_TABLE}"
-            
-            # Use pandas to read the data
-            df = pd.read_sql(preview_query, conn)
-            
-            # Convert DataFrame to dictionary with date handling
-            # Convert all timestamps to strings in ISO format
-            for col in df.select_dtypes(include=['datetime64']).columns:
-                df[col] = df[col].dt.strftime('%Y-%m-%dT%H:%M:%S')
-            
-            # Replace NaN values with None for JSON serialization
-            df = df.replace({np.nan: None})
-            
-            # Convert to records
-            result = df.to_dict('records')
-            
-            return result
+            try:
+                # Use cursor directly for executing stored procedure
+                cursor = conn.cursor()
+                cursor.execute(sp_call, param_list)
+                conn.commit()
+                cursor.close()
+                
+                # Then query the temp table for preview data
+                preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_TEMP_TABLE}"
+                
+                # Use pandas to read the data
+                df = pd.read_sql(preview_query, conn)
+                
+                # Convert DataFrame to dictionary with date handling
+                # Convert all timestamps to strings in ISO format
+                for col in df.select_dtypes(include=['datetime64']).columns:
+                    df[col] = df[col].dt.strftime('%Y-%m-%dT%H:%M:%S')
+                
+                # Replace NaN values with None for JSON serialization
+                df = df.replace({np.nan: None})
+                
+                # Convert to records
+                result = df.to_dict('records')
+                
+                return result
+            except pyodbc.Error as e:
+                print(f"Database error during preview: {str(e)}")
+                raise Exception(f"Database error: {str(e)}")
+            except pd.io.sql.DatabaseError as e:
+                print(f"Pandas SQL error during preview: {str(e)}")
+                raise Exception(f"Data processing error: {str(e)}")
     except Exception as e:
         print(f"Preview data error: {str(e)}")
         raise Exception(f"Error generating preview: {str(e)}")

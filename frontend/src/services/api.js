@@ -19,8 +19,8 @@ const apiClient = axios.create({
 // Request interceptor for logging and token handling
 apiClient.interceptors.request.use(
   (config) => {
-    // Get token from localStorage if it exists
-    const token = localStorage.getItem('auth_token');
+    // Get token from sessionStorage if it exists
+    const token = sessionStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,7 +41,7 @@ apiClient.interceptors.response.use(
       // Server responded with a status code outside of 2xx range
       if (error.response.status === 401) {
         // Unauthorized - clear auth data and redirect to login
-        localStorage.removeItem('auth_token');
+        sessionStorage.removeItem('authToken');
         // If we have access to router, we could redirect here
       }
     } else if (error.request) {
@@ -91,7 +91,7 @@ const apiService = {
       const response = await apiClient.post('/api/auth/login', credentials);
       // Store token in localStorage for interceptor to use
       if (response.data.token) {
-        localStorage.setItem('auth_token', response.data.token);
+        sessionStorage.setItem('authToken', response.data.token);
       }
       return response.data;
     } catch (error) {
@@ -102,7 +102,7 @@ const apiService = {
   
   // Logout - clear token and cache
   logout: async () => {
-    localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('authToken');
     clearCache();
     return { success: true };
   },

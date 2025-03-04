@@ -163,12 +163,6 @@ async def get_preview(params: ExportParameters, connection: dict = Depends(get_c
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating preview: {str(e)}"
         )
-        return PreviewResponse(data=data, count=len(data))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating preview: {str(e)}"
-        )
 
 # Export data endpoint with streaming response
 @app.post("/api/export")

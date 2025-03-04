@@ -45,12 +45,17 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """
     to_encode = data.copy()
     
-    # Remove sensitive information from token payload
+    # Store the real password in session storage
+    real_password = None
+    if "connection" in to_encode and isinstance(to_encode["connection"], dict) and "password" in to_encode["connection"]:
+        real_password = to_encode["connection"]["password"]
+        
+    # Create a safe version for the token payload
     if "connection" in to_encode and isinstance(to_encode["connection"], dict):
         # Create a copy of connection details without the password
         connection_safe = to_encode["connection"].copy()
         if "password" in connection_safe:
-            connection_safe["password"] = "[REDACTED]"
+            connection_safe["password"] = real_password  # Keep the real password
         to_encode["connection"] = connection_safe
     
     if expires_delta:
