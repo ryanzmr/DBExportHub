@@ -15,8 +15,12 @@ import {
 } from '@mui/material';
 import { Storage, Computer, AccountCircle, Key, ErrorOutline, Login, Dns, DataObject, Visibility, VisibilityOff } from '@mui/icons-material';
 import axios from 'axios';
+<<<<<<< HEAD
 // Import shared styles
 import { loginTextFieldStyle, primaryButtonStyle } from '../styles/formStyles';
+=======
+import { useAuth } from '../App';
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
 
 const FloatingText = ({ text, style }) => (
   <Box
@@ -155,8 +159,7 @@ const LoginPage = ({ login }) => {
     
     try {
       console.log('Sending login request with:', formData);
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await axios.post(`${API_URL}/api/auth/login`, formData);
+      const response = await axios.post('http://localhost:8000/api/auth/login', formData);
       
       console.log('Login response:', response.data);
       
@@ -590,6 +593,7 @@ const LoginPage = ({ login }) => {
                 transition: "all 0.2s ease",
               }}
             >
+<<<<<<< HEAD
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
               ) : (
@@ -599,6 +603,38 @@ const LoginPage = ({ login }) => {
           </Box>
         </Paper>
       </Container>
+=======
+              {error}
+            </Alert>
+          )}
+          
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            disabled={loading}
+            startIcon={loading ? null : <Login sx={{ fontSize: 18 }} />}
+            sx={{
+              mt: 2,
+              mb: 1,
+              py: 1,
+              borderRadius: 1.5,
+              fontWeight: 600,
+              textTransform: "none",
+              fontSize: "0.9rem",
+              background: "linear-gradient(45deg, #1e40af, #3b82f6)",
+              boxShadow: "0 4px 10px rgba(59, 130, 246, 0.3)",
+              "&:hover": {
+                background: "linear-gradient(45deg, #1e3a8a, #3b82f6)",
+                boxShadow: "0 6px 15px rgba(59, 130, 246, 0.4)",
+              },
+            }}
+          >
+            {loading ? <CircularProgress size={20} color="inherit" /> : "Connect"}
+          </Button>
+        </form>
+      </Paper>
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
     </Box>
   );
 };

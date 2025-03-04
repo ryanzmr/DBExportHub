@@ -3,19 +3,15 @@ import axios from 'axios';
 // Get the API URL from environment variables
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Simple in-memory cache for API responses
-const apiCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds timeout
 });
 
+<<<<<<< HEAD
 // Request interceptor for logging and token handling
 apiClient.interceptors.request.use(
   (config) => {
@@ -83,23 +79,28 @@ const generateCacheKey = (endpoint, params) => {
   return `${endpoint}:${JSON.stringify(params)}`;
 };
 
+=======
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
 // API service functions
 const apiService = {
   // Authentication
   login: async (credentials) => {
     try {
       const response = await apiClient.post('/api/auth/login', credentials);
+<<<<<<< HEAD
       // Store token in localStorage for interceptor to use
       if (response.data.token) {
         sessionStorage.setItem('authToken', response.data.token);
       }
+=======
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
       return response.data;
     } catch (error) {
-      console.error('Login error:', error);
       throw error.response?.data || error.message;
     }
   },
   
+<<<<<<< HEAD
   // Logout - clear token and cache
   logout: async () => {
     sessionStorage.removeItem('authToken');
@@ -108,27 +109,14 @@ const apiService = {
   },
   
   // Data preview with caching
+=======
+  // Data preview
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
   previewData: async (params) => {
     try {
-      // Generate cache key
-      const cacheKey = generateCacheKey('/api/export/preview', params);
-      
-      // Check cache first
-      const cachedData = getCachedData(cacheKey);
-      if (cachedData) {
-        console.log('Using cached preview data');
-        return cachedData;
-      }
-      
-      // If not in cache, make the API call
       const response = await apiClient.post('/api/export/preview', params);
-      
-      // Cache the response
-      setCacheData(cacheKey, response.data);
-      
       return response.data;
     } catch (error) {
-      console.error('Preview data error:', error);
       throw error.response?.data || error.message;
     }
   },
@@ -166,9 +154,6 @@ const apiService = {
       link.click();
       document.body.removeChild(link);
       
-      // Clean up the URL object
-      window.URL.revokeObjectURL(url);
-      
       return { 
         status: 'success', 
         message: 'Export completed successfully',
@@ -178,60 +163,19 @@ const apiService = {
       if (error.name === 'AbortError') {
         return { status: 'cancelled', message: 'Export was cancelled' };
       }
-      console.error('Export error:', error);
       throw error.response?.data || error.message;
     }
   },
   
-  // Cancel export
-  cancelExport: (controller) => {
-    if (controller) {
-      controller.abort();
-      return true;
-    }
-    return false;
-  },
-  
-  // Health check with caching
+  // Health check
   healthCheck: async () => {
     try {
-      const cacheKey = 'health_check';
-      
-      // Check cache first with shorter duration for health checks
-      const cachedData = getCachedData(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-      
       const response = await apiClient.get('/api/health');
-      
-      // Cache the response
-      setCacheData(cacheKey, response.data);
-      
       return response.data;
     } catch (error) {
-      console.error('Health check error:', error);
       throw error.response?.data || error.message;
     }
-  },
-  
-  // Cleanup connection
-  cleanupConnection: async (sessionId) => {
-    try {
-      const response = await apiClient.post('/api/cleanup', { sessionId });
-      return response.data;
-    } catch (error) {
-      console.error('Cleanup error:', error);
-      // Don't throw error for cleanup operations
-      return { status: 'error', message: error.response?.data || error.message };
-    }
-  },
-  
-  // Utility to clear the cache
-  clearCache
+  }
 };
 
 export default apiService;
-
-// Export cache utilities for direct use
-export { clearCache, apiClient };

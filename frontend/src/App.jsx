@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+=======
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
 import { Box, CssBaseline } from '@mui/material';
 import axios from 'axios';
 
@@ -7,9 +12,24 @@ import axios from 'axios';
 import LoginPage from './pages/LoginPage';
 import ExportPage from './pages/ExportPage';
 
+<<<<<<< HEAD
 // App component with routes protected by authentication
+=======
+// Context for managing authentication state
+const AuthContext = createContext(null);
+
+export const useAuth = () => useContext(AuthContext);
+
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
 function App() {
+  const [authState, setAuthState] = useState({
+    isAuthenticated: false,
+    connectionDetails: null,
+    token: null,
+    tokenExpiry: null
+  });
   const location = useLocation();
+<<<<<<< HEAD
   
   // Authentication state
   const [authState, setAuthState] = useState({
@@ -50,6 +70,11 @@ function App() {
   }, []);
 
   // Check authentication status on initial load
+=======
+  const navigate = useNavigate();
+
+  // Check for token on initial load and set up refresh timer
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
   useEffect(() => {
     const checkAuth = () => {
       const token = sessionStorage.getItem('authToken');
@@ -61,14 +86,27 @@ function App() {
         if (new Date(tokenExpiry) > new Date()) {
           console.log('Found valid token, restoring session');
           
+<<<<<<< HEAD
           // Setup axios interceptor
           setupAxiosInterceptor(token);
           
           // Update auth state
+=======
+          // Set up axios interceptor for adding token to requests
+          axios.interceptors.request.use(
+            config => {
+              config.headers['Authorization'] = `Bearer ${token}`;
+              return config;
+            },
+            error => Promise.reject(error)
+          );
+          
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
           setAuthState({
             isAuthenticated: true,
             connectionDetails,
             token,
+<<<<<<< HEAD
             tokenExpiry,
             isLoading: false
           });
@@ -84,10 +122,36 @@ function App() {
       } else {
         // No token found, ensure state reflects this
         setAuthState(prev => ({ ...prev, isLoading: false }));
+=======
+            tokenExpiry
+          });
+          
+          // Set up token refresh before expiry
+          const timeToExpiry = new Date(tokenExpiry) - new Date();
+          if (timeToExpiry > 0) {
+            console.log(`Token expires in ${Math.round(timeToExpiry/1000)} seconds`);
+            setTimeout(() => {
+              console.log('Token expired, logging out');
+              // Redirect to login when token expires
+              if (location.pathname !== '/login') {
+                logout();
+                navigate('/login');
+              }
+            }, timeToExpiry);
+          }
+        } else {
+          console.log('Token expired, clearing session');
+          // Token expired, clear storage
+          sessionStorage.removeItem('authToken');
+          sessionStorage.removeItem('tokenExpiry');
+          sessionStorage.removeItem('connectionDetails');
+        }
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
       }
     };
     
     checkAuth();
+<<<<<<< HEAD
   }, [setupAxiosInterceptor]);
 
   // Handle navigation based on auth state
@@ -135,16 +199,42 @@ function App() {
 
   // Login function
   const login = useCallback(async (connectionDetails) => {
+=======
+  }, [navigate, location.pathname]);
+  // Log navigation for debugging
+  useEffect(() => {
+    console.log('Current path:', location.pathname);
+    console.log('Auth state in navigation effect:', authState);
+    
+    // Redirect to export page if authenticated and on login page
+    if (authState.isAuthenticated && location.pathname === '/login') {
+      console.log('Redirecting from login to export page due to authenticated state');
+      // Add a small delay to ensure state is fully updated before navigation
+      setTimeout(() => {
+        navigate('/export', { replace: true });
+      }, 100);
+    }
+  }, [location, authState, navigate]);
+  const login = async (connectionDetails) => {
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
     try {
       console.log('Login called with:', connectionDetails);
       
       // Request JWT token from backend
+<<<<<<< HEAD
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const response = await axios.post(`${API_URL}/api/auth/login`, connectionDetails);
       
       if (response.data.token) {
         const token = response.data.token;
         // Set token expiry to 30 minutes from now
+=======
+      const response = await axios.post('http://localhost:8000/api/auth/login', connectionDetails);
+      
+      if (response.data.token) {
+        const token = response.data.token;
+        // Set token expiry to 30 minutes from now instead of 5 minutes
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
         const tokenExpiry = new Date(new Date().getTime() + 30 * 60000).toISOString();
         
         // Store in session storage
@@ -152,8 +242,19 @@ function App() {
         sessionStorage.setItem('tokenExpiry', tokenExpiry);
         sessionStorage.setItem('connectionDetails', JSON.stringify(connectionDetails));
         
+<<<<<<< HEAD
         // Setup axios interceptor
         setupAxiosInterceptor(token);
+=======
+        // Set up axios interceptor for adding token to requests
+        axios.interceptors.request.use(
+          config => {
+            config.headers['Authorization'] = `Bearer ${token}`;
+            return config;
+          },
+          error => Promise.reject(error)
+        );
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
         
         // Update auth state - ensure this is the last operation
         await new Promise(resolve => {
@@ -161,16 +262,23 @@ function App() {
             isAuthenticated: true,
             connectionDetails,
             token,
+<<<<<<< HEAD
             tokenExpiry,
             isLoading: false
+=======
+            tokenExpiry
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
           });
           // Give React time to process the state update
           setTimeout(resolve, 50);
         });
         
+<<<<<<< HEAD
         // Setup token expiry handler
         setupTokenExpiryHandler(tokenExpiry);
         
+=======
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
         console.log('Auth state updated:', {
           isAuthenticated: true,
           connectionDetails,
@@ -184,6 +292,7 @@ function App() {
       console.error('Login error:', error);
       return false;
     }
+<<<<<<< HEAD
   }, [setupAxiosInterceptor, setupTokenExpiryHandler]);
 
   // Logout function
@@ -198,17 +307,34 @@ function App() {
     clearAuthData();
     
     // Reset auth state
+=======
+  };
+  const logout = () => {
+    // Clear session storage
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('tokenExpiry');
+    sessionStorage.removeItem('connectionDetails');
+    
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
     setAuthState({
       isAuthenticated: false,
       connectionDetails: null,
       token: null,
+<<<<<<< HEAD
       tokenExpiry: null,
       isLoading: false
     });
   }, [clearAuthData]);
+=======
+      tokenExpiry: null
+    });
+  };
+
+  console.log('Auth state:', authState);
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
 
   return (
-    <>
+    <AuthContext.Provider value={{ ...authState, login, logout }}>
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Routes>
@@ -221,12 +347,16 @@ function App() {
             path="/export" 
             element={
               authState.isAuthenticated ? 
+<<<<<<< HEAD
               <ExportPage 
                 connectionDetails={authState.connectionDetails}
                 logout={logout}
                 token={authState.token}
                 tokenExpiry={authState.tokenExpiry}
               /> : 
+=======
+              <ExportPage /> : 
+>>>>>>> parent of 3449f4b (Implemented_enhancements (#5))
               <Navigate to="/login" replace state={{ from: location }} />
             } 
           />
@@ -238,7 +368,7 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Box>
-    </>
+    </AuthContext.Provider>
   );
 }
 
