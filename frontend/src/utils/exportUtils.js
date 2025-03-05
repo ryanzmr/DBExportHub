@@ -9,19 +9,31 @@ import axios from 'axios';
  * @param {AbortSignal} signal - AbortController signal for cancellation
  * @returns {Promise} - Promise with preview data
  */
-export const fetchPreviewData = async (connectionDetails, formData, signal) => {
+export const fetchPreviewData = async (connectionDetails, signal) => {
   try {
     const requestData = {
       ...connectionDetails,
-      ...formData,
       preview_only: true,
-      fromMonth: parseInt(formData.fromMonth),
-      toMonth: parseInt(formData.toMonth)
+      fromMonth: parseInt(connectionDetails.fromMonth),
+      toMonth: parseInt(connectionDetails.toMonth)
     };
     
     console.log('Preview request data:', requestData);
     
-    const response = await axios.post('http://localhost:8000/api/export/preview', requestData, {
+    // Get API URL from environment or use default
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    
+    // Get token from sessionStorage
+    const token = sessionStorage.getItem('authToken');
+    
+    // Include token in the request headers if available
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await axios.post(`${API_URL}/api/export/preview`, requestData, {
+      headers,
       signal: signal
     });
     
@@ -69,7 +81,7 @@ export const fetchPreviewData = async (connectionDetails, formData, signal) => {
  * @param {Function} onProgress - Callback for progress updates
  * @returns {Promise} - Promise with export result
  */
-export const exportData = async (connectionDetails, formData, signal, onProgress) => {
+export const exportData = async (connectionDetails, signal, onProgress) => {
   try {
     // Create progress indicator
     const progressIndicator = document.createElement('div');

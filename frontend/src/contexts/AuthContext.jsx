@@ -5,6 +5,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 // Create the auth context
 const AuthContext = createContext(null);
 
+// Export the AuthContext for direct import
+export { AuthContext };
+
 // Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
