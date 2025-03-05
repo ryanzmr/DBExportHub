@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from fastapi.security import OAuth2PasswordBearer
 from typing import List, Optional
 import os
 import json
@@ -22,15 +21,10 @@ class LoginRequest(BaseModel):
     password: str
 
 # Add these constants for JWT
-# Load environment variables or generate a secure key
-if not os.getenv("SECRET_KEY"):
-    import secrets
-    print("WARNING: Using auto-generated SECRET_KEY. For production, set SECRET_KEY in environment variables.")
-
-SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
+SECRET_KEY = "your-secret-key-here"  # Change this to a secure secret key
 ALGORITHM = "HS256"
 # Change this constant
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Changed from 5 to 30 minutes
+ACCESS_TOKEN_EXPIRE_MINUTES = 5  # Changed back from 30 to 5 minutes
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -103,34 +97,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# Get current connection from token
-async def get_current_connection(token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/auth/login"))):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        connection = payload.get("connection")
-        if connection is None:
-            raise credentials_exception
-        return connection
-    except jwt.PyJWTError:
-        raise credentials_exception
-
-# Preview data endpoint with authentication
+# Preview data endpoint
 @app.post("/api/export/preview")
-async def get_preview(params: ExportParameters, token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/auth/login"))):
-    # Verify token is valid
-    try:
-        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+async def get_preview(params: ExportParameters):
     try:
         # Get preview data (first 100 records)
         data = preview_data(params)
