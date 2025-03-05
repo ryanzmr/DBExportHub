@@ -2,9 +2,9 @@
 
 A web-based application for exporting SQL Server data to Excel based on specific conditions.
 
-## Overview
+## Project Overview
 
-DBExportHub is a modern replacement for an outdated VB6 application that exports trade/shipping data from SQL Server to Excel. The application provides a user-friendly interface for specifying export parameters, previewing data, and downloading formatted Excel files.
+DBExportHub is a modern replacement for an outdated VB6 application that exports trade/shipping data from SQL Server to Excel. The application provides a user-friendly interface for specifying export parameters, previewing data, and downloading formatted Excel files. It's designed to handle large datasets efficiently and provide a seamless user experience.
 
 ## Features
 
@@ -13,65 +13,63 @@ DBExportHub is a modern replacement for an outdated VB6 application that exports
 - Data preview capability (first 100 records)
 - Excel export with proper formatting
 - Optimized for large datasets
+- Token-based authentication
+- Responsive user interface
+
+## Architecture Breakdown
+
+### System Architecture
+
+DBExportHub follows a client-server architecture:
+
+1. **Frontend (Client)**: React.js application that provides the user interface
+2. **Backend (Server)**: FastAPI application that handles database connections and data processing
+3. **Database**: Microsoft SQL Server that stores the data to be exported
+
+### Workflow Process
+
+1. **Authentication Flow**:
+   - User provides SQL Server connection details (server, database, username, password)
+   - Backend validates the connection and issues a JWT token
+   - Frontend stores the token and uses it for subsequent API calls
+
+2. **Data Export Flow**:
+   - User specifies export parameters (date range, filters, etc.)
+   - Frontend sends a preview request to the backend
+   - Backend executes the stored procedure with the specified parameters
+   - Frontend displays a preview of the data (first 100 records)
+   - User can then export the full dataset to Excel
+   - Backend generates the Excel file and sends it to the frontend for download
 
 ## Tech Stack
 
 ### Frontend
-- React.js
-- Material-UI for styling
+- React.js with React Router for navigation
+- Material-UI for styling and components
 - React Hooks for state management
 - Axios for API calls
+- Vite as the build tool
 
 ### Backend
-- FastAPI (Python)
+- FastAPI (Python) for the API server
 - pyodbc for SQL Server connectivity
+- pandas for data manipulation
 - OpenPyXL for Excel generation
-- JWT for authentication (optional)
+- JWT for authentication
 - Uvicorn web server
 
 ### Database
 - Microsoft SQL Server
 - Existing stored procedures
 
-## Project Structure
-
-```
-DBExportHub/
-├── backend/              # FastAPI application
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py       # FastAPI entry point
-│   │   ├── config.py     # Configuration settings
-│   │   ├── models.py     # Pydantic models
-│   │   ├── database.py   # Database connection
-│   │   ├── auth.py       # Authentication
-│   │   └── api/          # API endpoints
-│   │       ├── __init__.py
-│   │       ├── export.py # Export endpoints
-│   │       └── auth.py   # Auth endpoints
-│   ├── requirements.txt  # Python dependencies
-│   └── .env.example      # Environment variables example
-└── frontend/            # React application
-    ├── public/
-    ├── src/
-    │   ├── components/   # React components
-    │   ├── pages/        # Page components
-    │   ├── services/     # API services
-    │   ├── utils/        # Utility functions
-    │   ├── App.js        # Main App component
-    │   └── index.js      # Entry point
-    ├── package.json      # NPM dependencies
-    └── .env.example      # Environment variables example
-```
-
-## Setup Instructions
+## Setup & Installation Guide
 
 ### Prerequisites
 
 - Node.js (v14+)
 - Python (v3.8+)
 - SQL Server
-- ODBC Driver for SQL Server
+- ODBC Driver for SQL Server (v17+)
 
 ### Backend Setup
 
@@ -94,11 +92,9 @@ DBExportHub/
    pip install -r requirements.txt
    ```
 
-5. Create a `.env` file based on `.env.example` and configure your database settings.
-
-6. Run the FastAPI server:
+5. Run the FastAPI server:
    ```
-   uvicorn app.main:app --reload
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 ### Frontend Setup
@@ -113,124 +109,180 @@ DBExportHub/
    npm install
    ```
 
-3. Create a `.env` file based on `.env.example` and configure your API URL.
+3. Create a `.env` file based on `.env.example` with your configuration.
 
 4. Start the development server:
    ```
-   npm start
+   npm run dev
    ```
 
-## Usage
+5. Access the application at `http://localhost:5173`
 
-1. Open your browser and navigate to `http://localhost:3000`
-2. Log in with your database credentials
-3. Enter export parameters
-4. Preview data (optional)
-5. Export to Excel
+## Code Structure & Module Explanation
 
-## License
+### Backend Structure
 
-This project is licensed under the MIT License.
-
-# DBExportHub - Testing Guide
-
-## Prerequisites
-- Python 3.8 or higher
-- Running instance of SQL Server
-- Database with test data
-
-## Steps to Test the Application
-
-### 1. Start the Backend Server
-Navigate to the backend directory and start the server:
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+```
+backend/
+├── app/                  # FastAPI application
+│   ├── __init__.py
+│   ├── main.py           # FastAPI entry point
+│   ├── config.py         # Configuration settings
+│   ├── models.py         # Pydantic models
+│   ├── database.py       # Database connection
+│   └── api/              # API endpoints
+│       ├── __init__.py
+│       ├── export.py     # Export endpoints
+│       └── auth.py       # Auth endpoints
+├── requirements.txt      # Python dependencies
+└── templates/            # Excel templates
 ```
 
-The API will be available at http://localhost:8000
+**Key Backend Files:**
 
-### 2. Run the Test Script
-Use the provided test script to verify all API endpoints:
+- **main.py**: Entry point for the FastAPI application, defines routes and middleware
+- **config.py**: Configuration settings for the application
+- **models.py**: Pydantic models for request/response validation
+- **database.py**: Database connection utilities
+- **api/export.py**: Endpoints for data preview and Excel export
+- **api/auth.py**: Authentication utilities
 
-```bash
-python test_script.py
+### Frontend Structure
+
+```
+frontend/
+├── src/
+│   ├── components/       # Reusable UI components
+│   ├── pages/            # Page components
+│   ├── services/         # API services
+│   ├── utils/            # Utility functions
+│   ├── App.jsx           # Main App component
+│   └── index.jsx         # Entry point
+├── package.json          # NPM dependencies
+└── vite.config.js        # Vite configuration
 ```
 
-This script tests:
-- Health check endpoint
-- Database login functionality
-- Data preview capability
-- Excel export functionality
+**Key Frontend Files:**
 
-### 3. Run Automated Tests (Optional)
-For more comprehensive testing:
+- **App.jsx**: Main application component with routing and authentication context
+- **pages/LoginPage.jsx**: Login page for database connection
+- **pages/ExportPage.jsx**: Main export interface
+- **components/ExportForm.jsx**: Form for export parameters
+- **components/PreviewTable.jsx**: Table for data preview
+- **utils/exportUtils.js**: Utility functions for export operations
 
-```bash
-pip install pytest
-pytest tests/test_api.py -v
-```
+## API Documentation
 
-## Troubleshooting
+### Authentication Endpoints
 
-### Common Issues:
-1. **Connection Errors**: Verify SQL Server credentials and that the server is accepting connections
-2. **Missing Dependencies**: Make sure all requirements are installed
-3. **Permission Issues**: Check that the application has permission to create files in the output directory
+#### POST /api/auth/login
 
-### Logs:
-Check the server logs for detailed error messages.
+Authenticate user with database credentials.
 
-## Manual Testing
-You can also test the API endpoints manually using curl or Postman:
-
-### Health Check
-```
-GET http://localhost:8000/api/health
-```
-
-### Login
-```
-POST http://localhost:8000/api/login
-Content-Type: application/json
-
+**Request:**
+```json
 {
-  "server": "your_server",
-  "database": "your_database",
-  "username": "your_username",
-  "password": "your_password"
+  "server": "sql-server-name",
+  "database": "database-name",
+  "username": "db-username",
+  "password": "db-password"
 }
 ```
 
-### Preview Data
-```
-POST http://localhost:8000/api/preview
-Content-Type: application/json
-
+**Response:**
+```json
 {
-  "server": "your_server",
-  "database": "your_database",
-  "username": "your_username",
-  "password": "your_password",
-  "query": "SELECT TOP 10 * FROM YourTable",
-  "parameters": {}
+  "token": "jwt-token",
+  "token_type": "bearer",
+  "expires_in": 300
 }
 ```
 
-### Export Data
-```
-POST http://localhost:8000/api/export
-Content-Type: application/json
+### Export Endpoints
 
+#### POST /api/export/preview
+
+Get a preview of the export data.
+
+**Request:**
+```json
 {
-  "server": "your_server",
-  "database": "your_database",
-  "username": "your_username",
-  "password": "your_password",
-  "query": "SELECT * FROM YourTable",
-  "parameters": {},
-  "filename": "export.xlsx"
+  "server": "sql-server-name",
+  "database": "database-name",
+  "username": "db-username",
+  "password": "db-password",
+  "fromMonth": 202301,
+  "toMonth": 202312,
+  "hs": "optional-hs-code",
+  "prod": "optional-product-description",
+  "iec": "optional-iec-code",
+  "expCmp": "optional-exporter-company",
+  "forcount": "optional-foreign-country",
+  "forname": "optional-foreign-importer",
+  "port": "optional-port",
+  "preview_only": true,
+  "max_records": 100
 }
 ```
+
+**Response:**
+```json
+{
+  "data": [/* Array of data records */],
+  "count": 100
+}
+```
+
+#### POST /api/export/excel
+
+Generate and download an Excel file.
+
+**Request:**
+(Same as preview endpoint, but with `preview_only: false`)
+
+**Response:**
+Excel file download
+
+## Common Issues & Debugging Guide
+
+### Connection Issues
+
+1. **Database Connection Failures**
+   - Verify SQL Server credentials are correct
+   - Ensure the SQL Server is accessible from the backend server
+   - Check that the ODBC Driver is installed correctly
+   - Verify firewall settings allow the connection
+
+2. **Token Expiration**
+   - The default token expiration is set to 5 minutes
+   - If experiencing frequent logouts, check the `ACCESS_TOKEN_EXPIRE_MINUTES` setting in `main.py`
+
+### Data Export Issues
+
+1. **No Data in Preview**
+   - Verify the export parameters are correct
+   - Check that the date range contains data
+   - Ensure the stored procedure is working correctly
+
+2. **Excel Export Failures**
+   - Check for sufficient disk space for temporary files
+   - Verify the Excel template exists in the correct location
+   - For large datasets, increase the server timeout settings
+
+### Performance Optimization
+
+1. **Slow Data Preview**
+   - Limit the number of records in the preview
+   - Add appropriate indexes to the database tables
+
+2. **Slow Excel Generation**
+   - Use chunking for large datasets (set `useChunking: true` and `chunkSize: 5000`)
+   - Consider using server-side pagination
+
+## Future Enhancement Opportunities
+
+1. **Data Caching**: Implement client-side caching for frequently accessed data
+2. **Export Templates**: Add support for custom export templates
+3. **Batch Operations**: Enable batch export functionality
+4. **Advanced Filtering**: Implement more sophisticated data filtering options
+5. **User Preferences**: Add user-specific settings and preferences
