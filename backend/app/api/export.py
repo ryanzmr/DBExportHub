@@ -59,8 +59,8 @@ def preview_data(params):
             # Then query the temp table for preview data
             preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_TEMP_TABLE}"
             
-            # Use pandas to read the data
-            df = pd.read_sql(preview_query, conn)
+            # Use the query_to_dataframe helper function instead of direct pd.read_sql
+            df = query_to_dataframe(conn, preview_query)
             
             # Convert DataFrame to dictionary with date handling
             # Convert all timestamps to strings in ISO format
@@ -138,25 +138,66 @@ def generate_excel(params):
             # Get month and year parts
             from_month = from_month_str[-2:]
             from_year = from_month_str[2:4]  # Get the last 2 digits of year (YYYY format)
+            to_month = to_month_str[-2:]
+            to_year = to_month_str[2:4]  # Get the last 2 digits of year (YYYY format)
             
-            # Create month-year string for filename (format: MMMYY)
-            month_year = month_names.get(from_month, "") + from_year
+            # Create month-year strings
+            mon1 = month_names.get(from_month, "") + from_year
+            mon2 = month_names.get(to_month, "") + to_year
             
-            # Create base filename using HS code from first row
-            base_filename = ""
-            if first_row_hs and first_row_hs[0]:
-                # Extract the first 8 characters of the HS code (or all if shorter)
-                hs_code = str(first_row_hs[0]).strip()
-                base_filename = hs_code[:8] if len(hs_code) > 8 else hs_code
+            # Determine if we need to show a range or single month
+            if mon1 == mon2:
+                month_year = mon1
             else:
-                # Fallback to parameter if no data found
-                if params.hs and params.hs != "%":
-                    base_filename = params.hs.strip().replace(" ", "").split(",")[0]
-                else:
-                    base_filename = "Export"
+                month_year = mon1 + "-" + mon2
             
-            # Final filename format: HSCode_MMMYYEXP.xlsx (e.g., 12024210_NOV24EXP.xlsx)
-            filename = f"{base_filename}_{month_year}EXP.xlsx"
+            # Build filename with all search parameters
+            filename1 = ""
+            
+            # Add HS code if provided
+            if params.hs and params.hs != "%":
+                hs_code = params.hs.strip().replace(" ", "").split(",")[0]
+                filename1 = filename1 + hs_code
+            
+            # Add product if provided
+            if params.prod and params.prod != "%":
+                filename1 = filename1 + "_" + params.prod.replace(" ", "_")
+            
+            # Add IEC if provided
+            if params.iec and params.iec != "%":
+                filename1 = filename1 + "_" + params.iec
+            
+            # Add exporter company if provided
+            if params.expCmp and params.expCmp != "%":
+                filename1 = filename1 + "_" + params.expCmp.replace(" ", "_")
+            
+            # Add foreign country if provided
+            if params.forcount and params.forcount != "%":
+                filename1 = filename1 + "_" + params.forcount.replace(" ", "_")
+            
+            # Add foreign importer name if provided
+            if params.forname and params.forname != "%":
+                filename1 = filename1 + "_" + params.forname.replace(" ", "_")
+            
+            # Add port if provided
+            if params.port and params.port != "%":
+                filename1 = filename1 + "_" + params.port.replace(" ", "_")
+            
+            # Remove leading underscore if present
+            if filename1 and filename1[0] == "_":
+                filename1 = filename1[1:]
+            
+            # If no parameters were provided, use default name
+            if not filename1:
+                if first_row_hs and first_row_hs[0]:
+                    # Extract the HS code from first row
+                    hs_code = str(first_row_hs[0]).strip()
+                    filename1 = hs_code[:8] if len(hs_code) > 8 else hs_code
+                else:
+                    filename1 = "Export"
+            
+            # Final filename format: Parameters_MMMYYEXP.xlsx
+            filename = f"{filename1}_{month_year}EXP.xlsx"
             
             # Ensure temp directory exists
             temp_dir = pathlib.Path(settings.TEMP_DIR)
@@ -179,8 +220,8 @@ def generate_excel(params):
                 'font_name': 'Times New Roman',
                 'font_size': 10,
                 'border': 1,
-                'bg_color': '#366092',
-                'font_color': 'white',
+                'bg_color': '#4F81BD',
+                'font_color': 'black',
                 'align': 'center',
                 'valign': 'vcenter'
             })
