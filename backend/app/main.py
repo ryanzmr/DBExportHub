@@ -24,7 +24,7 @@ class LoginRequest(BaseModel):
 SECRET_KEY = "your-secret-key-here"  # Change this to a secure secret key
 ALGORITHM = "HS256"
 # Change this constant
-ACCESS_TOKEN_EXPIRE_MINUTES = 5  # Changed back from 30 to 5 minutes
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Changed from 5 minutes to 1 hour
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -52,7 +52,10 @@ async def root():
 @app.post("/api/auth/login")
 async def login(connection_details: LoginRequest):
     try:
-        print(f"Login attempt for server: {connection_details.server}, database: {connection_details.database}")
+        # Create a safe copy of connection details with masked password for logging
+        safe_details = connection_details.dict()
+        safe_details["password"] = "[REDACTED]"
+        print(f"Login attempt with details: {safe_details}")
         
         # Verify database connection using test_connection
         conn = test_connection(
@@ -65,9 +68,13 @@ async def login(connection_details: LoginRequest):
         print("Database connection successful")
         
         # If connection successful, create access token
+        # Create a safe copy of connection details with masked password for token
+        safe_connection = connection_details.dict()
+        safe_connection["password"] = "[REDACTED]"
+        
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"connection": connection_details.dict()},
+            data={"connection": safe_connection},
             expires_delta=access_token_expires
         )
         

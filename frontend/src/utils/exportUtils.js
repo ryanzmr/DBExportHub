@@ -20,7 +20,9 @@ export const fetchPreviewData = async (connectionDetails, formData, signal) => {
       toMonth: parseInt(formData.toMonth)
     };
     
-    console.log('Preview request data:', requestData);
+    // Create a sanitized copy for logging (mask password)
+    const sanitizedData = { ...requestData, password: '[REDACTED]' };
+    console.log('Preview request data:', sanitizedData);
     
     const response = await axios.post('http://localhost:8000/api/export/preview', requestData, {
       signal: signal
@@ -104,6 +106,10 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
         }
       }
     };
+    
+    // Create a sanitized copy for logging (mask password)
+    const sanitizedData = { ...requestData, password: '[REDACTED]' };
+    console.log('Export request data:', sanitizedData);
     
     const response = await axios.post('http://localhost:8000/api/export', requestData, {
       responseType: 'blob',
