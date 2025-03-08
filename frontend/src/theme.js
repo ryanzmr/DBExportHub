@@ -1,5 +1,5 @@
 import { createTheme } from '@mui/material/styles';
-
+import '@fontsource/inter';
 const theme = createTheme({
   palette: {
     primary: {
