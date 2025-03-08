@@ -10,7 +10,7 @@ const LoginHeader = () => {
         top: 0,
         left: 0,
         width: "100%",
-        padding: { xs: "12px 16px", sm: "16px 24px" },
+        padding: { xs: "16px 24px", sm: "20px 32px" },
         display: "flex",
         alignItems: "center",
         zIndex: 10,

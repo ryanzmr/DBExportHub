@@ -8,7 +8,8 @@ import {
   TableRows,
   Storage,
   ArrowDownward,
-  StarOutline
+  StarOutline,
+  AutoAwesome
 } from '@mui/icons-material';
 
 // Custom components
@@ -159,8 +160,8 @@ const LoginPage = () => {
           {/* Add the icon above the title */}
           <Box
             sx={{
-              width: 80,
-              height: 80,
+              width: 160,
+              height: 160,
               position: "relative",
               mb: 3,
               "&:hover": {
@@ -175,37 +176,61 @@ const LoginPage = () => {
                 width: "100%",
                 height: "100%",
                 borderRadius: 3,
-                background: "linear-gradient(135deg, rgba(90, 79, 255, 0.2), rgba(90, 79, 255, 0.1))",
+                background: "linear-gradient(135deg, rgba(90, 79, 255, 0.08), rgba(90, 79, 255, 0.02))",
                 backdropFilter: "blur(8px)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                border: "1px solid rgba(90, 79, 255, 0.15)",
               }}
             >
               <Storage 
                 sx={{ 
-                  fontSize: 32,
-                  color: "#FFFFFF",
-                  mb: 1,
+                  fontSize: 64,
+                  color: "#5A4FFF",
+                  opacity: 0.9
                 }} 
               />
               <Box
                 sx={{
                   position: "absolute",
-                  right: -6,
-                  top: -6,
-                  width: 24,
-                  height: 24,
+                  left: -8,
+                  top: -8,
+                  width: 32,
+                  height: 32,
                   borderRadius: "50%",
-                  background: "linear-gradient(135deg, #4A3FEF, #5A4FFF)",
+                  background: "linear-gradient(135deg, #5A4FFF, #4A3FEF)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  boxShadow: "0 4px 8px rgba(90, 79, 255, 0.25)",
+                }}
+              >
+                <AutoAwesome
+                  sx={{ 
+                    fontSize: 20,
+                    color: "#FFFFFF",
+                  }} 
+                />
+              </Box>
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: -8,
+                  bottom: -8,
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #5A4FFF, #4A3FEF)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 8px rgba(90, 79, 255, 0.25)",
                 }}
               >
                 <ArrowDownward 
                   sx={{ 
-                    fontSize: 14,
+                    fontSize: 20,
                     color: "#FFFFFF",
                   }} 
                 />
@@ -219,7 +244,7 @@ const LoginPage = () => {
               color: "white",
               fontWeight: 700,
               mb: 1,
-              fontSize: { xs: "2rem", sm: "2.5rem" },
+              fontSize: { xs: "2.5rem", sm: "3rem" },
             }}
           >
             Database Export Made Simple
