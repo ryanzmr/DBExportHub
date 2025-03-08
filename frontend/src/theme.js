@@ -3,9 +3,9 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
+      main: '#5A4FFF', // Changed from blue to vibrant purple
+      light: '#7A70FF',
+      dark: '#4A3FEF',
       contrastText: '#fff',
     },
     secondary: {
@@ -35,12 +35,12 @@ const theme = createTheme({
       dark: '#1b5e20',
     },
     background: {
-      default: '#f8f9fa',
-      paper: '#ffffff',
+      default: '#0D0D2B', // Changed to dark navy
+      paper: '#13132A', // Changed to form background
     },
     text: {
-      primary: '#212121',
-      secondary: '#757575',
+      primary: '#FFFFFF', // Changed to white
+      secondary: '#CCCCCC', // Changed to light gray
     },
   },
   typography: {
