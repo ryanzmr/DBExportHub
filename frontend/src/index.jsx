@@ -6,6 +6,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import App from './App';
 import './index.css';
 import theme from './theme';
+import '@fontsource/inter';
 
 // Using the comprehensive theme from theme.js
 

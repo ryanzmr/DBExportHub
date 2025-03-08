@@ -6,10 +6,12 @@ import {
   CircularProgress,
   InputAdornment,
   Box,
-  Typography,
-  Paper
+  Paper,
+  IconButton,
+  Typography,  // Add this
+  Link        // Add this
 } from '@mui/material';
-import { Computer, Storage, AccountCircle, Key, ErrorOutline, Login, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Computer, Storage, AccountCircle, Key, ErrorOutline, ArrowForward, Visibility, VisibilityOff } from '@mui/icons-material';
 
 /**
  * Login form component for the login page
@@ -24,7 +26,7 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
   const [showPassword, setShowPassword] = useState(false);
   
   const handleTogglePasswordVisibility = () => {
-    setShowPassword((prevShowPassword) => !prevShowPassword);
+    setShowPassword((prev) => !prev);
   };
 
   return (
@@ -35,20 +37,21 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
         width: "90%",
         position: "relative",
         zIndex: 1,
-        background: "rgba(255, 255, 255, 0.98)",
-        backdropFilter: "blur(12px)",
+        background: "#13132A", // Updated to dark background as specified
         borderRadius: 2.5,
         overflow: "hidden",
-        p: { xs: 2, sm: 2.5 },
-        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+        p: { xs: 2.5, sm: 3 }, // Increased padding to 20px-25px
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+        border: "1px solid rgba(90, 79, 255, 0.2)", // Updated border color to match the purple theme
       }}
     >
+      {/* Form title */}
       <Box sx={{ textAlign: "center", mb: 2.5 }}>
         <Typography
           variant="h5"
           sx={{
             fontWeight: 700,
-            background: "linear-gradient(45deg, #1e40af, #3b82f6)",
+            background: "linear-gradient(45deg, #5A4FFF, #7A70FF)", // Updated to match purple theme
             backgroundClip: "text",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -56,70 +59,101 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
             fontFamily: "'Inter', sans-serif",
           }}
         >
-          Login
+          Database Connection
         </Typography>
         <Typography
           variant="body2"
           sx={{
-            color: "text.secondary",
+            color: "rgba(255, 255, 255, 0.7)",
             fontSize: "0.85rem",
             fontFamily: "'Inter', sans-serif",
           }}
         >
-          Enter your database credentials
+          Enter your database credentials to connect
         </Typography>
       </Box>
       
+      {/* Form fields */}
       <form onSubmit={handleSubmit}>
         <TextField
-          label="Server"
+          label="Server Name"
           name="server"
           value={formData.server}
           onChange={handleChange}
           fullWidth
           margin="dense"
           required
-          placeholder="e.g., localhost\\SQLEXPRESS"
+          placeholder="e.g., MATRIX"
           size="small"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Computer sx={{ color: "action.active", fontSize: 18 }} />
+                <Computer sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 18 }} />
               </InputAdornment>
             ),
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 1.5,
+              color: "white",
+              backgroundColor: "rgba(0, 0, 0, 0.2)", // Darker input background
               "&:hover fieldset": {
-                borderColor: "primary.main",
+                borderColor: "#5A4FFF", // Updated to match purple theme
               },
+            },
+            "& .MuiInputLabel-root": {
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: "14px", // Light gray, 14px as specified
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(255, 255, 255, 0.2)",
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(90, 79, 255, 0.5)", // Updated to match purple theme
+            },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#5A4FFF", // Updated to match purple theme
             },
           }}
         />
         <TextField
-          label="Database"
+          label="Database Name"
           name="database"
           value={formData.database}
           onChange={handleChange}
           fullWidth
           margin="dense"
           required
-          placeholder="e.g., ExportDB"
+          placeholder="e.g., RAW_PROCESS"
           size="small"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Storage sx={{ color: "action.active", fontSize: 18 }} />
+                <Storage sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 18 }} />
               </InputAdornment>
             ),
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 1.5,
+              color: "white",
+              backgroundColor: "rgba(0, 0, 0, 0.2)", // Darker input background
               "&:hover fieldset": {
-                borderColor: "primary.main",
+                borderColor: "#5A4FFF", // Updated to match purple theme
               },
+            },
+            "& .MuiInputLabel-root": {
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: "14px", // Light gray, 14px as specified
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(255, 255, 255, 0.2)",
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(90, 79, 255, 0.5)", // Updated to match purple theme
+            },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#5A4FFF", // Updated to match purple theme
             },
           }}
         />
@@ -131,21 +165,36 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           fullWidth
           margin="dense"
           required
-          placeholder="e.g., sa"
+          placeholder="Enter username"
           size="small"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <AccountCircle sx={{ color: "action.active", fontSize: 18 }} />
+                <AccountCircle sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 18 }} />
               </InputAdornment>
             ),
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 1.5,
+              color: "white",
+              backgroundColor: "rgba(0, 0, 0, 0.2)", // Darker input background
               "&:hover fieldset": {
-                borderColor: "primary.main",
+                borderColor: "#5A4FFF", // Updated to match purple theme
               },
+            },
+            "& .MuiInputLabel-root": {
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: "14px", // Light gray, 14px as specified
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(255, 255, 255, 0.2)",
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(90, 79, 255, 0.5)", // Updated to match purple theme
+            },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#5A4FFF", // Updated to match purple theme
             },
           }}
         />
@@ -158,40 +207,47 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           fullWidth
           margin="dense"
           required
+          placeholder="Enter password"
           size="small"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Key sx={{ color: "action.active", fontSize: 18 }} />
+                <Key sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 18 }} />
               </InputAdornment>
             ),
             endAdornment: (
               <InputAdornment position="end">
-                <Box
-                  component="button"
-                  type="button"
+                <IconButton
                   onClick={handleTogglePasswordVisibility}
-                  sx={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    p: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    color: "action.active",
-                  }}
+                  edge="end"
+                  sx={{ color: "rgba(255, 255, 255, 0.7)" }}
                 >
                   {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                </Box>
+                </IconButton>
               </InputAdornment>
             ),
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 1.5,
+              color: "white",
+              backgroundColor: "rgba(0, 0, 0, 0.2)", // Darker input background
               "&:hover fieldset": {
-                borderColor: "primary.main",
+                borderColor: "#5A4FFF", // Updated to match purple theme
               },
+            },
+            "& .MuiInputLabel-root": {
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: "14px", // Light gray, 14px as specified
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(255, 255, 255, 0.2)",
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(90, 79, 255, 0.5)", // Updated to match purple theme
+            },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#5A4FFF", // Updated to match purple theme
             },
           }}
         />
@@ -206,8 +262,10 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
               borderRadius: 1.5,
               alignItems: "center",
               fontSize: "0.8rem",
+              backgroundColor: "rgba(239, 68, 68, 0.15)",
+              color: "#fecaca",
               "& .MuiAlert-icon": {
-                color: "error.main",
+                color: "#ef4444",
                 opacity: 0.8,
                 fontSize: "1rem",
                 mr: 1,
@@ -217,31 +275,49 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
             {error}
           </Alert>
         )}
-        
+        {/* Updated button style */}
         <Button
           type="submit"
           fullWidth
           variant="contained"
           disabled={loading}
-          startIcon={loading ? null : <Login sx={{ fontSize: 18 }} />}
+          startIcon={loading ? null : <ArrowForward />}
           sx={{
             mt: 2,
             mb: 1,
-            py: 1,
+            py: 1.2,
             borderRadius: 1.5,
             fontWeight: 600,
             textTransform: "none",
             fontSize: "0.9rem",
-            background: "linear-gradient(45deg, #1e40af, #3b82f6)",
-            boxShadow: "0 4px 10px rgba(59, 130, 246, 0.3)",
+            backgroundColor: "#5A4FFF",
+            boxShadow: "0 4px 10px rgba(90, 79, 255, 0.3)",
             "&:hover": {
-              background: "linear-gradient(45deg, #1e3a8a, #3b82f6)",
-              boxShadow: "0 6px 15px rgba(59, 130, 246, 0.4)",
+              backgroundColor: "#6A5FFF",
+              boxShadow: "0 6px 15px rgba(90, 79, 255, 0.4)",
+              transform: "translateY(-1px)",
             },
           }}
         >
           {loading ? <CircularProgress size={20} color="inherit" /> : "Connect"}
         </Button>
+        {/* Help link */}
+        <Box sx={{ textAlign: "center", mt: 1 }}>
+          <Link
+            href="#"
+            underline="hover"
+            sx={{
+              color: "rgba(90, 79, 255, 0.8)",
+              fontSize: "12px",
+              fontStyle: "italic",
+              "&:hover": {
+                color: "#5A4FFF"
+              }
+            }}
+          >
+            Having trouble connecting? View Documentation
+          </Link>
+        </Box>
       </form>
     </Paper>
   );
