@@ -17,6 +17,12 @@ const LoginHeader = () => (
   >
     <Box
       sx={{
+
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        padding: { xs: "16px 24px", sm: "20px 32px" },
         display: "flex",
         alignItems: "center",
         gap: 1,
