@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Grid } from '@mui/material';
 import { 
   FlashOn,
-  Visibility,
   ShieldOutlined,
   TableRows,
   Storage,
   ArrowDownward,
-  StarOutline
+  PreviewOutlined
 } from '@mui/icons-material';
 
 // Custom components
@@ -16,45 +15,9 @@ import LoginBackground from '../components/login/LoginBackground';
 import LoginForm from '../components/login/LoginForm';
 import LoginHeader from '../components/login/LoginHeader';
 import LoginFooter from '../components/login/LoginFooter';
+import FeatureCard from '../components/login/FeatureCard';
 import useAuth from '../hooks/useAuth';
-
-const FeatureCard = ({ icon, title, description }) => (
-  <Box
-    sx={{
-      p: 2.5,
-      background: "rgba(255, 255, 255, 0.03)",
-      borderRadius: 2.5,
-      border: "1px solid rgba(255, 255, 255, 0.1)",
-      transition: "all 0.2s ease-in-out",
-      "&:hover": {
-        transform: "translateY(-2px)",
-        background: "rgba(255, 255, 255, 0.05)",
-      },
-    }}
-  >
-    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-      <Box
-        sx={{
-          p: 1,
-          borderRadius: 1.5,
-          background: "rgba(90, 79, 255, 0.1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          mr: 1.5,
-        }}
-      >
-        {icon}
-      </Box>
-      <Typography variant="h6" sx={{ color: "white", fontSize: "0.95rem", fontWeight: 500 }}>
-        {title}
-      </Typography>
-    </Box>
-    <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.85rem" }}>
-      {description}
-    </Typography>
-  </Box>
-);
+import { loginContainerStyles } from './styles/LoginPageStyles';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -84,23 +47,15 @@ const LoginPage = () => {
     setError('');
     
     try {
-      console.log('Sending login request with:', formData);
-      
-      // Login with the connection details
       const loginSuccess = await login(formData);
       
       if (loginSuccess) {
-        console.log('Login successful, navigating to /export');
-        // Use navigate with replace option to ensure proper navigation
-        // Adding a small delay to ensure auth state is fully updated
         setTimeout(() => {
-          console.log('Executing navigation to /export');
           navigate('/export', { replace: true });
           
-          // Only use window.location as a last resort fallback
+          // Fallback navigation
           setTimeout(() => {
             if (window.location.pathname !== '/export') {
-              console.log('Fallback navigation to /export');
               window.location.href = '/export';
             }
           }, 1500);
@@ -109,7 +64,6 @@ const LoginPage = () => {
         setError('Authentication failed. Please try again.');
       }
     } catch (err) {
-      console.error('Login error:', err);
       setError(err.response?.data?.detail || 'Connection failed. Please check your credentials.');
     } finally {
       setLoading(false);
@@ -117,15 +71,7 @@ const LoginPage = () => {
   };
   
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        background: "linear-gradient(135deg, #0D0D2B 0%, #13132A 100%)",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
+    <Box sx={loginContainerStyles}>
       <LoginHeader />
       <LoginBackground />
       
@@ -133,17 +79,18 @@ const LoginPage = () => {
         sx={{
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
-          width: "100%",
-          height: "100%",
+          width: "75%",
+          minHeight: "calc(100vh - 140px)",
           zIndex: 1,
-          px: { xs: 2, sm: 4, md: 6 },
-          py: { xs: 8, md: 12 }, // Increased vertical padding
-          mt: { xs: 4, md: 6 }, // Added top margin for header spacing
-          mb: { xs: 6, md: 8 }, // Added bottom margin for footer spacing
-          maxWidth: "1600px", // Added max width
-          mx: "auto", // Center the content
-        }}
-      >
+          px: { xs: 1.5, sm: 2, md: 3 },
+          py: { xs: 2, md: 3 },
+          maxWidth: "1200px",
+          mx: "auto",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: { xs: 2, md: 4 }
+        }}>
+
         {/* Left side: Features */}
         <Box
           sx={{
@@ -151,18 +98,17 @@ const LoginPage = () => {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            pr: { md: 8 }, // Increased right padding
-            mb: { xs: 6, md: 0 },
-            mt: { xs: 2, md: 0 }, // Added top margin for mobile
+            pr: { md: 4 },
+            mb: { xs: 3, md: 0 },
+            mt: { xs: 1, md: 0 },
           }}
         >
-          {/* Add the icon above the title */}
           <Box
             sx={{
-              width: 80,
-              height: 80,
+              width: 60,
+              height: 60,
               position: "relative",
-              mb: 3,
+              mb: 2,
               "&:hover": {
                 transform: "scale(1.05)",
                 transition: "transform 0.2s ease-in-out",
@@ -189,92 +135,72 @@ const LoginPage = () => {
                   mb: 1,
                 }} 
               />
-              <Box
-                sx={{
-                  position: "absolute",
-                  right: -6,
-                  top: -6,
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #4A3FEF, #5A4FFF)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <ArrowDownward 
-                  sx={{ 
-                    fontSize: 14,
-                    color: "#FFFFFF",
-                  }} 
-                />
-              </Box>
             </Box>
           </Box>
-
+          
           <Typography
-            variant="h3"
+            variant="h4"
             sx={{
               color: "white",
               fontWeight: 700,
-              mb: 1,
-              fontSize: { xs: "2rem", sm: "2.5rem" },
+              mb: 1.5,
+              fontSize: { xs: "1.5rem", sm: "1.8rem" },
             }}
           >
             Database Export Made Simple
           </Typography>
+          
           <Typography
             variant="body1"
             sx={{
               color: "rgba(255, 255, 255, 0.7)",
-              mb: 4,
-              maxWidth: "600px",
+              mb: 3,
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
+              maxWidth: 320,
             }}
           >
-            Connect to your SQL Server database and export data to Excel with just a few clicks.
+            Connect to your database and export data with ease. Our intuitive interface makes database management accessible to everyone.
           </Typography>
-
-          <Grid container spacing={2.5}>
+          <Grid container spacing={1.5}>
             <Grid item xs={12} sm={6}>
               <FeatureCard
-                icon={<FlashOn sx={{ color: "#5A4FFF", fontSize: 22 }} />}
+                icon={<FlashOn sx={{ color: "#5A4FFF", fontSize: 20 }} />}
                 title="Fast Export"
-                description="Optimized for large datasets"
+                description="Export your data quickly with optimized SQL queries."
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FeatureCard
-                icon={<Visibility sx={{ color: "#5A4FFF", fontSize: 22 }} />}
+                icon={<PreviewOutlined sx={{ color: "#5A4FFF", fontSize: 20 }} />}
                 title="Data Preview"
-                description="See data before exporting"
+                description="Preview your data before exporting to ensure accuracy."
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FeatureCard
-                icon={<ShieldOutlined sx={{ color: "#5A4FFF", fontSize: 22 }} />}
+                icon={<ShieldOutlined sx={{ color: "#5A4FFF", fontSize: 20 }} />}
                 title="Secure"
-                description="Token-based authentication"
+                description="Token-based authentication for secure database access."
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FeatureCard
-                icon={<TableRows sx={{ color: "#5A4FFF", fontSize: 22 }} />}
+                icon={<TableRows sx={{ color: "#5A4FFF", fontSize: 20 }} />}
                 title="Formatted"
-                description="Excel with proper styling"
+                description="Export to Excel with proper styling and formatting."
               />
             </Grid>
           </Grid>
         </Box>
-
-        {/* Right side: Login form */}
+        
+        {/* Right side: Login Form */}
         <Box
           sx={{
             flex: 1,
             display: "flex",
+            alignItems: "center",
             justifyContent: "center",
-            alignItems: { xs: "flex-start", md: "center" }, // Align to top on mobile
-            pt: { xs: 0, md: 4 }, // Added top padding
+            position: "relative",
           }}
         >
           <LoginForm
