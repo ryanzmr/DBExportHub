@@ -5,24 +5,19 @@ import { Storage } from '@mui/icons-material';
 const LoginHeader = () => (
   <Box
     sx={{
-      position: "relative",
+      position: "absolute",
       top: 0,
       left: 0,
       width: "100%",
-      padding: { xs: "12px 16px", sm: "16px 24px" },
+      padding: { xs: "16px 16px", sm: "20px 24px" },
       display: "flex",
       alignItems: "center",
-      zIndex: 10,
+      zIndex: 20,
+      height: { xs: "70px", sm: "80px" }
     }}
   >
     <Box
       sx={{
-
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        padding: { xs: "16px 24px", sm: "20px 32px" },
         display: "flex",
         alignItems: "center",
         gap: 1,
