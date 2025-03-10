@@ -116,11 +116,11 @@ export const formContainerStyles = (theme) => ({
     mb: 2,
     p: 3,
     borderRadius: 2,
-    background: 'white',
+    background: '#ffffff',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
     border: '1px solid',
     borderColor: 'transparent',
-    backgroundImage: `linear-gradient(white, white), linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.primary.main})`,
+    backgroundImage: 'linear-gradient(#ffffff, #ffffff), linear-gradient(90deg, #64b5f6, #1976d2)',
     backgroundOrigin: 'border-box',
     backgroundClip: 'padding-box, border-box',
   }
@@ -143,8 +143,8 @@ export const tableStyles = (theme) => ({
   },
   tableHeaderCell: {
     fontWeight: 700,
-    backgroundColor: '#8bc1f7 !important',
-    color: '#000000 !important',
+    backgroundColor: '#8bc1f7',
+    color: '#000000',
     position: 'sticky',
     top: 0,
     zIndex: 2,
@@ -156,8 +156,8 @@ export const tableStyles = (theme) => ({
     borderBottom: '2px solid #1565c0',
     borderRight: '1px solid rgba(0, 0, 0, 0.1)',
     '&.MuiTableCell-head': {
-      color: '#000000 !important',
-      backgroundColor: '#8bc1f7 !important',
+      color: '#000000',
+      backgroundColor: '#8bc1f7',
       fontWeight: 700
     }
   },

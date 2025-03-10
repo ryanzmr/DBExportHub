@@ -1,23 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Grid } from '@mui/material';
-import { 
-  FlashOn,
-  ShieldOutlined,
-  TableRows,
-  Storage,
-  ArrowDownward,
-  PreviewOutlined,
-  StarOutline,
-  AutoAwesome
-} from '@mui/icons-material';
 
 // Custom components
 import LoginBackground from '../components/login/LoginBackground';
 import LoginForm from '../components/login/LoginForm';
 import LoginHeader from '../components/login/LoginHeader';
 import LoginFooter from '../components/login/LoginFooter';
-import FeatureCard from '../components/login/FeatureCard';
+import FeatureSection from '../components/login/FeatureSection';
 import useAuth from '../hooks/useAuth';
 import { loginContainerStyles } from './styles/LoginPageStyles';
 
@@ -81,168 +71,21 @@ const LoginPage = () => {
         sx={{
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
-          width: "75%",
-          minHeight: "calc(100vh - 140px)",
+          width: "92%",
+          minHeight: "calc(100vh - 120px)",
           zIndex: 1,
-          px: { xs: 1.5, sm: 2, md: 3 },
-          py: { xs: 2, md: 3 },
+          px: { xs: 2, sm: 2.5, md: 3 },
+          py: { xs: 4, md: 5 },
           maxWidth: "1200px",
           mx: "auto",
           alignItems: "center",
           justifyContent: "center",
-          gap: { xs: 2, md: 4 }
+          gap: { xs: 3, md: 4 },
+          mt: { xs: 8, sm: 10 } // Add top margin to prevent overlap with header
         }}>
 
         {/* Left side: Features */}
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            pr: { md: 4 },
-            mb: { xs: 3, md: 0 },
-            mt: { xs: 1, md: 0 },
-          }}
-        >
-          <Box
-            sx={{
-              width: 60,
-              height: 60,
-              width: 160,
-              height: 160,
-              position: "relative",
-              mb: 2,
-              "&:hover": {
-                transform: "scale(1.05)",
-                transition: "transform 0.2s ease-in-out",
-              },
-            }}
-          >
-            <Box
-              sx={{
-                position: "absolute",
-                width: "100%",
-                height: "100%",
-                borderRadius: 3,
-                background: "linear-gradient(135deg, rgba(90, 79, 255, 0.08), rgba(90, 79, 255, 0.02))",
-                backdropFilter: "blur(8px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "1px solid rgba(90, 79, 255, 0.15)",
-              }}
-            >
-              <Storage 
-                sx={{ 
-                  fontSize: 64,
-                  color: "#5A4FFF",
-                  opacity: 0.9
-                }} 
-              />
-              <Box
-                sx={{
-                  position: "absolute",
-                  left: -8,
-                  top: -8,
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #5A4FFF, #4A3FEF)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 8px rgba(90, 79, 255, 0.25)",
-                }}
-              >
-                <AutoAwesome
-                  sx={{ 
-                    fontSize: 20,
-                    color: "#FFFFFF",
-                  }} 
-                />
-              </Box>
-              <Box
-                sx={{
-                  position: "absolute",
-                  right: -8,
-                  bottom: -8,
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #5A4FFF, #4A3FEF)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 8px rgba(90, 79, 255, 0.25)",
-                }}
-              >
-                <ArrowDownward 
-                  sx={{ 
-                    fontSize: 20,
-                    color: "#FFFFFF",
-                  }} 
-                />
-              </Box>
-            </Box>
-          </Box>
-          
-          <Typography
-            variant="h4"
-            sx={{
-              color: "white",
-              fontWeight: 700,
-              mb: 1.5,
-              fontSize: { xs: "1.5rem", sm: "1.8rem" },
-              mb: 1,
-              fontSize: { xs: "2.5rem", sm: "3rem" },
-            }}
-          >
-            Database Export Made Simple
-          </Typography>
-          
-          <Typography
-            variant="body1"
-            sx={{
-              color: "rgba(255, 255, 255, 0.7)",
-              mb: 3,
-              fontSize: { xs: "0.85rem", sm: "0.95rem" },
-              maxWidth: 320,
-            }}
-          >
-            Connect to your database and export data with ease. Our intuitive interface makes database management accessible to everyone.
-          </Typography>
-          <Grid container spacing={1.5}>
-            <Grid item xs={12} sm={6}>
-              <FeatureCard
-                icon={<FlashOn sx={{ color: "#5A4FFF", fontSize: 20 }} />}
-                title="Fast Export"
-                description="Export your data quickly with optimized SQL queries."
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FeatureCard
-                icon={<PreviewOutlined sx={{ color: "#5A4FFF", fontSize: 20 }} />}
-                title="Data Preview"
-                description="Preview your data before exporting to ensure accuracy."
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FeatureCard
-                icon={<ShieldOutlined sx={{ color: "#5A4FFF", fontSize: 20 }} />}
-                title="Secure"
-                description="Token-based authentication for secure database access."
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FeatureCard
-                icon={<TableRows sx={{ color: "#5A4FFF", fontSize: 20 }} />}
-                title="Formatted"
-                description="Export to Excel with proper styling and formatting."
-              />
-            </Grid>
-          </Grid>
-        </Box>
+        <FeatureSection />
         
         {/* Right side: Login Form */}
         <Box

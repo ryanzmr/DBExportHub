@@ -8,8 +8,8 @@ import {
   Box,
   Paper,
   IconButton,
-  Typography,  // Add this
-  Link        // Add this
+  Typography,
+  Link
 } from '@mui/material';
 import { Computer, Storage, AccountCircle, Key, Visibility, VisibilityOff } from '@mui/icons-material';
 import { commonTextFieldStyles, loginFormStyles } from '../../pages/styles/LoginPageStyles';
@@ -33,24 +33,29 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
   return (
     <Paper elevation={24} sx={{
       ...loginFormStyles.paper,
-      width: '105%',
-      maxWidth: '650px',
-      p: { xs: 2.5, sm: 3 },
-      mx: 2
+      width: '150%',
+      maxWidth: '500px',
+      p: { xs: 3, sm: 4 },
+      mx: 2,
+      borderRadius: 3
     }}>
-      <Box sx={{ textAlign: "center", mb: 2 }}>
+      <Box sx={{ textAlign: "center", mb: 3 }}>
         <Typography variant="h4" sx={{
           fontWeight: 700,
           color: "#fff",
-          mb: 0.75,
-          fontSize: "1.25rem"
+          mb: 0.8,
+          fontSize: "1.5rem",
+          letterSpacing: "-0.01em",
+          fontFamily: '"Inter", sans-serif'
         }}>
           Database Connection
         </Typography>
         <Typography variant="body1" sx={{
-          color: "rgba(255, 255, 255, 0.7)",
-          fontSize: "0.875rem",
-          fontWeight: 400
+          color: "rgba(255, 255, 255, 0.8)",
+          fontSize: "1rem",
+          fontWeight: 400,
+          lineHeight: 1.5,
+          fontFamily: '"Inter", sans-serif'
         }}>
           Enter your database credentials to connect
         </Typography>
@@ -65,30 +70,31 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           fullWidth
           margin="normal"
           required
-          placeholder="e.g., MATRIX"
+          placeholder="ServerName"
           size="medium"
           InputLabelProps={{
             sx: {
               fontWeight: 600,
-              fontSize: '1.2rem'
+              fontSize: '0.9rem'
             }
           }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Computer sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 24 }} />
+                <Computer sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 22 }} />
               </InputAdornment>
             ),
             sx: {
-              fontSize: '1.2rem',
+              fontSize: '0.95rem',
               '& input::placeholder': {
-                fontSize: '1.2rem'
+                fontSize: '0.95rem',
+                opacity: 0.7
               }
             }
           }}
           sx={{
             ...commonTextFieldStyles,
-            mb: 3
+            mb: 2
           }}
         />
         <TextField
@@ -99,12 +105,12 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           fullWidth
           margin="normal"
           required
-          placeholder="e.g., RAW_PROCESS"
+          placeholder="DatabaseName"
           size="medium"
           InputLabelProps={{
             sx: {
               fontWeight: 600,
-              fontSize: '1.1rem'
+              fontSize: '0.9rem'
             }
           }}
           InputProps={{
@@ -114,15 +120,16 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
               </InputAdornment>
             ),
             sx: {
-              fontSize: '1.1rem',
+              fontSize: '0.95rem',
               '& input::placeholder': {
-                fontSize: '1.1rem'
+                fontSize: '0.95rem',
+                opacity: 0.7
               }
             }
           }}
           sx={{
             ...commonTextFieldStyles,
-            mb: 2.5
+            mb: 2
           }}
         />
         <TextField
@@ -138,7 +145,7 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           InputLabelProps={{
             sx: {
               fontWeight: 600,
-              fontSize: '1.6rem'
+              fontSize: '0.9rem'
             }
           }}
           InputProps={{
@@ -148,15 +155,16 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
               </InputAdornment>
             ),
             sx: {
-              fontSize: '1.4rem',
+              fontSize: '0.95rem',
               '& input::placeholder': {
-                fontSize: '1.4rem'
+                fontSize: '0.95rem',
+                opacity: 0.7
               }
             }
           }}
           sx={{
             ...commonTextFieldStyles,
-            mb: 2.5
+            mb: 2
           }}
         />
         <TextField
@@ -173,7 +181,7 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           InputLabelProps={{
             sx: {
               fontWeight: 600,
-              fontSize: '1.6rem'
+              fontSize: '0.9rem'
             }
           }}
           InputProps={{
@@ -195,15 +203,16 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
               </InputAdornment>
             ),
             sx: {
-              fontSize: '1.1rem',
+              fontSize: '0.95rem',
               '& input::placeholder': {
-                fontSize: '1.1rem'
+                fontSize: '0.95rem',
+                opacity: 0.7
               }
             }
           }}
           sx={{
             ...commonTextFieldStyles,
-            mb: 2.5
+            mb: 2
           }}
         />
         {error && (
@@ -231,22 +240,29 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
             mt: 4,
             mb: 2,
             py: 1.5,
-            fontSize: '1.1rem',
+            fontSize: '1rem',
             fontWeight: 600,
             textTransform: 'none',
             borderRadius: 2,
             background: 'linear-gradient(45deg, #5A4FFF 30%, #6C63FF 90%)',
             '&:hover': {
-              background: 'linear-gradient(45deg, #4A3FEF 30%, #5A4FFF 90%)'
-            }
+              background: 'linear-gradient(45deg, #4A3FEF 30%, #5A4FFF 90%)',
+              boxShadow: '0 6px 15px rgba(90, 79, 255, 0.4)',
+              transform: 'translateY(-1px)'
+            },
+            boxShadow: '0 4px 10px rgba(90, 79, 255, 0.3)',
+            transition: 'all 0.2s ease-in-out'
           }}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {loading ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : (
-            'Connect'
-          )}
+          {loading ? 'Connecting...' : 'Connect'}
         </Button>
+        
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem', fontFamily: '"Inter", sans-serif' }}>
+            Having trouble connecting? <Link href="#" sx={{ color: '#7A70FF', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>View Documentation</Link>
+          </Typography>
+        </Box>
       </form>
     </Paper>
   );
