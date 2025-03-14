@@ -12,7 +12,7 @@ import {
   Link
 } from '@mui/material';
 import { Computer, Storage, AccountCircle, Key, Visibility, VisibilityOff } from '@mui/icons-material';
-import { commonTextFieldStyles, loginFormStyles } from '../../pages/styles/LoginPageStyles';
+import { commonTextFieldStyles, loginFormStyles } from '../../pages/Login/styles/LoginPageStyles';
 
 /**
  * Login form component for the login page

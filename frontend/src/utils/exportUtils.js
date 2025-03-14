@@ -204,14 +204,13 @@ export const getInitialFormState = () => {
 };
 
 /**
- * Get a fresh form state with current year values
- * @returns {Object} - Fresh form state with current year values
+ * Get a fresh form state with empty month values
+ * @returns {Object} - Fresh form state with empty month values
  */
 export const getFreshFormState = () => {
-  const currentYear = new Date().getFullYear();
   return {
     ...getInitialFormState(),
-    fromMonth: currentYear * 100 + 1,  // January of current year (YYYYMM format)
-    toMonth: currentYear * 100 + 12    // December of current year (YYYYMM format)
+    fromMonth: "",  // Empty string instead of default month
+    toMonth: ""     // Empty string instead of default month
   };
 };

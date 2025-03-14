@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { featureCardStyles } from '../../pages/styles/LoginPageStyles';
+import { featureCardStyles } from '../../pages/Login/styles/LoginPageStyles';
 
 const FeatureCard = ({ icon, title, description }) => (
   <Box sx={featureCardStyles.card}>

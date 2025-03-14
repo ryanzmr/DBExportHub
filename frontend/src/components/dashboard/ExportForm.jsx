@@ -28,7 +28,7 @@ import {
   RestartAltOutlined,
   SaveAlt
 } from '@mui/icons-material';
-import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../pages/styles/ExportPageStyles';
+import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../../pages/Dashboard/styles/DashboardStyles';
 
 /**
  * Form component for the Export page
@@ -59,7 +59,7 @@ const ExportForm = ({
   previewDataExists
 }) => {
   const theme = useTheme();
-  const styles = formContainerStyles(theme);
+  const styles = formContainerStyles;
   const headerStyles = cardHeaderStyles(theme);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
 
@@ -201,31 +201,15 @@ const ExportForm = ({
 
             <Grid item xs={3}>
               <TextField
-                label="Foreign Country"
-                name="forcount"
-                value={formData.forcount}
+                label="Importer Country"
+                name="impCnt"
+                value={formData.impCnt}
                 onChange={handleChange}
                 fullWidth
                 size="small"
                 placeholder="Optional"
                 InputProps={{
                   startAdornment: <Language sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
-                }}
-                sx={commonTextFieldStyle}
-              />
-            </Grid>
-
-            <Grid item xs={3}>
-              <TextField
-                label="Foreign Importer"
-                name="forname"
-                value={formData.forname}
-                onChange={handleChange}
-                fullWidth
-                size="small"
-                placeholder="Optional"
-                InputProps={{
-                  startAdornment: <Person sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
                 }}
                 sx={commonTextFieldStyle}
               />
@@ -241,6 +225,38 @@ const ExportForm = ({
                 size="small"
                 placeholder="Optional"
                 InputProps={{
+                  startAdornment: <LocationOn sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
+                }}
+                sx={commonTextFieldStyle}
+              />
+            </Grid>
+
+            <Grid item xs={3}>
+              <TextField
+                label="Importer Name"
+                name="impNm"
+                value={formData.impNm}
+                onChange={handleChange}
+                fullWidth
+                size="small"
+                placeholder="Optional"
+                InputProps={{
+                  startAdornment: <Person sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
+                }}
+                sx={commonTextFieldStyle}
+              />
+            </Grid>
+
+            <Grid item xs={3}>
+              <TextField
+                label="Mode of Transport"
+                name="mode"
+                value={formData.mode}
+                onChange={handleChange}
+                fullWidth
+                size="small"
+                placeholder="Optional"
+                InputProps={{
                   startAdornment: <LocalShipping sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
                 }}
                 sx={commonTextFieldStyle}
@@ -248,48 +264,50 @@ const ExportForm = ({
             </Grid>
           </Grid>
         </Collapse>
-      </Box>
 
-      <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handlePreview}
-          startIcon={loading ? null : <PreviewOutlined />}
-          disabled={isOperationInProgress && !loading}
-        >
-          {loading ? <CircularProgress size={24} color="inherit" /> : "Preview"}
-        </Button>
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handlePreview}
+            disabled={isOperationInProgress || !formData.fromMonth || !formData.toMonth}
+            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PreviewOutlined />}
+            sx={{ mr: 2 }}
+          >
+            {loading ? 'Loading...' : 'Preview'}
+          </Button>
 
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleExport}
-          startIcon={exporting ? null : <DownloadOutlined />}
-          disabled={!previewDataExists || (isOperationInProgress && !exporting)}
-        >
-          {exporting ? <CircularProgress size={24} color="inherit" /> : "Export"}
-        </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleExport}
+            disabled={isOperationInProgress || !previewDataExists}
+            startIcon={exporting ? <CircularProgress size={20} color="inherit" /> : <DownloadOutlined />}
+            sx={{ mr: 2 }}
+          >
+            {exporting ? 'Exporting...' : 'Export to Excel'}
+          </Button>
 
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={handleCancel}
-          startIcon={<CancelOutlined />}
-          disabled={!isOperationInProgress}
-        >
-          Cancel
-        </Button>
-
-        <Button
-          variant="outlined"
-          color="info"
-          onClick={handleReset}
-          startIcon={<RestartAltOutlined />}
-          disabled={isOperationInProgress}
-        >
-          Reset
-        </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleCancel}
+            startIcon={<CancelOutlined />}
+            disabled={!isOperationInProgress}
+            sx={{ mr: 2 }}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            variant="outlined"
+            onClick={handleReset}
+            startIcon={<RestartAltOutlined />}
+            disabled={isOperationInProgress}
+          >
+            Reset
+          </Button>
+        </Box>
       </Box>
     </>
   );

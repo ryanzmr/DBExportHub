@@ -4,8 +4,8 @@ import { Box, CssBaseline } from '@mui/material';
 import axios from 'axios';
 
 // Pages
-import LoginPage from './pages/LoginPage';
-import ExportPage from './pages/ExportPage';
+import LoginPage from './pages/Login';
+import ExportPage from './pages/Dashboard';
 
 // Context for managing authentication state
 const AuthContext = createContext(null);
@@ -98,8 +98,8 @@ function App() {
       
       if (response.data.token) {
         const token = response.data.token;
-        // Set token expiry to 5 minutes from now instead of 30 minutes
-        const tokenExpiry = new Date(new Date().getTime() + 5 * 60000).toISOString();
+        // Set token expiry to 60 minutes from now to match backend configuration
+        const tokenExpiry = new Date(new Date().getTime() + 60 * 60000).toISOString();
         
         // Store in session storage
         sessionStorage.setItem('authToken', token);
