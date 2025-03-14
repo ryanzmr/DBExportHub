@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Grid } from '@mui/material';
 
 // Custom components
-import LoginBackground from '../components/login/LoginBackground';
-import LoginForm from '../components/login/LoginForm';
-import LoginHeader from '../components/login/LoginHeader';
-import LoginFooter from '../components/login/LoginFooter';
-import FeatureSection from '../components/login/FeatureSection';
-import useAuth from '../hooks/useAuth';
+import LoginBackground from '../../components/login/LoginBackground';
+import LoginForm from '../../components/login/LoginForm';
+import LoginHeader from '../../components/login/LoginHeader';
+import LoginFooter from '../../components/login/LoginFooter';
+import FeatureSection from '../../components/login/FeatureSection';
+import useAuth from '../../hooks/useAuth';
 import { loginContainerStyles } from './styles/LoginPageStyles';
 
 const LoginPage = () => {

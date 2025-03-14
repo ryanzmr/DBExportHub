@@ -48,30 +48,55 @@ const theme = createTheme({
       table: '#000000',
       tableSecondary: '#666666'
     },
-    divider: {
-      main: 'rgba(0, 0, 0, 0.1)'
-    }
+    divider: 'rgba(0, 0, 0, 0.1)'
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
-      fontWeight: 600,
-      color: '#333333',
+      fontWeight: 700,
+      color: '#1a2b4a',
+      letterSpacing: '-0.01em',
+      lineHeight: 1.3
     },
     h5: {
-      fontWeight: 500,
-      color: '#333333',
+      fontWeight: 600,
+      color: '#1a2b4a',
+      letterSpacing: '-0.01em',
+      lineHeight: 1.35
     },
     h6: {
-      fontWeight: 500,
-      color: '#333333',
+      fontWeight: 600,
+      color: '#1a2b4a',
+      letterSpacing: '0.01em',
+      lineHeight: 1.4
     },
     subtitle1: {
+      fontWeight: 500,
+      color: '#445577',
+      letterSpacing: '0.01em',
+      lineHeight: 1.5
+    },
+    subtitle2: {
+      fontWeight: 500,
+      color: '#445577',
+      letterSpacing: '0.01em',
+      fontSize: '0.95rem'
+    },
+    body1: {
       fontWeight: 400,
-      color: '#666666',
+      color: '#333333',
+      lineHeight: 1.6,
+      fontSize: '1rem'
+    },
+    body2: {
+      fontWeight: 400,
+      color: '#555555',
+      lineHeight: 1.5,
+      fontSize: '0.95rem'
     },
     button: {
-      fontWeight: 500,
+      fontWeight: 600,
+      letterSpacing: '0.02em'
     },
     table: {
       fontSize: '0.875rem',
@@ -226,18 +251,94 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: '#FFFFFF',
+          tableLayout: 'auto',
+          width: '100%',
+          borderCollapse: 'separate',
+          borderSpacing: 0,
           '& .MuiTableCell-head': {
             backgroundColor: '#8bc1f7',
             color: '#000000',
             fontWeight: 700,
             borderBottom: '2px solid #1565c0',
+            position: 'sticky',
+            top: 0,
+            zIndex: 2,
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            padding: '14px 16px',
+            minWidth: '120px',
           },
           '& .MuiTableCell-body': {
             color: '#000000',
             borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRight: '1px solid rgba(0, 0, 0, 0.05)',
+            padding: '12px 16px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            '&:last-child': {
+              borderRight: 'none',
+            },
           },
-          '& .MuiTableRow-root:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          '& .MuiTableRow-root': {
+            '&:nth-of-type(odd)': {
+              backgroundColor: 'rgba(0, 0, 0, 0.02)',
+            },
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            },
+          },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          padding: '12px 16px',
+          fontSize: '0.875rem',
+          lineHeight: 1.5,
+          verticalAlign: 'middle',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+        head: {
+          fontWeight: 700,
+          fontSize: '0.9rem',
+          padding: '14px 16px',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+          textAlign: 'center',
+        },
+        body: {
+          textAlign: 'left',
+        },
+      },
+    },
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          overflowX: 'scroll',
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+          width: '100%',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            },
           },
         },
       },
@@ -246,12 +347,20 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           color: '#333333',
+          borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+          backgroundColor: 'rgba(0, 0, 0, 0.02)',
         },
         select: {
           color: '#333333',
+          padding: '0 8px',
+          borderRadius: 4,
+          border: '1px solid rgba(0, 0, 0, 0.1)',
         },
         selectIcon: {
           color: '#333333',
+        },
+        actions: {
+          marginLeft: 20,
         },
       },
     },

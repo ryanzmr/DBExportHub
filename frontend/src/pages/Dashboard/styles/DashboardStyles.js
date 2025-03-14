@@ -1,5 +1,5 @@
-// ExportPageStyles.js
-// Contains all styling for the ExportPage component
+// DashboardStyles.js
+// Contains all styling for the Dashboard component
 
 // Common text field style used throughout the form
 export const commonTextFieldStyle = {
@@ -61,10 +61,12 @@ export const headerStyles = (theme) => ({
     boxShadow: '0 3px 5px 2px rgba(0, 0, 0, 0.1)'
   },
   headerTitle: {
-    fontWeight: 600,
-    letterSpacing: '0.5px',
-    fontFamily: '"Segoe UI", "Roboto", "Arial", sans-serif',
-    textTransform: 'none'
+    fontWeight: 700,
+    letterSpacing: '0.01em',
+    fontFamily: '"Inter", "Roboto", "Arial", sans-serif',
+    textTransform: 'none',
+    fontSize: '1.4rem',
+    textShadow: '0 1px 2px rgba(0,0,0,0.1)'
   },
   headerChip: {
     ml: 2, 
@@ -95,99 +97,119 @@ export const cardHeaderStyles = (theme) => ({
     color: '#1a365d'
   },
   cardHeaderTitle: {
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: '1.35rem',
-    letterSpacing: '0.3px',
-    color: '#1a365d'
+    letterSpacing: '0.01em',
+    fontFamily: '"Inter", "Roboto", "Arial", sans-serif',
+    color: '#1a2b4a'
   },
   advancedOptionsLabel: {
-    fontWeight: 600,
-    fontSize: '1rem',
-    letterSpacing: '0.3px',
-    color: '#1a365d'
+    fontWeight: 500,
+    fontSize: '0.95rem',
+    color: '#445577',
+    letterSpacing: '0.01em'
+  },
+  cardHeaderIcon: {
+    color: theme.palette.primary.main,
+    mr: 2,
+    fontSize: 28
   }
 });
 
 // Form container styles
-export const formContainerStyles = (theme) => ({
-  formContainer: {
-    width: '90%', 
-    mx: 'auto', 
-    mb: 2,
-    p: 3,
-    borderRadius: 2,
-    background: '#ffffff',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-    border: '1px solid',
-    borderColor: 'transparent',
-    backgroundImage: 'linear-gradient(#ffffff, #ffffff), linear-gradient(90deg, #64b5f6, #1976d2)',
-    backgroundOrigin: 'border-box',
-    backgroundClip: 'padding-box, border-box',
-  }
-});
+export const formContainerStyles = {
+  display: 'grid',
+  gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+  gap: 3,
+  mb: 3
+};
 
 // Table styles
 export const tableStyles = (theme) => ({
   tableContainer: {
-    maxHeight: 'calc(100vh - 400px)',
+    maxHeight: '500px',
     overflowY: 'auto',
-    overflowX: 'auto',
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
     '&::-webkit-scrollbar': {
       width: '8px',
-      height: '8px',
+      height: '8px'
     },
     '&::-webkit-scrollbar-thumb': {
       backgroundColor: 'rgba(0,0,0,0.2)',
-      borderRadius: '4px',
+      borderRadius: '4px'
+    },
+    '&::-webkit-scrollbar-track': {
+      backgroundColor: 'rgba(0,0,0,0.05)'
     }
   },
-  tableHeaderCell: {
-    fontWeight: 700,
-    backgroundColor: '#8bc1f7',
-    color: '#000000',
+  tableHead: {
+    backgroundColor: theme.palette.primary.main,
     position: 'sticky',
     top: 0,
-    zIndex: 2,
+    zIndex: 10
+  },
+  tableHeadCell: {
+    color: '#ffffff',
+    fontWeight: 600,
+    fontSize: '0.95rem',
     padding: '12px 16px',
-    textAlign: 'center',
-    fontSize: '0.875rem',
-    whiteSpace: 'nowrap',
-    minWidth: '150px',
-    borderBottom: '2px solid #1565c0',
-    borderRight: '1px solid rgba(0, 0, 0, 0.1)',
-    '&.MuiTableCell-head': {
-      color: '#000000',
-      backgroundColor: '#8bc1f7',
-      fontWeight: 700
+    textAlign: 'left',
+    borderRight: '1px solid rgba(255,255,255,0.15)',
+    '&:last-child': {
+      borderRight: 'none'
+    }
+  },
+  tableCell: {
+    fontSize: '0.9rem',
+    padding: '10px 16px',
+    borderRight: `1px solid ${theme.palette.divider}`,
+    '&:last-child': {
+      borderRight: 'none'
     }
   },
   tableRow: {
     '&:nth-of-type(odd)': {
-      backgroundColor: theme.palette.action.hover
+      backgroundColor: 'rgba(0,0,0,0.02)'
     },
     '&:hover': {
-      backgroundColor: theme.palette.action.selected
+      backgroundColor: 'rgba(25, 118, 210, 0.08)'
     }
   },
-  tableCell: (isNumeric) => ({
-    padding: '8px 16px',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    maxWidth: '300px',
-    borderRight: '1px solid rgba(224, 224, 224, 0.5)',
-    textAlign: isNumeric ? 'right' : 'left',
-    fontSize: '0.875rem',
-    color: '#000000',
-    '&:last-child': {
-      borderRight: 'none'
-    }
-  }),
-  recordCountChip: {
-    fontWeight: 500,
-    fontSize: '0.875rem',
-    '& .MuiChip-label': {
-      padding: '0 12px'
-    }
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px 0',
+    color: theme.palette.text.secondary
   }
 });
+
+// Button styles
+export const buttonStyles = {
+  primary: {
+    borderRadius: '8px',
+    textTransform: 'none',
+    fontWeight: 600,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    padding: '8px 24px',
+    fontSize: '0.95rem',
+    height: '48px',
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+      transform: 'translateY(-1px)'
+    }
+  },
+  secondary: {
+    borderRadius: '8px',
+    textTransform: 'none',
+    fontWeight: 600,
+    padding: '8px 24px',
+    fontSize: '0.95rem',
+    height: '48px',
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      backgroundColor: 'rgba(0,0,0,0.08)'
+    }
+  }
+};

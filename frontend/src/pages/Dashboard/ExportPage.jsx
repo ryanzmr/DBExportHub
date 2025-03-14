@@ -3,20 +3,22 @@ import { Box, Card, CardContent, Grid } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+
 // Custom components
-import ExportHeader from '../components/ExportHeader';
-import ExportForm from '../components/ExportForm';
-import PreviewTable from '../components/PreviewTable';
+import ExportHeader from '../../components/dashboard/ExportHeader';
+import ExportForm from '../../components/dashboard/ExportForm';
+import PreviewTable from '../../components/dashboard/PreviewTable';
+import DashboardFooter from '../../components/dashboard/DashboardFooter';
 
 // Utilities and hooks
-import { useAuth } from '../App';
+import { useAuth } from '../../App';
 import {
   fetchPreviewData,
   generateExcelExport,
   handleExcelDownload,
   cleanupConnection,
   getFreshFormState
-} from '../utils/exportUtils';
+} from '../../utils/exportUtils';
 
 const ExportPage = () => {
   const navigate = useNavigate();
@@ -55,8 +57,6 @@ const ExportPage = () => {
   
   const handleReset = () => {
     setFormData(getFreshFormState());
-    setPreviewData([]);
-    setPreviewCount(0);
     setError(null);
   };
   
@@ -168,45 +168,49 @@ const ExportPage = () => {
   };
   
   return (
-    <Box sx={{ pb: 4 }}>
+    <Box sx={{ pb: 4, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <ExportHeader 
         connectionDetails={connectionDetails} 
         onLogout={handleLogout} 
       />
       
-      <Grid container spacing={3} sx={{ flexDirection: 'column' }}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <ExportForm 
-                formData={formData}
-                handleChange={handleChange}
-                handlePreview={handlePreview}
-                handleExport={handleExport}
-                handleCancel={handleCancel}
-                handleReset={handleReset}
-                loading={loading}
-                exporting={exporting}
-                isOperationInProgress={isOperationInProgress}
-                error={error}
-                previewDataExists={previewData.length > 0}
-              />
-            </CardContent>
-          </Card>
+      <Box sx={{ flex: 1 }}>
+        <Grid container spacing={3} sx={{ flexDirection: 'column' }}>
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <ExportForm 
+                  formData={formData}
+                  handleChange={handleChange}
+                  handlePreview={handlePreview}
+                  handleExport={handleExport}
+                  handleCancel={handleCancel}
+                  handleReset={handleReset}
+                  loading={loading}
+                  exporting={exporting}
+                  isOperationInProgress={isOperationInProgress}
+                  error={error}
+                  previewDataExists={previewData.length > 0}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <PreviewTable 
+                  previewData={previewData}
+                  previewCount={previewCount}
+                  loading={loading}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-        
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <PreviewTable 
-                previewData={previewData}
-                previewCount={previewCount}
-                loading={loading}
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      </Box>
+      
+      <DashboardFooter />
     </Box>
   );
 };
