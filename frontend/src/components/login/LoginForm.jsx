@@ -33,9 +33,9 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
   return (
     <Paper elevation={24} sx={{
       ...loginFormStyles.paper,
-      width: '150%',
-      maxWidth: '500px',
-      p: { xs: 3, sm: 4 },
+      width: '100%',
+      maxWidth: '450px',
+      p: { xs: 2.5, sm: 3 },
       mx: 2,
       borderRadius: 3
     }}>

@@ -12,8 +12,8 @@ const FeatureHeading = () => {
         sx={{
           color: "white",
           fontWeight: 700,
-          mb: 1,
-          fontSize: { xs: "1.4rem", sm: "1.8rem" },
+          mb: 0.75,
+          fontSize: { xs: "1.3rem", sm: "1.6rem" },
           lineHeight: 1.2,
           maxWidth: "90%"
         }}
@@ -25,8 +25,8 @@ const FeatureHeading = () => {
         variant="body1"
         sx={{
           color: "rgba(255, 255, 255, 0.7)",
-          mb: 2.5,
-          fontSize: { xs: "0.85rem", sm: "0.9rem" },
+          mb: 2,
+          fontSize: { xs: "0.8rem", sm: "0.85rem" },
           maxWidth: 400,
           lineHeight: 1.4
         }}

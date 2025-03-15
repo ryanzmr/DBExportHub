@@ -19,10 +19,10 @@ const FeatureSection = () => {
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
-        pr: { md: 5 },
-        mb: { xs: 4, md: 0 },
-        mt: { xs: 4, md: 0 }, // Add top margin on mobile
-        maxWidth: { xs: "100%", md: "55%" }
+        pr: { md: 3 },
+        mb: { xs: 2, md: 0 },
+        mt: { xs: 2, md: 0 }, // Reduced margin on mobile
+        maxWidth: { xs: "100%", md: "50%" }
       }}
     >
       <FeatureIconBox />
