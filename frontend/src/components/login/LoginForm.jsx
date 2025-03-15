@@ -9,9 +9,10 @@ import {
   Paper,
   IconButton,
   Typography,
-  Link
+  Link,
+  Grid
 } from '@mui/material';
-import { Computer, Storage, AccountCircle, Key, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Computer, Storage, AccountCircle, Key, Visibility, VisibilityOff, LoginOutlined } from '@mui/icons-material';
 import { commonTextFieldStyles, loginFormStyles } from '../../pages/Login/styles/LoginPageStyles';
 
 /**
@@ -34,7 +35,7 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
     <Paper elevation={24} sx={{
       ...loginFormStyles.paper,
       width: '100%',
-      maxWidth: '450px',
+      maxWidth: '550px',  // Increased from 450px to 550px
       p: { xs: 2.5, sm: 3 },
       mx: 2,
       borderRadius: 3
@@ -62,159 +63,165 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
       </Box>
       
       <form onSubmit={handleSubmit}>
-        <TextField
-          label="Server Name"
-          name="server"
-          value={formData.server}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-          required
-          placeholder="ServerName"
-          size="medium"
-          InputLabelProps={{
-            sx: {
-              fontWeight: 600,
-              fontSize: '0.9rem'
-            }
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Computer sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 22 }} />
-              </InputAdornment>
-            ),
-            sx: {
-              fontSize: '0.95rem',
-              '& input::placeholder': {
-                fontSize: '0.95rem',
-                opacity: 0.7
-              }
-            }
-          }}
-          sx={{
-            ...commonTextFieldStyles,
-            mb: 2
-          }}
-        />
-        <TextField
-          label="Database Name"
-          name="database"
-          value={formData.database}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-          required
-          placeholder="DatabaseName"
-          size="medium"
-          InputLabelProps={{
-            sx: {
-              fontWeight: 600,
-              fontSize: '0.9rem'
-            }
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Storage sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 22 }} />
-              </InputAdornment>
-            ),
-            sx: {
-              fontSize: '0.95rem',
-              '& input::placeholder': {
-                fontSize: '0.95rem',
-                opacity: 0.7
-              }
-            }
-          }}
-          sx={{
-            ...commonTextFieldStyles,
-            mb: 2
-          }}
-        />
-        <TextField
-          label="Username"
-          name="username"
-          value={formData.username}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-          required
-          placeholder="Enter username"
-          size="medium"
-          InputLabelProps={{
-            sx: {
-              fontWeight: 600,
-              fontSize: '0.9rem'
-            }
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <AccountCircle sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 22 }} />
-              </InputAdornment>
-            ),
-            sx: {
-              fontSize: '0.95rem',
-              '& input::placeholder': {
-                fontSize: '0.95rem',
-                opacity: 0.7
-              }
-            }
-          }}
-          sx={{
-            ...commonTextFieldStyles,
-            mb: 2
-          }}
-        />
-        <TextField
-          label="Password"
-          name="password"
-          type={showPassword ? "text" : "password"}
-          value={formData.password}
-          onChange={handleChange}
-          fullWidth
-          margin="normal"
-          required
-          placeholder="Enter password"
-          size="medium"
-          InputLabelProps={{
-            sx: {
-              fontWeight: 600,
-              fontSize: '0.9rem'
-            }
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Key sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 22 }} />
-              </InputAdornment>
-            ),
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  aria-label="toggle password visibility"
-                  onClick={handleTogglePasswordVisibility}
-                  edge="end"
-                  sx={{ color: "rgba(255, 255, 255, 0.7)" }}
-                >
-                  {showPassword ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </InputAdornment>
-            ),
-            sx: {
-              fontSize: '0.95rem',
-              '& input::placeholder': {
-                fontSize: '0.95rem',
-                opacity: 0.7
-              }
-            }
-          }}
-          sx={{
-            ...commonTextFieldStyles,
-            mb: 2
-          }}
-        />
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: "white", mb: 0.5, fontWeight: 500, fontSize: "0.9rem" }}>
+                Server
+              </Typography>
+              <TextField
+                name="server"
+                value={formData.server}
+                onChange={handleChange}
+                fullWidth
+                required
+                placeholder="MATRIX" /* Example server name */
+                size="medium"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Computer sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    fontSize: '0.95rem',
+                    '& input::placeholder': {
+                      fontSize: '0.9rem',  // Increased from 0.85rem to 0.9rem
+                      opacity: 0.8,       // Increased from 0.7 to 0.8
+                      textOverflow: 'visible',  // Changed from 'ellipsis' to 'visible'
+                      whiteSpace: 'normal',      // Changed from 'nowrap' to 'normal'
+                      width: '100%'
+                    }
+                  }
+                }}
+                sx={{
+                  ...commonTextFieldStyles,
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: "white", mb: 0.5, fontWeight: 500, fontSize: "0.9rem" }}>
+                Database
+              </Typography>
+              <TextField
+                name="database"
+                value={formData.database}
+                onChange={handleChange}
+                fullWidth
+                required
+                placeholder="RAW_PROCESS" /* Example database name */
+                size="medium"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Storage sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    fontSize: '0.95rem',
+                    '& input::placeholder': {
+                      fontSize: '0.9rem',  // Increased from 0.85rem to 0.9rem
+                      opacity: 0.8,       // Increased from 0.7 to 0.8
+                      textOverflow: 'visible',  // Changed from 'ellipsis' to 'visible'
+                      whiteSpace: 'normal',      // Changed from 'nowrap' to 'normal'
+                      width: '100%'
+                    }
+                  }
+                }}
+                sx={{
+                  ...commonTextFieldStyles,
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: "white", mb: 0.5, fontWeight: 500, fontSize: "0.9rem" }}>
+                Username
+              </Typography>
+              <TextField
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                fullWidth
+                required
+                placeholder="Username"
+                size="medium"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <AccountCircle sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    fontSize: '0.95rem',
+                    '& input::placeholder': {
+                      fontSize: '0.9rem',  // Increased from 0.85rem to 0.9rem
+                      opacity: 0.8,       // Increased from 0.7 to 0.8
+                      textOverflow: 'visible',  // Changed from 'ellipsis' to 'visible'
+                      whiteSpace: 'normal',      // Changed from 'nowrap' to 'normal'
+                      width: '100%'
+                    }
+                  }
+                }}
+                sx={{
+                  ...commonTextFieldStyles,
+                }}
+              />
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: "white", mb: 0.5, fontWeight: 500, fontSize: "0.9rem" }}>
+                Password
+              </Typography>
+              <TextField
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                fullWidth
+                required
+                placeholder="Password"
+                size="medium"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Key sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={handleTogglePasswordVisibility}
+                        edge="end"
+                        sx={{ color: "rgba(255, 255, 255, 0.7)" }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    fontSize: '0.95rem',
+                    '& input::placeholder': {
+                      fontSize: '0.9rem',  // Increased from 0.85rem to 0.9rem
+                      opacity: 0.8,       // Increased from 0.7 to 0.8
+                      textOverflow: 'visible',  // Changed from 'ellipsis' to 'visible'
+                      whiteSpace: 'normal',      // Changed from 'nowrap' to 'normal'
+                      width: '100%'
+                    }
+                  }
+                }}
+                sx={{
+                  ...commonTextFieldStyles,
+                }}
+              />
+            </Box>
+          </Grid>
+        </Grid>
         {error && (
           <Alert 
             severity="error" 
@@ -237,9 +244,9 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
           size="large"
           disabled={loading}
           sx={{
-            mt: 4,
+            mt: 3,
             mb: 2,
-            py: 1.5,
+            py: 1.2,
             fontSize: '1rem',
             fontWeight: 600,
             textTransform: 'none',
@@ -251,15 +258,19 @@ const LoginForm = ({ formData, handleChange, handleSubmit, loading, error }) => 
               transform: 'translateY(-1px)'
             },
             boxShadow: '0 4px 10px rgba(90, 79, 255, 0.3)',
-            transition: 'all 0.2s ease-in-out'
+            transition: 'all 0.2s ease-in-out',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1
           }}
-          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginOutlined />}
         >
           {loading ? 'Connecting...' : 'Connect'}
         </Button>
         
-        <Box sx={{ textAlign: 'center', mt: 2 }}>
-          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem', fontFamily: '"Inter", sans-serif' }}>
+        <Box sx={{ textAlign: 'center', mt: 1.5 }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.85rem', fontFamily: '"Inter", sans-serif' }}>
             Having trouble connecting? <Link href="#" sx={{ color: '#7A70FF', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>View Documentation</Link>
           </Typography>
         </Box>
