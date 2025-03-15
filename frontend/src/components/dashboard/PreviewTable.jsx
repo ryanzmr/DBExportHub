@@ -92,6 +92,8 @@ const PreviewTable = ({ previewData, previewCount, loading }) => {
         </Box>
       </Box>
       
+      <Box sx={{ borderBottom: `2px solid ${theme.palette.primary.light}`, mb: 2 }} />
+      
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <TextField
             placeholder="Search..."
@@ -106,7 +108,7 @@ const PreviewTable = ({ previewData, previewCount, loading }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ width: 200, mr: 2 }}
+            sx={{ width: '100%', maxWidth: '400px', mr: 2 }}
           />
       </Box>
 

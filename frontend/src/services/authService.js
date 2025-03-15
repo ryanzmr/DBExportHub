@@ -30,7 +30,7 @@ const authService = {
    * @param {Object} connectionDetails - Database connection details
    * @param {number} expiryMinutes - Token expiry time in minutes
    */
-  storeAuthData: (token, connectionDetails, expiryMinutes = 5) => {
+  storeAuthData: (token, connectionDetails, expiryMinutes = 60) => {
     // Calculate expiry time
     const tokenExpiry = new Date(new Date().getTime() + expiryMinutes * 60000).toISOString();
     
