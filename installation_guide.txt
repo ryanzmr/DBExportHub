@@ -6,7 +6,7 @@ This guide provides step-by-step instructions for setting up the DBExportHub app
 
 Before you begin, ensure you have the following installed on your system:
 
-- Node.js (v14+)
+- Node.js (v18+)
 - Python (v3.8+)
 - SQL Server
 - ODBC Driver for SQL Server (v17+)
@@ -88,11 +88,15 @@ npm install
 ```
 
 This will install all the required packages including:
-- React and React DOM
-- Material-UI components and icons
-- Axios for API calls
-- React Router for navigation
-- And other development dependencies
+- React (v18.2.0) and React DOM
+- Material-UI (v5.16.14) components and icons
+- MUI Data Grid (v7.27.2) for data display
+- MUI Date Pickers Pro (v7.27.1) for date selection
+- Axios (v1.4.0) for API calls
+- React Router (v6.11.1) for navigation
+- Day.js (v1.11.13) for date handling
+- TypeScript support
+- Vite (v6.2.0) as the build tool
 
 ### 3. Configure Environment Variables
 
@@ -114,11 +118,11 @@ VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-The frontend development server will start running, typically at http://localhost:5173.
+The frontend development server will start running at http://localhost:3000.
 
 ## Accessing the Application
 
-Once both the backend and frontend servers are running, you can access the application by opening your web browser and navigating to the frontend URL (typically http://localhost:5173).
+Once both the backend and frontend servers are running, you can access the application by opening your web browser and navigating to http://localhost:3000.
 
 ## Building for Production
 
@@ -151,9 +155,9 @@ This will create a `dist` directory with optimized production files that can be 
 
 2. **Database Connection**: Make sure your SQL Server is running and accessible with the credentials provided.
 
-3. **Port Conflicts**: If the ports 8000 (backend) or 5173 (frontend) are already in use, you may need to change them in the configuration.
+3. **Port Conflicts**: If the ports 8000 (backend) or 3000 (frontend) are already in use, you may need to change them in the configuration.
 
-4. **Node.js or Python Version**: Ensure you're using compatible versions of Node.js (v14+) and Python (v3.8+).
+4. **Node.js or Python Version**: Ensure you're using compatible versions of Node.js (v18+) and Python (v3.8+).
 
 ### Getting Help
 

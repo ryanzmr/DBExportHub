@@ -44,11 +44,12 @@ DBExportHub follows a client-server architecture:
 ## Tech Stack
 
 ### Frontend
-- React.js with React Router for navigation
-- Material-UI for styling and components
+- React.js (v18.2.0) with React Router (v6.11.1) for navigation
+- Material-UI (v5.16.14) for styling and components including MUI Data Grid and Date Pickers
 - React Hooks for state management
 - Axios for API calls
-- Vite as the build tool
+- Vite (v6.2.0) as the build tool
+- TypeScript support
 
 ### Backend
 - FastAPI (Python) for the API server
@@ -66,7 +67,7 @@ DBExportHub follows a client-server architecture:
 
 ### Prerequisites
 
-- Node.js (v14+)
+- Node.js (v18+)
 - Python (v3.8+)
 - SQL Server
 - ODBC Driver for SQL Server (v17+)
@@ -116,7 +117,7 @@ DBExportHub follows a client-server architecture:
    npm run dev
    ```
 
-5. Access the application at `http://localhost:5173`
+5. Access the application at `http://localhost:3000` (as configured in vite.config.js)
 
 ## Code Structure & Module Explanation
 
@@ -153,11 +154,19 @@ backend/
 frontend/
 ├── src/
 │   ├── components/       # Reusable UI components
+│   │   ├── dashboard/    # Dashboard-specific components
+│   │   └── login/        # Login-specific components
+│   ├── contexts/         # React contexts
+│   ├── hooks/            # Custom React hooks
 │   ├── pages/            # Page components
+│   │   ├── Dashboard/    # Export page components
+│   │   └── Login/        # Login page components
 │   ├── services/         # API services
 │   ├── utils/            # Utility functions
 │   ├── App.jsx           # Main App component
-│   └── index.jsx         # Entry point
+│   ├── index.jsx         # Entry point
+│   └── theme.js          # MUI theme configuration
+├── .env.example          # Environment variables template
 ├── package.json          # NPM dependencies
 └── vite.config.js        # Vite configuration
 ```
@@ -165,11 +174,14 @@ frontend/
 **Key Frontend Files:**
 
 - **App.jsx**: Main application component with routing and authentication context
-- **pages/LoginPage.jsx**: Login page for database connection
-- **pages/ExportPage.jsx**: Main export interface
-- **components/ExportForm.jsx**: Form for export parameters
-- **components/PreviewTable.jsx**: Table for data preview
+- **pages/Login/LoginPage.jsx**: Login page for database connection
+- **pages/Dashboard/ExportPage.jsx**: Main export interface
+- **components/dashboard/ExportForm.jsx**: Form for export parameters
+- **components/dashboard/PreviewTable.jsx**: Table for data preview
 - **utils/exportUtils.js**: Utility functions for export operations
+- **services/api.js**: API service for backend communication
+- **services/authService.js**: Authentication service
+- **hooks/useAuth.js**: Custom hook for authentication
 
 ## API Documentation
 
