@@ -9,10 +9,10 @@ const FeatureIconBox = () => {
   return (
     <Box
       sx={{
-        width: 140,
-        height: 140,
+        width: 120,
+        height: 120,
         position: "relative",
-        mb: 3,
+        mb: 2.5,
         "&:hover": {
           transform: "scale(1.05)",
           transition: "transform 0.2s ease-in-out",

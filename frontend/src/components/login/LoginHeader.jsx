@@ -9,11 +9,11 @@ const LoginHeader = () => (
       top: 0,
       left: 0,
       width: "100%",
-      padding: { xs: "16px 16px", sm: "20px 24px" },
+      padding: { xs: "12px 16px", sm: "16px 20px" },
       display: "flex",
       alignItems: "center",
       zIndex: 20,
-      height: { xs: "70px", sm: "80px" }
+      height: { xs: "60px", sm: "70px" }
     }}
   >
     <Box

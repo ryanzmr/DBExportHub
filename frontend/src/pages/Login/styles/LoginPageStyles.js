@@ -62,7 +62,7 @@ export const commonTextFieldStyles = {
 
 export const featureCardStyles = {
   card: {
-    p: 1.8,
+    p: 1.5,
     background: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 2,
     border: '1px solid rgba(255, 255, 255, 0.1)',

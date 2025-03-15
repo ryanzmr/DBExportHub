@@ -72,16 +72,16 @@ const LoginPage = () => {
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
           width: "92%",
-          minHeight: "calc(100vh - 120px)",
+          minHeight: { xs: "auto", md: "calc(100vh - 100px)" },
           zIndex: 1,
-          px: { xs: 2, sm: 2.5, md: 3 },
-          py: { xs: 4, md: 5 },
-          maxWidth: "1200px",
+          px: { xs: 2, sm: 2, md: 2 },
+          py: { xs: 2, md: 3 },
+          maxWidth: "1100px",
           mx: "auto",
           alignItems: "center",
           justifyContent: "center",
-          gap: { xs: 3, md: 4 },
-          mt: { xs: 8, sm: 10 } // Add top margin to prevent overlap with header
+          gap: { xs: 2, md: 3 },
+          mt: { xs: 6, sm: 7 } // Reduced top margin
         }}>
 
         {/* Left side: Features */}
