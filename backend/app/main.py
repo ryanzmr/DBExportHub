@@ -36,10 +36,12 @@ app = FastAPI(
 # Configure CORS - IMPORTANT: This must be added before any routes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],  # Add your frontend URL
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Specific origins instead of wildcard
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "Content-Length"],  # Expose headers needed for file download
+    max_age=3600  # Cache preflight requests for 1 hour
 )
 
 # Root endpoint
@@ -135,8 +137,14 @@ async def get_preview(params: ExportParameters):
         )
 
 # Export data endpoint with streaming response
-@app.post("/api/export")
+@app.post("/api/export", response_class=StreamingResponse)
 async def export_data(params: ExportParameters):
+    # Set a longer timeout for the endpoint to handle large datasets
+    import asyncio
+    import concurrent.futures
+    # Create a ThreadPoolExecutor with increased max_workers for handling large datasets
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+    asyncio.get_event_loop().set_default_executor(executor)  # Use custom executor with increased workers
     try:
         # Generate Excel file
         file_path = generate_excel(params)
