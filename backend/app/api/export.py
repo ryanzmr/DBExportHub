@@ -210,8 +210,21 @@ def generate_excel(params):
             # Skip template and use xlsxwriter directly for better performance
             import xlsxwriter
             
-            # Create a workbook with optimized settings and ZIP64 support for large files
-            workbook = xlsxwriter.Workbook(file_path, {'constant_memory': True, 'use_zip64': True})
+            # Create a workbook with highly optimized settings for large datasets
+            workbook_options = {
+                'constant_memory': True,  # Use constant memory mode for reduced memory usage
+                'use_zip64': True,       # Enable ZIP64 extensions for files > 4GB
+                'default_date_format': 'dd-mmm-yy',  # Set default date format
+                'tmpdir': settings.TEMP_DIR,  # Use temp directory for temporary files
+                'in_memory': False,      # Don't store everything in memory
+                'strings_to_numbers': True,  # Convert string numbers to numeric values
+                'strings_to_formulas': False,  # Don't convert strings to formulas (faster)
+                'strings_to_urls': False,  # Don't convert strings to URLs (faster)
+                'nan_inf_to_errors': True  # Convert NaN/Inf to Excel errors
+            }
+            
+            # Create workbook with optimized settings
+            workbook = xlsxwriter.Workbook(file_path, workbook_options)
             worksheet = workbook.add_worksheet('Export Data')
             
             # Define formats
