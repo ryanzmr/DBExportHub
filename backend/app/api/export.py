@@ -52,41 +52,27 @@ def preview_data(params):
             
             # Use cursor directly for executing stored procedure
             cursor = conn.cursor()
-            # Set cursor options for better performance
-            cursor.fast_executemany = True
             cursor.execute(sp_call, param_list)
             conn.commit()
             cursor.close()
             
-            # Then query the temp table for preview data with optimized query
-            # Add NOLOCK hint to prevent blocking and improve performance
-            preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_TEMP_TABLE} WITH (NOLOCK)"
+            # Then query the temp table for preview data
+            preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_TEMP_TABLE}"
             
-            # Use direct cursor for better performance instead of pandas
-            cursor = conn.cursor()
-            cursor.execute(preview_query)
+            # Use the query_to_dataframe helper function instead of direct pd.read_sql
+            df = query_to_dataframe(conn, preview_query)
             
-            # Get column names
-            columns = [column[0] for column in cursor.description]
+            # Convert DataFrame to dictionary with date handling
+            # Convert all timestamps to strings in ISO format
+            for col in df.select_dtypes(include=['datetime64']).columns:
+                df[col] = df[col].dt.strftime('%Y-%m-%dT%H:%M:%S')
             
-            # Fetch data directly without pandas to avoid memory overhead
-            result = []
-            for row in cursor.fetchall():
-                # Convert row to dictionary
-                row_dict = {}
-                for i, value in enumerate(row):
-                    # Handle datetime objects
-                    if hasattr(value, 'isoformat'):
-                        row_dict[columns[i]] = value.isoformat()
-                    # Handle None values
-                    elif value is None:
-                        row_dict[columns[i]] = None
-                    # Handle other types
-                    else:
-                        row_dict[columns[i]] = value
-                result.append(row_dict)
+            # Replace NaN values with None for JSON serialization
+            df = df.replace({np.nan: None})
             
-            cursor.close()
+            # Convert to records
+            result = df.to_dict('records')
+            
             return result
     except Exception as e:
         print(f"Preview data error: {str(e)}")
@@ -307,7 +293,7 @@ def generate_excel(params):
                 worksheet.set_column(col_idx, col_idx, width)
             
             # Process data in chunks with optimized approach for large datasets
-            chunk_size = 250000  # Increased chunk size for better performance with large datasets
+            chunk_size = 100000  # Further increased chunk size for better performance with large datasets
             offset = 0
             row_idx = 1  # Start from row 1 (after header)
             total_rows = 0
@@ -317,45 +303,32 @@ def generate_excel(params):
             
             print(f"Starting data export in chunks of {chunk_size}")
             
-            # Get total row count for progress tracking using NOLOCK hint for better performance
+            # Get total row count for progress tracking
             count_cursor = conn.cursor()
-            count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_TEMP_TABLE} WITH (NOLOCK)")
+            count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_TEMP_TABLE}")
             total_count = count_cursor.fetchone()[0]
             count_cursor.close()
             print(f"Total rows to export: {total_count}")
             
-            # Optimize memory usage by using server-side cursor and additional SQL optimizations
+            # Optimize memory usage by using server-side cursor
             conn.execute("SET NOCOUNT ON")
-            conn.execute("SET ARITHABORT ON")  # Improves SQL Server performance
-            conn.execute("SET ANSI_NULLS ON")  # Improves SQL Server performance
-            conn.execute("SET ANSI_PADDING ON")  # Improves SQL Server performance
-            
-            # Pre-allocate memory for worksheet rows to improve performance
-            # This reduces the overhead of setting row properties individually
-            worksheet.set_default_row(15)  # Set default row height for all rows
-            
-            # Optimize column formats by creating a mapping of column indexes to formats
-            # This avoids format lookups in the inner loop
-            date_column_indexes = [2]  # SB_Date column index
-            
-            # Use write_row instead of individual cell writes where possible
-            # This is much faster than writing cells individually
             
             while True:
                 chunk_start = datetime.now()
-                # Use NOLOCK hint to prevent blocking and improve performance
-                query = f"SELECT * FROM {settings.EXPORT_TEMP_TABLE} WITH (NOLOCK) ORDER BY (SELECT NULL) OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
+                query = f"SELECT * FROM {settings.EXPORT_TEMP_TABLE} ORDER BY (SELECT NULL) OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
                 
                 # Use cursor with optimized fetch size
                 cursor = conn.cursor()
                 cursor.execute(query)
                 
                 # Fetch rows in batches to reduce memory pressure
-                batch_size = 25000  # Increased batch size for better performance
+                batch_size = 10000  # Further increased batch size for better performance
                 rows_processed = 0
                 
                 # Set cursor options for better performance
                 cursor.arraysize = batch_size
+                
+                # Set fast_executemany for better performance with pyodbc
                 cursor.fast_executemany = True
                 
                 while True:
@@ -363,32 +336,21 @@ def generate_excel(params):
                     if not rows:
                         break
                     
-                    # Process rows in bulk where possible
+                    # Write data to Excel
                     for row in rows:
-                        # Create a formatted row with appropriate cell formats
-                        formatted_row = []
+                        # Only set row height for every 10th row to improve performance
+                        if row_idx % 10 == 0:
+                            worksheet.set_row(row_idx, 15)
+                        
                         for col_idx, value in enumerate(row):
-                            # Apply date format only to date columns
-                            if col_idx in date_column_indexes and value:
-                                # For date columns, we need to use individual cell writes with formatting
+                            # Use date format for column 3 (index 2)
+                            if col_idx == 2 and value:  # SB_Date column
                                 worksheet.write(row_idx, col_idx, value, date_format)
                             else:
-                                # For other columns, add to the row for bulk writing
-                                formatted_row.append(value)
-                                # Write directly to the worksheet with the data format
                                 worksheet.write(row_idx, col_idx, value, data_format)
-                        
                         row_idx += 1
-                        
-                        # Flush to disk every 100,000 rows to manage memory
-                        if row_idx % 100000 == 0:
-                            workbook.close_stream()  # Flush data to disk
                     
                     rows_processed += len(rows)
-                    
-                    # Force garbage collection after each batch to free memory
-                    if rows_processed % 100000 == 0:
-                        gc.collect()
                 
                 total_rows += rows_processed
                 offset += chunk_size
