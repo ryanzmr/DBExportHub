@@ -44,19 +44,42 @@ export const fetchPreviewData = async (connectionDetails, formData, signal) => {
  */
 export const generateExcelExport = async (connectionDetails, formData, signal) => {
   try {
-    // Add a progress indicator
+    // Add an enhanced progress indicator with more detailed information
     const progressIndicator = document.createElement('div');
     progressIndicator.style.position = 'fixed';
     progressIndicator.style.top = '50%';
     progressIndicator.style.left = '50%';
     progressIndicator.style.transform = 'translate(-50%, -50%)';
     progressIndicator.style.padding = '20px';
-    progressIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    progressIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
     progressIndicator.style.color = 'white';
-    progressIndicator.style.borderRadius = '5px';
+    progressIndicator.style.borderRadius = '8px';
     progressIndicator.style.zIndex = '9999';
-    progressIndicator.textContent = 'Preparing export...';
+    progressIndicator.style.minWidth = '300px';
+    progressIndicator.style.textAlign = 'center';
+    progressIndicator.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+    
+    // Create a container for the progress information
+    const progressContent = document.createElement('div');
+    progressContent.innerHTML = `
+      <div style="margin-bottom: 15px; font-weight: bold;">Preparing Large Dataset Export</div>
+      <div id="export-status">Initializing export process...</div>
+      <div style="margin-top: 15px; height: 20px; background-color: rgba(255, 255, 255, 0.2); border-radius: 10px; overflow: hidden;">
+        <div id="export-progress-bar" style="height: 100%; width: 0%; background-color: #4CAF50; transition: width 0.3s;"></div>
+      </div>
+      <div id="export-percentage" style="margin-top: 5px;">0%</div>
+    `;
+    
+    progressIndicator.appendChild(progressContent);
     document.body.appendChild(progressIndicator);
+    
+    // Update status to inform user this might take time for large datasets
+    setTimeout(() => {
+      const statusElement = progressIndicator.querySelector('#export-status');
+      if (statusElement && statusElement.textContent === 'Initializing export process...') {
+        statusElement.textContent = 'Processing large dataset. This may take several minutes...';
+      }
+    }, 5000);
     
     // Request data with pagination or chunking hint
     const requestData = {
@@ -66,7 +89,8 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
       fromMonth: parseInt(formData.fromMonth),
       toMonth: parseInt(formData.toMonth),
       useChunking: true,
-      chunkSize: 5000,
+      chunkSize: 10000, // Increased chunk size for better performance
+      useStreaming: true, // Enable streaming for large datasets
       // Add cleanup flag
       cleanupConnection: true,
       sessionTimeout: 300, // 5 minutes in seconds
@@ -114,10 +138,18 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
     const response = await axios.post('http://localhost:8000/api/export', requestData, {
       responseType: 'blob',
       signal: signal,
-      timeout: 300000, // 5 minute timeout
+      timeout: 3600000, // 60 minute timeout for large datasets
+      maxContentLength: Infinity, // Remove content length limit
+      maxBodyLength: Infinity, // Remove body length limit
       onDownloadProgress: (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || progressEvent.loaded + 1000000));
-        progressIndicator.textContent = `Downloading: ${percentCompleted}%`;
+        const progressBar = progressIndicator.querySelector('#export-progress-bar');
+        const percentageText = progressIndicator.querySelector('#export-percentage');
+        const statusElement = progressIndicator.querySelector('#export-status');
+        
+        if (progressBar) progressBar.style.width = `${percentCompleted}%`;
+        if (percentageText) percentageText.textContent = `${percentCompleted}%`;
+        if (statusElement) statusElement.textContent = `Downloading export file...`;
       }
     });
     
