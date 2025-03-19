@@ -270,7 +270,7 @@ const ExportForm = ({
             variant="contained"
             color="primary"
             onClick={handlePreview}
-            disabled={isOperationInProgress || !formData.fromMonth || !formData.toMonth}
+            disabled={loading || !formData.fromMonth || !formData.toMonth}
             startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PreviewOutlined />}
             sx={{ mr: 2 }}
           >
@@ -281,7 +281,7 @@ const ExportForm = ({
             variant="contained"
             color="success"
             onClick={handleExport}
-            disabled={isOperationInProgress || !previewDataExists}
+            disabled={exporting || !formData.fromMonth || !formData.toMonth}
             startIcon={exporting ? <CircularProgress size={20} color="inherit" /> : <DownloadOutlined />}
             sx={{ mr: 2 }}
           >

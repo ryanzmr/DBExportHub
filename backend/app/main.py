@@ -21,10 +21,10 @@ class LoginRequest(BaseModel):
     password: str
 
 # Add these constants for JWT
-SECRET_KEY = "your-secret-key-here"  # Change this to a secure secret key
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")  # Change this to a secure secret key
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 # Change this constant
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Changed from 5 minutes to 1 hour
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))  # Changed from 5 minutes to 1 hour
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -34,9 +34,13 @@ app = FastAPI(
 )
 
 # Configure CORS - IMPORTANT: This must be added before any routes
+# Get CORS origins from environment variable
+backend_cors_origins = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173")
+origins = [origin.strip() for origin in backend_cors_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Specific origins instead of wildcard
+    allow_origins=origins,  # Use origins from environment variable
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],

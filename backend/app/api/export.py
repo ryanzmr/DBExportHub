@@ -20,12 +20,51 @@ class CustomJSONEncoder(json.JSONEncoder):
             return None
         return super().default(obj)
 
+# Cache to store the last executed query parameters and timestamp
+_query_cache = {
+    "params": None,
+    "timestamp": None,
+    "record_count": 0
+}
+
+def _params_match(cached_params, new_params):
+    """Compare two sets of parameters to determine if they match"""
+    if not cached_params:
+        return False
+        
+    # Compare essential filter parameters
+    key_params = [
+        "fromMonth", "ToMonth", "hs", "prod", "Iec",
+        "ExpCmp", "forcount", "forname", "port"
+    ]
+    
+    for key in key_params:
+        if getattr(cached_params, key, None) != getattr(new_params, key, None):
+            return False
+    
+    return True
+
+def _check_temp_table_exists(conn):
+    """Check if the temporary table exists and has data"""
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT TOP 1 * FROM {settings.EXPORT_VIEW}")
+        has_data = cursor.fetchone() is not None
+        cursor.close()
+        return has_data
+    except Exception:
+        return False
+
 def preview_data(params):
     """
     Generate a preview of the data based on the export parameters.
     Returns a limited number of records for preview in the UI.
     """
     try:
+        start_time = datetime.now()
+        print(f"Starting preview data generation at {start_time}")
+        print(f"Preview parameters: From Month={params.fromMonth}, To Month={params.toMonth}")
+        
         # Connect to the database
         with get_db_connection(
             params.server, params.database, params.username, params.password
@@ -43,24 +82,54 @@ def preview_data(params):
                 "port": params.port or ""
             }
             
-            print(f"Executing stored procedure with params: {sp_params}")
+            # Check if we need to re-execute the stored procedure
+            cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn)
             
-            # Execute the stored procedure
-            # First, execute the stored procedure to populate the temp table
-            param_list = list(sp_params.values())
-            sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
+            if not cache_valid:
+                print(f"Cache miss or invalid. Executing stored procedure with params: {sp_params}")
+                sp_start_time = datetime.now()
+                
+                # Execute the stored procedure to populate the temp table
+                param_list = list(sp_params.values())
+                sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
+                print(f"Executing stored procedure: {sp_call}")
+                
+                # Use cursor directly for executing stored procedure
+                cursor = conn.cursor()
+                cursor.execute(sp_call, param_list)
+                conn.commit()
+                cursor.close()
+                
+                sp_execution_time = (datetime.now() - sp_start_time).total_seconds()
+                print(f"Stored procedure executed in {sp_execution_time} seconds")
+                
+                # Update the cache
+                _query_cache["params"] = params
+                _query_cache["timestamp"] = datetime.now()
+                
+                # Get the total record count for the cache
+                count_cursor = conn.cursor()
+                count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_VIEW}")
+                record_count = count_cursor.fetchone()[0]
+                _query_cache["record_count"] = record_count
+                count_cursor.close()
+                print(f"Total records found: {record_count}")
+            else:
+                print(f"Using cached data for preview. Last query timestamp: {_query_cache['timestamp']}")
+                print(f"Cached record count: {_query_cache['record_count']}")
+                record_count = _query_cache["record_count"]
             
-            # Use cursor directly for executing stored procedure
-            cursor = conn.cursor()
-            cursor.execute(sp_call, param_list)
-            conn.commit()
-            cursor.close()
+            # Query the temp table for preview data - use TOP efficiently
+            preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_VIEW}"
+            print(f"Executing preview query: {preview_query}")
+            query_start_time = datetime.now()
             
-            # Then query the temp table for preview data
-            preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_TEMP_TABLE}"
-            
-            # Use the query_to_dataframe helper function instead of direct pd.read_sql
+            # Execute the query and get the data as a DataFrame
             df = query_to_dataframe(conn, preview_query)
+            
+            query_execution_time = (datetime.now() - query_start_time).total_seconds()
+            print(f"Preview query executed in {query_execution_time} seconds")
+            print(f"Preview records returned: {len(df)} of {record_count} total records")
             
             # Convert DataFrame to dictionary with date handling
             # Convert all timestamps to strings in ISO format
@@ -72,6 +141,10 @@ def preview_data(params):
             
             # Convert to records
             result = df.to_dict('records')
+            
+            total_execution_time = (datetime.now() - start_time).total_seconds()
+            print(f"Total preview generation completed in {total_execution_time} seconds")
+            print(f"Preview data generation finished at {datetime.now()}")
             
             return result
     except Exception as e:
@@ -102,23 +175,45 @@ def generate_excel(params):
                 "port": params.port or ""
             }
             
-            # Execute the stored procedure
-            param_list = list(sp_params.values())
-            sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
+            # Check if we can use cached data from a previous preview with the same parameters
+            cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn)
             
-            print(f"Executing stored procedure: {sp_call}")
-            start_time = datetime.now()
+            if not cache_valid:
+                # Execute the stored procedure if cache is invalid or missing
+                start_time = datetime.now()
+                
+                # Execute the stored procedure
+                param_list = list(sp_params.values())
+                sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
+                
+                print(f"Executing stored procedure: {sp_call}")
+                
+                # Use cursor directly for executing stored procedure
+                cursor = conn.cursor()
+                cursor.execute(sp_call, param_list)
+                conn.commit()
+                cursor.close()
+                
+                # Update the cache
+                _query_cache["params"] = params
+                _query_cache["timestamp"] = datetime.now()
+                
+                # Get the total record count for the cache
+                count_cursor = conn.cursor()
+                count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_VIEW}")
+                _query_cache["record_count"] = count_cursor.fetchone()[0]
+                count_cursor.close()
+                
+                print(f"Stored procedure executed in {(datetime.now() - start_time).total_seconds()} seconds")
+            else:
+                print(f"Using cached data for export. Last query timestamp: {_query_cache['timestamp']}")
+                start_time = datetime.now()
             
-            # Use cursor directly for executing stored procedure
-            cursor = conn.cursor()
-            cursor.execute(sp_call, param_list)
-            conn.commit()
-            cursor.close()
-            
-            print(f"Stored procedure executed in {(datetime.now() - start_time).total_seconds()} seconds")
+            # We've already updated the cache in the if block if needed
+            # No need to update it again here
             
             # Get the first row's HS code for the filename
-            hs_code_query = f"SELECT TOP 1 [Hs_Code] FROM {settings.EXPORT_TEMP_TABLE}"
+            hs_code_query = f"SELECT TOP 1 [Hs_Code] FROM {settings.EXPORT_VIEW}"
             cursor = conn.cursor()
             cursor.execute(hs_code_query)
             first_row_hs = cursor.fetchone()
@@ -254,7 +349,7 @@ def generate_excel(params):
             
             # Get column headers
             cursor = conn.cursor()
-            cursor.execute(f"SELECT TOP 1 * FROM {settings.EXPORT_TEMP_TABLE}")
+            cursor.execute(f"SELECT TOP 1 * FROM {settings.EXPORT_VIEW}")
             columns = [column[0] for column in cursor.description]
             cursor.close()
             
@@ -318,7 +413,7 @@ def generate_excel(params):
             
             # Get total row count for progress tracking
             count_cursor = conn.cursor()
-            count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_TEMP_TABLE}")
+            count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_VIEW}")
             total_count = count_cursor.fetchone()[0]
             count_cursor.close()
             print(f"Total rows to export: {total_count}")
@@ -328,7 +423,7 @@ def generate_excel(params):
             
             while True:
                 chunk_start = datetime.now()
-                query = f"SELECT * FROM {settings.EXPORT_TEMP_TABLE} ORDER BY (SELECT NULL) OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
+                query = f"SELECT * FROM {settings.EXPORT_VIEW} ORDER BY (SELECT NULL) OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
                 
                 # Use cursor with optimized fetch size
                 cursor = conn.cursor()

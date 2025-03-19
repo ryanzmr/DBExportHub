@@ -93,7 +93,7 @@ Toggle the "Advanced Options" switch to access these additional filters:
 ### Export to Excel
 - **Function**: Exports all matching records to an Excel file
 - **API Endpoint**: `/api/export/excel`
-- **Requirements**: Must run Preview first to verify data
+- **Requirements**: None - can be used directly after entering parameters
 - **Processing**: Executes the stored procedure with preview_only=false and formats data using the Excel template
 
 ### Cancel
