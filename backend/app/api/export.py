@@ -6,10 +6,12 @@ from datetime import datetime
 import tempfile
 import uuid
 import pathlib
+import gc
 from typing import List, Dict, Any, Optional
 
 from ..config import settings
 from ..database import get_db_connection, execute_query, query_to_dataframe
+from ..logger import export_logger, log_execution_time, mask_sensitive_data
 
 # Custom JSON encoder to handle pandas Timestamp objects
 class CustomJSONEncoder(json.JSONEncoder):
@@ -55,15 +57,31 @@ def _check_temp_table_exists(conn):
     except Exception:
         return False
 
+@log_execution_time
 def preview_data(params):
     """
     Generate a preview of the data based on the export parameters.
     Returns a limited number of records for preview in the UI.
     """
+    operation_id = str(uuid.uuid4())[:8]
     try:
         start_time = datetime.now()
-        print(f"Starting preview data generation at {start_time}")
-        print(f"Preview parameters: From Month={params.fromMonth}, To Month={params.toMonth}")
+        
+        # Mask sensitive parameters for logging
+        masked_params = mask_sensitive_data(params.__dict__) if hasattr(params, '__dict__') else {}
+        
+        export_logger.info(
+            f"[{operation_id}] Starting preview data generation",
+            extra={
+                "operation_id": operation_id,
+                "operation": "preview_data",
+                "from_month": params.fromMonth,
+                "to_month": params.toMonth,
+                "timestamp": start_time.isoformat()
+            }
+        )
+        
+        export_logger.debug(f"[{operation_id}] Preview parameters: {masked_params}", extra={"operation_id": operation_id})
         
         # Connect to the database
         with get_db_connection(
@@ -86,13 +104,22 @@ def preview_data(params):
             cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn)
             
             if not cache_valid:
-                print(f"Cache miss or invalid. Executing stored procedure with params: {sp_params}")
+                export_logger.info(
+                    f"[{operation_id}] Cache miss or invalid, executing stored procedure",
+                    extra={
+                        "operation_id": operation_id,
+                        "cached": False,
+                        "sp_params": mask_sensitive_data(sp_params)
+                    }
+                )
+                
                 sp_start_time = datetime.now()
                 
                 # Execute the stored procedure to populate the temp table
                 param_list = list(sp_params.values())
                 sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
-                print(f"Executing stored procedure: {sp_call}")
+                
+                export_logger.debug(f"[{operation_id}] Executing stored procedure: {sp_call}", extra={"operation_id": operation_id})
                 
                 # Use cursor directly for executing stored procedure
                 cursor = conn.cursor()
@@ -101,7 +128,14 @@ def preview_data(params):
                 cursor.close()
                 
                 sp_execution_time = (datetime.now() - sp_start_time).total_seconds()
-                print(f"Stored procedure executed in {sp_execution_time} seconds")
+                export_logger.info(
+                    f"[{operation_id}] Stored procedure executed in {sp_execution_time:.2f} seconds",
+                    extra={
+                        "operation_id": operation_id,
+                        "execution_time": sp_execution_time,
+                        "procedure": settings.EXPORT_STORED_PROCEDURE
+                    }
+                )
                 
                 # Update the cache
                 _query_cache["params"] = params
@@ -113,23 +147,53 @@ def preview_data(params):
                 record_count = count_cursor.fetchone()[0]
                 _query_cache["record_count"] = record_count
                 count_cursor.close()
-                print(f"Total records found: {record_count}")
+                
+                export_logger.info(
+                    f"[{operation_id}] Total records found: {record_count}",
+                    extra={
+                        "operation_id": operation_id,
+                        "record_count": record_count
+                    }
+                )
             else:
-                print(f"Using cached data for preview. Last query timestamp: {_query_cache['timestamp']}")
-                print(f"Cached record count: {_query_cache['record_count']}")
+                export_logger.info(
+                    f"[{operation_id}] Using cached data for preview. Last query timestamp: {_query_cache['timestamp']}",
+                    extra={
+                        "operation_id": operation_id,
+                        "cached": True,
+                        "cache_timestamp": _query_cache['timestamp'].isoformat() if isinstance(_query_cache['timestamp'], datetime) else str(_query_cache['timestamp']),
+                        "record_count": _query_cache["record_count"]
+                    }
+                )
                 record_count = _query_cache["record_count"]
             
             # Query the temp table for preview data - use TOP efficiently
             preview_query = f"SELECT TOP {params.max_records} * FROM {settings.EXPORT_VIEW}"
-            print(f"Executing preview query: {preview_query}")
+            export_logger.debug(f"[{operation_id}] Executing preview query: {preview_query}", extra={"operation_id": operation_id})
+            
             query_start_time = datetime.now()
             
             # Execute the query and get the data as a DataFrame
             df = query_to_dataframe(conn, preview_query)
             
             query_execution_time = (datetime.now() - query_start_time).total_seconds()
-            print(f"Preview query executed in {query_execution_time} seconds")
-            print(f"Preview records returned: {len(df)} of {record_count} total records")
+            export_logger.info(
+                f"[{operation_id}] Preview query executed in {query_execution_time:.2f} seconds",
+                extra={
+                    "operation_id": operation_id,
+                    "execution_time": query_execution_time,
+                    "rows_returned": len(df)
+                }
+            )
+            
+            export_logger.info(
+                f"[{operation_id}] Preview records returned: {len(df)} of {record_count} total records",
+                extra={
+                    "operation_id": operation_id,
+                    "preview_count": len(df),
+                    "total_count": record_count
+                }
+            )
             
             # Convert DataFrame to dictionary with date handling
             # Convert all timestamps to strings in ISO format
@@ -143,21 +207,51 @@ def preview_data(params):
             result = df.to_dict('records')
             
             total_execution_time = (datetime.now() - start_time).total_seconds()
-            print(f"Total preview generation completed in {total_execution_time} seconds")
-            print(f"Preview data generation finished at {datetime.now()}")
+            export_logger.info(
+                f"[{operation_id}] Total preview generation completed in {total_execution_time:.2f} seconds",
+                extra={
+                    "operation_id": operation_id,
+                    "total_execution_time": total_execution_time,
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
             
             return result
     except Exception as e:
-        print(f"Preview data error: {str(e)}")
+        export_logger.error(
+            f"[{operation_id}] Preview data error: {str(e)}",
+            extra={
+                "operation_id": operation_id,
+                "operation": "preview_data",
+                "error": str(e)
+            },
+            exc_info=True
+        )
         raise Exception(f"Error generating preview: {str(e)}")
 
 
+@log_execution_time
 def generate_excel(params):
     """
     Generate an Excel file based on the export parameters.
     Returns the path to the generated Excel file.
     """
+    operation_id = str(uuid.uuid4())[:8]
     try:
+        # Mask sensitive parameters for logging
+        masked_params = mask_sensitive_data(params.__dict__) if hasattr(params, '__dict__') else {}
+        
+        export_logger.info(
+            f"[{operation_id}] Starting Excel generation",
+            extra={
+                "operation_id": operation_id,
+                "operation": "generate_excel",
+                "from_month": params.fromMonth,
+                "to_month": params.toMonth,
+                "params": masked_params
+            }
+        )
+        
         # Connect to the database
         with get_db_connection(
             params.server, params.database, params.username, params.password
@@ -182,11 +276,20 @@ def generate_excel(params):
                 # Execute the stored procedure if cache is invalid or missing
                 start_time = datetime.now()
                 
+                export_logger.info(
+                    f"[{operation_id}] Cache miss or invalid, executing stored procedure",
+                    extra={
+                        "operation_id": operation_id,
+                        "cached": False,
+                        "sp_params": mask_sensitive_data(sp_params)
+                    }
+                )
+                
                 # Execute the stored procedure
                 param_list = list(sp_params.values())
                 sp_call = f"EXEC {settings.EXPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
                 
-                print(f"Executing stored procedure: {sp_call}")
+                export_logger.debug(f"[{operation_id}] Executing stored procedure: {sp_call}", extra={"operation_id": operation_id})
                 
                 # Use cursor directly for executing stored procedure
                 cursor = conn.cursor()
@@ -204,9 +307,26 @@ def generate_excel(params):
                 _query_cache["record_count"] = count_cursor.fetchone()[0]
                 count_cursor.close()
                 
-                print(f"Stored procedure executed in {(datetime.now() - start_time).total_seconds()} seconds")
+                sp_execution_time = (datetime.now() - start_time).total_seconds()
+                export_logger.info(
+                    f"[{operation_id}] Stored procedure executed in {sp_execution_time:.2f} seconds",
+                    extra={
+                        "operation_id": operation_id,
+                        "execution_time": sp_execution_time,
+                        "procedure": settings.EXPORT_STORED_PROCEDURE,
+                        "record_count": _query_cache["record_count"]
+                    }
+                )
             else:
-                print(f"Using cached data for export. Last query timestamp: {_query_cache['timestamp']}")
+                export_logger.info(
+                    f"[{operation_id}] Using cached data for export. Last query timestamp: {_query_cache['timestamp']}",
+                    extra={
+                        "operation_id": operation_id,
+                        "cached": True,
+                        "cache_timestamp": _query_cache['timestamp'].isoformat() if isinstance(_query_cache['timestamp'], datetime) else str(_query_cache['timestamp']),
+                        "record_count": _query_cache["record_count"]
+                    }
+                )
                 start_time = datetime.now()
             
             # We've already updated the cache in the if block if needed
@@ -300,7 +420,7 @@ def generate_excel(params):
             file_path = str(temp_dir / filename)
             file_path = os.path.abspath(file_path)
             
-            print(f"Starting Excel generation at {datetime.now()}, filename: {filename}")
+            export_logger.info(f"[{operation_id}] Starting Excel generation at {datetime.now()}, filename: {filename}")
             
             # Skip template and use xlsxwriter directly for better performance
             import xlsxwriter
@@ -409,14 +529,14 @@ def generate_excel(params):
             # Enable garbage collection to manage memory better
             import gc
             
-            print(f"Starting data export in chunks of {chunk_size}")
+            export_logger.info(f"[{operation_id}] Starting data export in chunks of {chunk_size}")
             
             # Get total row count for progress tracking
             count_cursor = conn.cursor()
             count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_VIEW}")
             total_count = count_cursor.fetchone()[0]
             count_cursor.close()
-            print(f"Total rows to export: {total_count}")
+            export_logger.info(f"[{operation_id}] Total rows to export: {total_count}")
             
             # Optimize memory usage by using server-side cursor
             conn.execute("SET NOCOUNT ON")
@@ -469,7 +589,7 @@ def generate_excel(params):
                 
                 # Calculate progress percentage
                 progress_pct = min(100, int((total_rows / total_count) * 100))
-                print(f"Processed {rows_processed} rows in {(datetime.now() - chunk_start).total_seconds()} seconds. Total: {total_rows}/{total_count} ({progress_pct}%)")
+                export_logger.info(f"[{operation_id}] Processed {rows_processed} rows in {(datetime.now() - chunk_start).total_seconds()} seconds. Total: {total_rows}/{total_count} ({progress_pct}%)")
                 
                 # Break if we've processed all rows or no rows were returned
                 if rows_processed == 0 or total_rows >= total_count:
@@ -481,10 +601,27 @@ def generate_excel(params):
             # Close the workbook
             workbook.close()
             
-            print(f"Excel file generated at: {file_path} with {total_rows} rows in {(datetime.now() - start_time).total_seconds()} seconds")
+            sp_execution_time = (datetime.now() - start_time).total_seconds()
+            export_logger.info(
+                f"[{operation_id}] Excel file generated at: {file_path} with {total_rows} rows in {sp_execution_time:.2f} seconds",
+                extra={
+                    "operation_id": operation_id,
+                    "total_execution_time": sp_execution_time,
+                    "file_path": file_path,
+                    "total_rows": total_rows
+                }
+            )
             return file_path
     except Exception as e:
-        print(f"Error generating Excel file: {str(e)}")
+        export_logger.error(
+            f"[{operation_id}] Error generating Excel file: {str(e)}",
+            extra={
+                "operation_id": operation_id,
+                "operation": "generate_excel",
+                "error": str(e)
+            },
+            exc_info=True
+        )
         import traceback
         print(traceback.format_exc())
         raise Exception(f"Error generating Excel file: {str(e)}")

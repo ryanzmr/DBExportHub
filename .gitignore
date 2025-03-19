@@ -53,3 +53,11 @@ temp/
 .DS_Store
 Thumbs.db
 Excel_formatting_code.vbp
+
+# Logging files
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+*.log.*.*.*.*.* 
