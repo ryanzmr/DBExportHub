@@ -23,6 +23,10 @@ class Settings:
     # Excel template path
     EXCEL_TEMPLATE_PATH = os.getenv("EXCEL_TEMPLATE_PATH", os.path.join(BASE_DIR, "templates", "EXDPORT_Tamplate_JNPT.xlsx"))
 
+    # Logging settings
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    LOG_DIR = os.getenv("LOG_DIR", os.path.join(BASE_DIR, "logs"))
+
 # Create an instance of the settings class
 settings = Settings()
 
