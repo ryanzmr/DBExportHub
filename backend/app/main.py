@@ -14,6 +14,7 @@ import time
 from .database import get_db_connection, test_connection
 from .models import ExportParameters, PreviewResponse
 from .api.export import generate_excel, preview_data, CustomJSONEncoder
+from .api.cancel import cancel_router
 from .logger import logger, access_logger, log_api_request
 
 # Add LoginRequest model
@@ -170,14 +171,16 @@ async def get_preview(params: ExportParameters):
         masked_params["password"] = "[REDACTED]"
         logger.info(f"Preview request received with parameters: {masked_params}")
         
-        # Get preview data (first 100 records)
-        data = preview_data(params)
+        # Get preview data (first 100 records) and operation ID
+        result = preview_data(params)
+        data = result["data"]
+        operation_id = result["operation_id"]
         
-        logger.info(f"Preview generated successfully, returning {len(data)} records")
+        logger.info(f"Preview generated successfully, returning {len(data)} records with operation ID: {operation_id}")
         
         # Use custom JSON encoder for timestamps
         json_compatible_data = json.loads(
-            json.dumps({"data": data, "count": len(data)}, cls=CustomJSONEncoder)
+            json.dumps({"data": data, "count": len(data), "operation_id": operation_id}, cls=CustomJSONEncoder)
         )
         
         # Return a properly formatted response
@@ -224,7 +227,10 @@ async def export_data(params: ExportParameters):
         
         # Generate Excel file
         logger.info(f"Starting Excel generation [ID: {export_id}]", extra={"export_id": export_id})
-        file_path = generate_excel(params)
+        file_path, operation_id = generate_excel(params)
+        
+        # Log the operation ID for tracking
+        logger.info(f"Excel generation operation ID: {operation_id}", extra={"export_id": export_id, "operation_id": operation_id})
         
         # Verify file exists
         if not os.path.exists(file_path):
@@ -290,8 +296,9 @@ async def export_data(params: ExportParameters):
         
         headers = {
             'Content-Disposition': f'attachment; filename="{filename}"',
-            'Access-Control-Expose-Headers': 'Content-Disposition',
-            'X-Export-ID': export_id
+            'Access-Control-Expose-Headers': 'Content-Disposition, X-Operation-ID',
+            'X-Export-ID': export_id,
+            'X-Operation-ID': operation_id
         }
         
         logger.info(
@@ -334,3 +341,6 @@ async def cleanup_connection(connection_info: dict):
     except Exception as e:
         logger.error(f"Cleanup error for session {session_id}: {str(e)}", extra={"session_id": session_id}, exc_info=True)
         return {"status": "error", "message": str(e)}
+
+# Include the cancellation router
+app.include_router(cancel_router, prefix="/api/operations")
