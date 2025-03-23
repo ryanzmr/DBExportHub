@@ -7,6 +7,44 @@ import uuid
 from .config import settings
 from .logger import db_logger, log_execution_time, mask_sensitive_data
 
+# Enhanced database logging with emojis
+def db_log_info(message: str, **kwargs):
+    """Enhanced database logging with emojis"""
+    emoji = "🔄"  # Default database operation emoji
+    
+    # Choose appropriate emoji based on message content
+    if "connection" in message.lower():
+        emoji = "🔌"
+    elif "test" in message.lower():
+        emoji = "🧪"
+    elif "successful" in message.lower() or "success" in message.lower():
+        emoji = "✅"
+    elif "failed" in message.lower() or "error" in message.lower():
+        emoji = "❌"
+    elif "executing" in message.lower():
+        emoji = "⚙️"
+    elif "query" in message.lower():
+        emoji = "🔍"
+    elif "stored procedure" in message.lower():
+        emoji = "📦"
+    elif "dataframe" in message.lower():
+        emoji = "📊"
+    elif "cache" in message.lower():
+        if "miss" in message.lower():
+            emoji = "🔍"
+        else:
+            emoji = "💾"
+    
+    db_logger.info(f"{emoji} {message}", extra=kwargs)
+
+def db_log_debug(message: str, **kwargs):
+    """Enhanced database debug logging with emojis"""
+    db_logger.debug(f"🔬 {message}", extra=kwargs)
+
+def db_log_error(message: str, **kwargs):
+    """Enhanced database error logging with emojis"""
+    db_logger.error(f"❌ {message}", extra=kwargs)
+
 def create_connection_string(server: str, database: str, username: str, password: str) -> str:
     """Create a connection string for SQL Server"""
     # Convert server and database to strings if they aren't already
@@ -14,14 +52,12 @@ def create_connection_string(server: str, database: str, username: str, password
     database = str(database)
     
     # Log this operation with sensitive data masked
-    db_logger.debug(
+    db_log_debug(
         f"Creating connection string for server={server}, database={database}",
-        extra={
-            "server": server,
-            "database": database,
-            "username": username,
-            "password": "[REDACTED]"
-        }
+        server=server,
+        database=database,
+        username=username,
+        password="[REDACTED]"
     )
     return f"DRIVER={{{settings.DB_DRIVER}}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
 
@@ -37,28 +73,26 @@ def test_connection(server: str, database: str, username: str, password: str) ->
             "password": "[REDACTED]"
         }
         
-        db_logger.info(
+        db_log_info(
             f"Testing connection to {server}/{database}", 
-            extra=masked_credentials
+            **masked_credentials
         )
         
         connection_string = create_connection_string(server, database, username, password)
         conn = pyodbc.connect(connection_string)
         conn.close()
         
-        db_logger.info(
+        db_log_info(
             f"Connection test successful for {server}/{database}",
-            extra=masked_credentials
+            **masked_credentials
         )
         return True
     except Exception as e:
-        db_logger.error(
+        db_log_error(
             f"Failed to connect to database {server}/{database}: {str(e)}",
-            extra={
-                "server": server,
-                "database": database,
-                "error": str(e)
-            },
+            server=server,
+            database=database,
+            error=str(e),
             exc_info=True
         )
         raise Exception(f"Failed to connect to database: {str(e)}")
@@ -69,45 +103,43 @@ def get_db_connection(server: str, database: str, username: str, password: str):
     connection_id = str(uuid.uuid4())[:8]  # Use UUID instead of object id for more reliable unique identifiers
     
     # Log connection attempt with masked credentials
-    db_logger.info(
+    db_log_info(
         f"Opening database connection [ID: {connection_id}]",
-        extra={
-            "connection_id": connection_id,
-            "server": server,
-            "database": database,
-            "username": username,
-            "operation": "connection_open"
-        }
+        connection_id=connection_id,
+        server=server,
+        database=database,
+        username=username,
+        operation="connection_open"
     )
     
     connection_string = create_connection_string(server, database, username, password)
     conn = None
     try:
         conn = pyodbc.connect(connection_string)
-        db_logger.debug(
+        db_log_debug(
             f"Database connection established [ID: {connection_id}]",
-            extra={"connection_id": connection_id, "operation": "connection_established"}
+            connection_id=connection_id, 
+            operation="connection_established"
         )
         yield conn
     except Exception as e:
-        db_logger.error(
+        db_log_error(
             f"Database connection error [ID: {connection_id}]: {str(e)}",
-            extra={
-                "connection_id": connection_id,
-                "server": server,
-                "database": database,
-                "error": str(e),
-                "operation": "connection_error"
-            },
+            connection_id=connection_id,
+            server=server,
+            database=database,
+            error=str(e),
+            operation="connection_error",
             exc_info=True
         )
         raise Exception(f"Database connection error: {str(e)}")
     finally:
         if conn:
             conn.close()
-            db_logger.debug(
+            db_log_debug(
                 f"Database connection closed [ID: {connection_id}]",
-                extra={"connection_id": connection_id, "operation": "connection_close"}
+                connection_id=connection_id, 
+                operation="connection_close"
             )
 
 @log_execution_time
@@ -117,12 +149,10 @@ def execute_stored_procedure(conn, procedure_name: str, params: Dict[str, Any]) 
         # Mask any sensitive parameters for logging
         masked_params = mask_sensitive_data(params)
         
-        db_logger.info(
+        db_log_info(
             f"Executing stored procedure: {procedure_name}",
-            extra={
-                "procedure": procedure_name,
-                "params": masked_params
-            }
+            procedure=procedure_name,
+            params=masked_params
         )
         
         cursor = conn.cursor()

@@ -64,10 +64,90 @@ def setup_logging():
     # Create console handler with a higher log level
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
+    
+    # Enhanced console formatter with emojis
     console_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
-    console_handler.setFormatter(console_formatter)
+    
+    class ColorEmojiFormatter(logging.Formatter):
+        """
+        Custom formatter to add emojis and colors to console logs
+        """
+        COLORS = {
+            'DEBUG': '\033[94m',  # Blue
+            'INFO': '\033[92m',   # Green
+            'WARNING': '\033[93m', # Yellow
+            'ERROR': '\033[91m',  # Red
+            'CRITICAL': '\033[1;91m', # Bold Red
+            'RESET': '\033[0m'    # Reset color
+        }
+        
+        EMOJIS = {
+            'DEBUG': '🔍',      # Magnifying glass
+            'INFO': 'ℹ️',       # Information
+            'WARNING': '⚠️',    # Warning
+            'ERROR': '❌',      # Cross mark
+            'CRITICAL': '🚨',   # Alarm
+            
+            # Function/operation emojis
+            'Starting': '🚀',   # Rocket (for starting operations)
+            'Completed': '✅',  # Checkmark (for completed operations)
+            'Error': '💥',      # Explosion (for errors in operations)
+            
+            # Database emojis
+            'database': '🔄',   # Database operations
+            'connection': '🔌', # Connection status
+            
+            # API emojis
+            'API': '🌐',        # API related logs
+            'Request': '📤',    # Outgoing request
+            'Response': '📥',   # Incoming response
+            
+            # Export emojis
+            'export': '📊',     # Export operations
+            'preview': '👁️',    # Preview operations
+            'file': '📄'        # File operations
+        }
+        
+        def format(self, record):
+            log_fmt = '%(asctime)s '
+            levelname = record.levelname
+            
+            # Add level emoji
+            if levelname in self.EMOJIS:
+                log_fmt += f"{self.EMOJIS[levelname]} "
+            
+            # Add color based on level
+            if levelname in self.COLORS:
+                log_fmt += f"{self.COLORS[levelname]}%(levelname)s{self.COLORS['RESET']} - "
+            else:
+                log_fmt += "%(levelname)s - "
+            
+            # Add module/logger name
+            log_fmt += "%(name)s - "
+            
+            # Add specialized emojis based on message content
+            message = record.getMessage()
+            emoji_added = False
+            
+            for key, emoji in self.EMOJIS.items():
+                if key in message and key not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+                    log_fmt += f"{emoji} "
+                    emoji_added = True
+                    break
+            
+            # Add the message
+            if not emoji_added:
+                log_fmt += "%(message)s"
+            else:
+                log_fmt += "%(message)s"
+            
+            formatter = logging.Formatter(log_fmt, datefmt='%Y-%m-%d %H:%M:%S')
+            return formatter.format(record)
+    
+    console_handler.setFormatter(ColorEmojiFormatter())
     root_logger.addHandler(console_handler)
     
     # Create rotating file handler for all logs
@@ -138,14 +218,22 @@ def log_execution_time(func: Callable) -> Callable:
         
         # Log the start of the function execution
         start_time = time.time()
-        logger.info(f"[{exec_id}] Starting {func.__name__}", 
+        logger.info(f"🚀 [{exec_id}] Starting {func.__name__}", 
                   extra={"exec_id": exec_id, "function": func.__name__})
         
         try:
             result = func(*args, **kwargs)
             execution_time = time.time() - start_time
+            
+            # Choose emoji based on execution time
+            time_emoji = "⚡" # default for fast executions
+            if execution_time >= 5:
+                time_emoji = "⏱️" # medium time
+            if execution_time >= 10:
+                time_emoji = "⏳" # longer time
+                
             logger.info(
-                f"[{exec_id}] Completed {func.__name__} in {execution_time:.2f}s",
+                f"✅ [{exec_id}] Completed {func.__name__} in {time_emoji} {execution_time:.2f}s",
                 extra={
                     "exec_id": exec_id,
                     "function": func.__name__,
@@ -156,7 +244,7 @@ def log_execution_time(func: Callable) -> Callable:
         except Exception as e:
             execution_time = time.time() - start_time
             logger.exception(
-                f"[{exec_id}] Error in {func.__name__} after {execution_time:.2f}s: {str(e)}",
+                f"💥 [{exec_id}] Error in {func.__name__} after {execution_time:.2f}s: {str(e)}",
                 extra={
                     "exec_id": exec_id,
                     "function": func.__name__,
@@ -188,7 +276,7 @@ def log_api_request(request_data: Optional[Dict[str, Any]] = None) -> Callable:
             # Log the start of the request
             start_time = time.time()
             access_logger.info(
-                f"API Request [{request_id}] to {func.__name__}",
+                f"🌐 API Request [{request_id}] to {func.__name__}",
                 extra=log_data
             )
             
@@ -198,8 +286,16 @@ def log_api_request(request_data: Optional[Dict[str, Any]] = None) -> Callable:
                 
                 # Log successful completion
                 execution_time = time.time() - start_time
+                
+                # Choose emoji based on execution time
+                time_emoji = "⚡" # default for fast executions
+                if execution_time >= 1:
+                    time_emoji = "⏱️" # medium time
+                if execution_time >= 5:
+                    time_emoji = "⏳" # longer time
+                
                 access_logger.info(
-                    f"API Request [{request_id}] to {func.__name__} completed successfully in {execution_time:.2f}s",
+                    f"✅ API Request [{request_id}] to {func.__name__} completed successfully in {time_emoji} {execution_time:.2f}s",
                     extra={
                         "request_id": request_id,
                         "execution_time": execution_time,
@@ -211,7 +307,7 @@ def log_api_request(request_data: Optional[Dict[str, Any]] = None) -> Callable:
                 # Log error details
                 execution_time = time.time() - start_time
                 access_logger.exception(
-                    f"API Request [{request_id}] to {func.__name__} failed after {execution_time:.2f}s: {str(e)}",
+                    f"❌ API Request [{request_id}] to {func.__name__} failed after {execution_time:.2f}s: {str(e)}",
                     extra={
                         "request_id": request_id,
                         "execution_time": execution_time,

@@ -63,8 +63,31 @@ async def log_requests(request: Request, call_next):
     path = request.url.path
     method = request.method
     
+    # Add emojis based on HTTP method
+    method_emojis = {
+        "GET": "📥",
+        "POST": "📤",
+        "PUT": "🔄",
+        "DELETE": "🗑️",
+        "PATCH": "🩹",
+        "OPTIONS": "🔍"
+    }
+    
+    method_emoji = method_emojis.get(method, "🌐")
+    
+    # Add emojis based on path
+    path_emoji = "🔗"
+    if "auth" in path:
+        path_emoji = "🔐"
+    elif "export" in path:
+        path_emoji = "📊"
+    elif "preview" in path:
+        path_emoji = "👁️"
+    elif "health" in path:
+        path_emoji = "💓"
+    
     access_logger.info(
-        f"Received {method} request to {path}",
+        f"{method_emoji} {path_emoji} Received {method} request to {path}",
         extra={
             "request_id": request_id,
             "method": method,
@@ -79,9 +102,20 @@ async def log_requests(request: Request, call_next):
     # Calculate processing time
     process_time = time.time() - start_time
     
+    # Status code emojis
+    status_emoji = "ℹ️"
+    if 200 <= response.status_code < 300:
+        status_emoji = "✅"
+    elif 300 <= response.status_code < 400:
+        status_emoji = "↪️"
+    elif 400 <= response.status_code < 500:
+        status_emoji = "⚠️"
+    elif 500 <= response.status_code < 600:
+        status_emoji = "❌"
+    
     # Log the completed request with status code
     access_logger.info(
-        f"Completed {method} request to {path} with status {response.status_code} in {process_time:.3f}s",
+        f"{method_emoji} {path_emoji} {status_emoji} Completed {method} request to {path} with status {response.status_code} in {process_time:.3f}s",
         extra={
             "request_id": request_id,
             "method": method,
