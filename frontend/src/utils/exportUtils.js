@@ -68,6 +68,7 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
         <div id="export-progress-bar" style="height: 100%; width: 0%; background-color: #4CAF50; transition: width 0.3s;"></div>
       </div>
       <div id="export-percentage" style="margin-top: 5px;">0%</div>
+      <div id="export-details" style="margin-top: 10px; font-size: 0.8em;">Starting export...</div>
     `;
     
     progressIndicator.appendChild(progressContent);
@@ -135,26 +136,107 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
     const sanitizedData = { ...requestData, password: '[REDACTED]' };
     console.log('Export request data:', sanitizedData);
     
+    // Function to update the progress UI
+    const updateProgressUI = (percentage, status, details) => {
+      const progressBar = progressIndicator.querySelector('#export-progress-bar');
+      const percentageText = progressIndicator.querySelector('#export-percentage');
+      const statusElement = progressIndicator.querySelector('#export-status');
+      const detailsElement = progressIndicator.querySelector('#export-details');
+      
+      if (progressBar) progressBar.style.width = `${percentage}%`;
+      if (percentageText) percentageText.textContent = `${percentage}%`;
+      if (statusElement && status) statusElement.textContent = status;
+      if (detailsElement && details) detailsElement.textContent = details;
+    };
+    
+    // Setup for progress polling
+    let operationId = null;
+    let progressInterval = null;
+    let isGeneratingExcel = true;
+    
+    // Make the request
     const response = await axios.post('http://localhost:8000/api/export', requestData, {
       responseType: 'blob',
       signal: signal,
       timeout: 3600000, // 60 minute timeout for large datasets
       maxContentLength: Infinity, // Remove content length limit
       maxBodyLength: Infinity, // Remove body length limit
-      onDownloadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || progressEvent.loaded + 1000000));
-        const progressBar = progressIndicator.querySelector('#export-progress-bar');
-        const percentageText = progressIndicator.querySelector('#export-percentage');
-        const statusElement = progressIndicator.querySelector('#export-status');
-        
-        if (progressBar) progressBar.style.width = `${percentCompleted}%`;
-        if (percentageText) percentageText.textContent = `${percentCompleted}%`;
-        if (statusElement) statusElement.textContent = `Downloading export file...`;
+      headers: {
+        'X-Client-Request-ID': `export-${Date.now()}`
       }
+    }).then(response => {
+      // Extract operation ID from response headers if available
+      operationId = response.headers['x-operation-id'];
+      console.log('Export operation ID:', operationId);
+      
+      // Start progress polling if we have an operation ID
+      if (operationId) {
+        progressInterval = setInterval(async () => {
+          if (!isGeneratingExcel) {
+            clearInterval(progressInterval);
+            return;
+          }
+          
+          try {
+            const progressResponse = await axios.get(`http://localhost:8000/api/progress/${operationId}`);
+            const { progress, status } = progressResponse.data;
+            
+            if (status === 'completed') {
+              // Excel file is ready, waiting for download to start
+              isGeneratingExcel = false;
+              clearInterval(progressInterval);
+              updateProgressUI(
+                100, 
+                'Excel file generated, preparing download...', 
+                `Processed ${progress.total} records successfully!`
+              );
+            } else {
+              // Update progress during generation
+              updateProgressUI(
+                progress.percentage,
+                'Generating Excel file...',
+                `Processed ${progress.current} of ${progress.total} records (${progress.percentage}%)`
+              );
+            }
+          } catch (error) {
+            console.error('Error polling progress:', error);
+          }
+        }, 1000); // Poll every second
+      }
+      
+      return response;
     });
     
-    // Remove progress indicator
-    document.body.removeChild(progressIndicator);
+    // Handle the download progress once the file starts downloading
+    const fileReader = new FileReader();
+    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Set up progress tracking for the file reading
+    fileReader.onprogress = (event) => {
+      if (isGeneratingExcel) {
+        // Now we're in download phase
+        isGeneratingExcel = false;
+        clearInterval(progressInterval);
+      }
+      
+      const percentCompleted = Math.round((event.loaded * 100) / (event.total || event.loaded + 1000000));
+      updateProgressUI(
+        percentCompleted,
+        'Downloading Excel file...',
+        `Downloaded ${Math.round(event.loaded / (1024 * 1024))} MB / ${Math.round((event.total || event.loaded + 1000000) / (1024 * 1024))} MB`
+      );
+    };
+    
+    fileReader.onloadend = () => {
+      // Clean up the intervals when download is complete
+      if (progressInterval) clearInterval(progressInterval);
+      
+      // Remove progress indicator
+      document.body.removeChild(progressIndicator);
+    };
+    
+    // Start reading to initiate the progress events
+    fileReader.readAsArrayBuffer(blob);
     
     return response;
   } catch (err) {

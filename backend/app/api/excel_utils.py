@@ -12,7 +12,7 @@ import xlsxwriter
 
 from ..config import settings
 from ..logger import export_logger, log_execution_time
-from .logging_utils import log_excel_progress, log_excel_completion
+from .logging_utils import log_excel_completion
 
 def create_filename(params, first_row_hs):
     """Create a filename for the Excel export based on the parameters"""
@@ -242,18 +242,6 @@ def write_data_to_excel(worksheet, cursor, data_format, date_format, operation_i
         
         rows_processed = len(rows)
         total_rows += rows_processed
-        
-        # Force garbage collection after each chunk to free memory
-        gc.collect()
-        
-        # Log progress
-        chunk_time = (datetime.now() - chunk_start).total_seconds()
-        log_excel_progress(operation_id, rows_processed, chunk_time, total_rows, total_count)
-        
-        # Check for cancellation after processing each batch
-        # This provides more frequent cancellation checks during long-running operations
-        if is_operation_cancelled(operation_id):
-            export_logger.info(f"[{operation_id}] Operation cancelled during Excel data writing at row {total_rows}/{total_count}")
-            raise Exception("Operation cancelled by user")
     
+    # Return the total number of rows processed
     return total_rows
