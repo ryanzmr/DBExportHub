@@ -20,7 +20,13 @@ def register_operation(operation_id: str) -> None:
             "status": "running",
             "start_time": datetime.now(),
             "cancelled": False,
-            "completed": False
+            "completed": False,
+            "progress": {
+                "current": 0,
+                "total": 0,
+                "percentage": 0,
+                "last_update": datetime.now()
+            }
         }
         export_logger.info(
             f"[{operation_id}] Operation registered",
@@ -109,6 +115,22 @@ def get_operation_status(operation_id: str) -> Optional[Dict[str, Any]]:
         if operation_id in _active_operations:
             return _active_operations[operation_id].copy()
         return None
+
+
+def update_operation_progress(operation_id: str, current: int, total: int) -> None:
+    """Update the progress of an operation"""
+    with _operations_lock:
+        if operation_id in _active_operations:
+            # Calculate percentage
+            percentage = min(100, int((current / max(1, total)) * 100))
+            
+            # Update progress information
+            _active_operations[operation_id]["progress"] = {
+                "current": current,
+                "total": total,
+                "percentage": percentage,
+                "last_update": datetime.now()
+            }
 
 
 def cleanup_completed_operations(max_age_seconds: int = 3600) -> int:

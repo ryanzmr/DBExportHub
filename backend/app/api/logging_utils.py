@@ -92,7 +92,7 @@ def log_excel_progress(operation_id: str, rows_processed: int, chunk_time: float
     # Calculate progress percentage
     progress_pct = min(100, int((total_rows / total_count) * 100))
     export_logger.info(
-        f"[{operation_id}] Processed {rows_processed} rows in {chunk_time} seconds. Total: {total_rows}/{total_count} ({progress_pct}%)",
+        f"[{operation_id}] Processed {rows_processed} rows in {chunk_time:.6f} seconds. Total: {total_rows}/{total_count} ({progress_pct}%)",
         extra={
             "operation_id": operation_id,
             "rows_processed": rows_processed,
@@ -102,6 +102,10 @@ def log_excel_progress(operation_id: str, rows_processed: int, chunk_time: float
             "progress_pct": progress_pct
         }
     )
+    
+    # Update operation progress in the tracker
+    from .operation_tracker import update_operation_progress
+    update_operation_progress(operation_id, total_rows, total_count)
 
 def log_excel_completion(operation_id: str, file_path: str, total_rows: int, execution_time: float):
     """Log the completion of an Excel generation operation"""

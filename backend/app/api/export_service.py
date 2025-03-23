@@ -41,14 +41,31 @@ from .excel_utils import (
     create_excel_formats,
     get_column_widths,
     write_excel_headers,
-    set_column_widths,
-    write_data_to_excel
+    set_column_widths
 )
 from .operation_tracker import (
     register_operation,
+    update_operation_progress,
     mark_operation_completed,
     is_operation_cancelled
 )
+
+def cleanup_on_error(workbook, file_path):
+    """Clean up resources when an error occurs during Excel generation"""
+    # Close workbook to release file handles
+    if workbook:
+        try:
+            workbook.close()
+        except Exception:
+            pass
+            
+    # Clean up partial file
+    if file_path and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            export_logger.info(f"Removed partial Excel file after operation failure or cancellation")
+        except Exception as cleanup_err:
+            export_logger.warning(f"Failed to remove partial file: {str(cleanup_err)}")
 
 @log_execution_time
 def preview_data(params):
@@ -184,53 +201,82 @@ def generate_excel(params):
             # Optimize memory usage by using server-side cursor
             conn.execute("SET NOCOUNT ON")
             
-            # Process data in chunks with optimized approach for large datasets
-            chunk_size = 100000  # Further increased chunk size for better performance with large datasets
-            offset = 0
+            # Variables to track total rows processed
             total_rows = 0
-            
-            while True:
-                # Check for cancellation before processing each chunk
+            offset = 0
+
+            # Loop until all data is processed
+            while total_rows < total_count:
+                # Check if operation has been cancelled before processing each chunk
                 if is_operation_cancelled(operation_id):
-                    export_logger.info(f"[{operation_id}] Export operation cancelled during data processing at row {total_rows}/{total_count}")
-                    # Close workbook to release file handles
-                    if workbook:
-                        try:
-                            workbook.close()
-                        except Exception:
-                            pass
-                    # Clean up partial file
-                    if file_path and os.path.exists(file_path):
-                        try:
-                            os.remove(file_path)
-                            export_logger.info(f"[{operation_id}] Removed partial Excel file after cancellation")
-                        except Exception as cleanup_err:
-                            export_logger.warning(f"[{operation_id}] Failed to remove partial file: {str(cleanup_err)}")
+                    export_logger.info(f"[{operation_id}] Operation cancelled during Excel generation at row {total_rows}/{total_count}")
+                    cleanup_on_error(workbook, file_path)
                     raise Exception("Operation cancelled by user")
-                
+            
                 chunk_start = datetime.now()
                 
                 # Fetch data in chunks
-                cursor = fetch_data_in_chunks(conn, chunk_size, offset, operation_id)
+                cursor = fetch_data_in_chunks(conn, 100000, offset, operation_id)
                 
-                # Write data to Excel
-                rows_processed = write_data_to_excel(worksheet, cursor, data_format, date_format, operation_id, total_count)
-                
-                total_rows += rows_processed
-                offset += chunk_size
+                # Process all rows from this chunk's cursor
+                rows = cursor.fetchall()
                 cursor.close()
                 
-                # Force garbage collection after each chunk to free memory
-                gc.collect()
-                
-                # Break if we've processed all rows or no rows were returned
-                if rows_processed == 0 or total_rows >= total_count:
+                if not rows:
                     break
+                    
+                # Process this chunk of data
+                chunk_size_actual = len(rows)
+                row_idx = total_rows + 1  # Start from after the last processed row (1-based for Excel)
+                
+                # Write the chunk data to Excel
+                for row in rows:
+                    # Check for cancellation periodically 
+                    if row_idx % 1000 == 0 and is_operation_cancelled(operation_id):
+                        export_logger.info(f"[{operation_id}] Operation cancelled during Excel data writing at row {row_idx}/{total_count}")
+                        cleanup_on_error(workbook, file_path)
+                        raise Exception("Operation cancelled by user")
+                        
+                    # Only set row height for every 10th row to improve performance
+                    if row_idx % 10 == 0:
+                        worksheet.set_row(row_idx, 15)
+                    
+                    for col_idx, value in enumerate(row):
+                        # Use date format for column 3 (index 2)
+                        if col_idx == 2 and value:  # SB_Date column
+                            worksheet.write(row_idx, col_idx, value, date_format)
+                        else:
+                            worksheet.write(row_idx, col_idx, value, data_format)
+                    row_idx += 1
+                
+                # Update counters for the next chunk
+                rows_processed = len(rows)
+                total_rows += rows_processed
+                offset += 100000
+                
+                # Calculate chunk processing time
+                chunk_time = (datetime.now() - chunk_start).total_seconds()
+                
+                # Update operation progress in the tracker directly with accumulated total
+                update_operation_progress(operation_id, total_rows, total_count)
+                
+                # Log the current chunk progress with accumulated totals
+                export_logger.info(
+                    f"[{operation_id}] Processed chunk of {rows_processed} rows in {chunk_time:.6f} seconds. Total: {total_rows}/{total_count} ({min(100, int((total_rows / total_count) * 100))}%)",
+                    extra={
+                        "operation_id": operation_id,
+                        "rows_processed": rows_processed,
+                        "chunk_time": chunk_time,
+                        "total_rows": total_rows,
+                        "total_count": total_count,
+                        "progress_pct": min(100, int((total_rows / total_count) * 100))
+                    }
+                )
             
             # Freeze the header row
             worksheet.freeze_panes(1, 0)
             
-            # Close the workbook
+            # Finalize the workbook after all data is written
             workbook.close()
             
             # Log the completion of the Excel generation operation

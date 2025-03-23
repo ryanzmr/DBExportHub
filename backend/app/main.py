@@ -376,5 +376,61 @@ async def cleanup_connection(connection_info: dict):
         logger.error(f"Cleanup error for session {session_id}: {str(e)}", extra={"session_id": session_id}, exc_info=True)
         return {"status": "error", "message": str(e)}
 
+# Add a new endpoint to get export operation progress
+@app.get("/api/progress/{operation_id}")
+async def get_operation_progress(operation_id: str):
+    """
+    Get the progress of an export operation
+    """
+    from .api.operation_tracker import get_operation_status
+    
+    # Log the request
+    access_logger.info(
+        f"📊 📈 Received GET request for operation progress: {operation_id}",
+        extra={
+            "operation_id": operation_id,
+            "path": f"/api/progress/{operation_id}"
+        }
+    )
+    
+    # Get the operation status
+    status = get_operation_status(operation_id)
+    
+    if status is None:
+        # Log the error
+        access_logger.warning(
+            f"📊 ⚠️ Operation not found: {operation_id}",
+            extra={
+                "operation_id": operation_id
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Operation with ID {operation_id} not found"
+        )
+    
+    # Prepare response
+    response = {
+        "operation_id": operation_id,
+        "status": status["status"],
+        "progress": status.get("progress", {
+            "current": 0,
+            "total": 0,
+            "percentage": 0
+        })
+    }
+    
+    # Log the response
+    access_logger.info(
+        f"📊 ✅ Completed GET request for operation progress: {operation_id}, status: {status['status']}, progress: {response['progress']['percentage']}%",
+        extra={
+            "operation_id": operation_id,
+            "status": status["status"],
+            "progress": response["progress"]["percentage"]
+        }
+    )
+    
+    return JSONResponse(content=response)
+
 # Include the cancellation router
 app.include_router(cancel_router, prefix="/api/operations")
