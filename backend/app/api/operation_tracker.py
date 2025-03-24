@@ -109,11 +109,11 @@ def is_operation_cancelled(operation_id: str) -> bool:
         return False
 
 
-def get_operation_status(operation_id: str) -> Optional[Dict[str, Any]]:
+def get_operation_status(operation_id: str) -> Optional[str]:
     """Get the current status of an operation"""
     with _operations_lock:
         if operation_id in _active_operations:
-            return _active_operations[operation_id].copy()
+            return _active_operations[operation_id]["status"]
         return None
 
 

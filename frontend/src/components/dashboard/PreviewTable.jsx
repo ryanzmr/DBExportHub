@@ -22,9 +22,10 @@ import { TableView, Search } from '@mui/icons-material';
  * @param {Object} props - Component props
  * @param {Array} props.previewData - Preview data to display
  * @param {number} props.previewCount - Total count of preview records
+ * @param {number} props.totalRecords - Total count of records in database
  * @param {boolean} props.loading - Loading state
  */
-const PreviewTable = ({ previewData, previewCount, loading }) => {
+const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
   const theme = useTheme();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -83,8 +84,16 @@ const PreviewTable = ({ previewData, previewCount, loading }) => {
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {totalRecords > 0 && (
+            <Chip 
+              label={`Total records: ${totalRecords}`}
+              color="secondary"
+              size="small"
+              sx={{ mr: 1 }}
+            />
+          )}
           <Chip 
-            label={`${filteredData.length} of ${previewCount} records`}
+            label={`${filteredData.length} of ${previewCount} records shown`}
             color="primary"
             variant="outlined"
             size="small"

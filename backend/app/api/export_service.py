@@ -113,8 +113,12 @@ def preview_data(params):
             # Mark the operation as completed
             mark_operation_completed(operation_id)
             
-            # Return both the result and the operation ID
-            return result, operation_id
+            # Return the result, operation ID, and total record count
+            return {
+                "data": result,
+                "operation_id": operation_id,
+                "total_records": record_count
+            }
     except Exception as e:
         log_preview_error(operation_id, e)
         # Don't mark as completed if there was an error
