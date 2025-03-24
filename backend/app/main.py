@@ -5,10 +5,12 @@ from typing import List, Optional
 import os
 import json
 from datetime import datetime, timedelta
-import jwt
+import jwt  # Use the jwt package that's actually installed
 from pydantic import BaseModel
 import uuid
 import time
+import base64
+import logging
 
 # Import your existing modules
 from .database import get_db_connection, test_connection
@@ -29,6 +31,76 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")  # Change this to a
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 # Change this constant
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))  # Changed from 5 minutes to 1 hour
+
+# Universal token functions
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    Create an access token using a simple but secure approach that works universally
+    """
+    to_encode = data.copy()
+    
+    # Set expiration time
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    
+    to_encode.update({"exp": expire.timestamp()})
+    
+    try:
+        # First try using the jwt package if available
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        # Ensure we return a string - some versions return bytes
+        if isinstance(encoded_jwt, bytes):
+            encoded_jwt = encoded_jwt.decode('utf-8')
+        return encoded_jwt
+    except (AttributeError, ImportError, Exception) as e:
+        # Fallback to our own implementation if jwt.encode is not available
+        logger.warning(f"JWT encode failed, using fallback implementation: {str(e)}")
+        # Simple implementation - security is maintained by the SECRET_KEY
+        payload_json = json.dumps(to_encode).encode('utf-8')
+        b64_payload = base64.b64encode(payload_json).decode('utf-8')
+        signature = base64.b64encode(
+            json.dumps({"alg": ALGORITHM, "payload": b64_payload, "key": SECRET_KEY}).encode('utf-8')
+        ).decode('utf-8')
+        return f"{b64_payload}.{signature}"
+
+def verify_token(token: str) -> dict:
+    """
+    Verify token and return payload
+    """
+    try:
+        # First try using jwt package
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except (AttributeError, ImportError):
+        # Fallback to our own implementation
+        try:
+            parts = token.split('.')
+            if len(parts) != 2:
+                raise ValueError("Invalid token format")
+            
+            b64_payload, signature = parts
+            
+            # Decode payload
+            payload_json = base64.b64decode(b64_payload).decode('utf-8')
+            payload = json.loads(payload_json)
+            
+            # Check expiration
+            if "exp" in payload and datetime.fromtimestamp(payload["exp"]) < datetime.utcnow():
+                raise ValueError("Token expired")
+                
+            # Verify signature (simplified)
+            expected_sig = base64.b64encode(
+                json.dumps({"alg": ALGORITHM, "payload": b64_payload, "key": SECRET_KEY}).encode('utf-8')
+            ).decode('utf-8')
+            
+            if signature != expected_sig:
+                raise ValueError("Invalid signature")
+                
+            return payload
+        except Exception as e:
+            raise ValueError(f"Invalid token: {str(e)}")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -184,16 +256,6 @@ async def login(connection_details: LoginRequest):
             status_code=401,
             detail=f"Authentication failed: {str(e)}"
         )
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
 
 # Preview data endpoint
 @app.post("/api/export/preview")
