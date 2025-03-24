@@ -209,12 +209,18 @@ async def get_preview(params: ExportParameters):
         result = preview_data(params)
         data = result["data"]
         operation_id = result["operation_id"]
+        total_records = result["total_records"]  # Get the total records count
         
-        logger.info(f"Preview generated successfully, returning {len(data)} records with operation ID: {operation_id}")
+        logger.info(f"Preview generated successfully, returning {len(data)} records of {total_records} total with operation ID: {operation_id}")
         
         # Use custom JSON encoder for timestamps
         json_compatible_data = json.loads(
-            json.dumps({"data": data, "count": len(data), "operation_id": operation_id}, cls=CustomJSONEncoder)
+            json.dumps({
+                "data": data, 
+                "count": len(data), 
+                "total_records": total_records,  # Include total records in response
+                "operation_id": operation_id
+            }, cls=CustomJSONEncoder)
         )
         
         # Return a properly formatted response

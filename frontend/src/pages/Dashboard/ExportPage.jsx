@@ -8,6 +8,7 @@ import axios from 'axios';
 import ExportHeader from '../../components/dashboard/ExportHeader';
 import ExportForm from '../../components/dashboard/ExportForm';
 import PreviewTable from '../../components/dashboard/PreviewTable';
+import RecordCountBox from '../../components/dashboard/RecordCountBox';
 import DashboardFooter from '../../components/dashboard/DashboardFooter';
 
 // Utilities and hooks
@@ -38,6 +39,7 @@ const ExportPage = () => {
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState([]);
   const [previewCount, setPreviewCount] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportCancelled, setExportCancelled] = useState(false);
   const [isOperationInProgress, setIsOperationInProgress] = useState(false);
@@ -82,11 +84,13 @@ const ExportPage = () => {
       if (response && Array.isArray(response.data)) {
         setPreviewData(response.data);
         setPreviewCount(response.count || response.data.length);
+        setTotalRecords(response.total_records || 0);
       } else {
         console.error('Invalid preview data format:', response);
         setError('Invalid data format received from server');
         setPreviewData([]);
         setPreviewCount(0);
+        setTotalRecords(0);
       }
     } catch (err) {
       console.error('Preview error:', err);
@@ -104,6 +108,7 @@ const ExportPage = () => {
         setError(errorMessage);
         setPreviewData([]);
         setPreviewCount(0);
+        setTotalRecords(0);
       }
     } finally {
       setLoading(false);
@@ -195,6 +200,12 @@ const ExportPage = () => {
               </CardContent>
             </Card>
           </Grid>
+
+          {totalRecords > 0 && (
+            <Grid item xs={12}>
+              <RecordCountBox totalRecords={totalRecords} />
+            </Grid>
+          )}
           
           <Grid item xs={12}>
             <Card>

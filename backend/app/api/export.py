@@ -25,11 +25,11 @@ def preview_data(params):
     Returns a limited number of records for preview in the UI.
     """
     # Call the refactored implementation from export_service.py
-    # This will return both the data and the operation ID
-    result, operation_id = preview_data_service(params)
+    # This will return a dictionary with data, operation_id, and total_records
+    result = preview_data_service(params)
     
-    # Return both the data and the operation ID to the frontend
-    return {"data": result, "operation_id": operation_id}
+    # Return the result directly to the frontend
+    return result
 
 
 @log_execution_time
