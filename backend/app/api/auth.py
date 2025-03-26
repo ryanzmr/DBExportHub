@@ -1,12 +1,6 @@
 from fastapi import HTTPException, status
 from ..database import test_connection
-from pydantic import BaseModel
-
-class LoginRequest(BaseModel):
-    server: str
-    database: str
-    username: str
-    password: str
+from ..models import LoginRequest
 
 async def authenticate_user(connection_details: LoginRequest):
     """

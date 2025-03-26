@@ -5,7 +5,7 @@ from typing import List, Optional
 import os
 import json
 from datetime import datetime, timedelta
-import jwt  # Use the jwt package that's actually installed
+import jwt  # Using PyJWT as specified in requirements.txt
 from pydantic import BaseModel
 import uuid
 import time
@@ -14,23 +14,16 @@ import logging
 
 # Import your existing modules
 from .database import get_db_connection, test_connection
-from .models import ExportParameters, PreviewResponse
+from .models import ExportParameters, PreviewResponse, LoginRequest
 from .api.export import generate_excel, preview_data, CustomJSONEncoder
 from .api.cancel import cancel_router
 from .logger import logger, access_logger, log_api_request
+from .config import settings
 
-# Add LoginRequest model
-class LoginRequest(BaseModel):
-    server: str
-    database: str
-    username: str
-    password: str
-
-# Add these constants for JWT
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")  # Change this to a secure secret key
-ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-# Change this constant
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))  # Changed from 5 minutes to 1 hour
+# JWT constants from config
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Universal token functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

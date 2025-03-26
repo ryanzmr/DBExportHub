@@ -32,11 +32,6 @@ class ExportParameters(BaseModel):
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
 
-# Preview response model
-class PreviewResponse(BaseModel):
-    data: List[Dict[str, Any]]
-    count: int
-
 # Export response model
 class ExportResponse(BaseModel):
     file_path: str
@@ -46,7 +41,7 @@ class ExportResponse(BaseModel):
 
 class HeaderStyle(BaseModel):
     backgroundColor: str = "82b1ff"  # Default blue
-    fontColor: str = "000000"        # Default white
+    fontColor: str = "000000"        # Default black
 
 class ExcelFormat(BaseModel):
     fontName: str = "Times New Roman"
@@ -61,8 +56,6 @@ class ExportRequest(BaseModel):
     query: str
     parameters: Dict[str, Any] = {}
     filename: Optional[str] = None
-    preview_only: bool = False
-    max_records: int = 100
     fromMonth: Optional[int] = None
     toMonth: Optional[int] = None
     hs: Optional[str] = None
@@ -75,6 +68,7 @@ class ExportRequest(BaseModel):
     preview_only: bool = True
     max_records: int = 100
 
+# Preview response model
 class PreviewResponse(BaseModel):
     data: List[Dict[str, Any]]
     count: int

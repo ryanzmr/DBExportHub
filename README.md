@@ -15,6 +15,9 @@ DBExportHub is a modern replacement for an outdated VB6 application that exports
 - Optimized for large datasets
 - Token-based authentication
 - Responsive user interface
+- Real-time operation progress tracking
+- Cancellable operations
+- Comprehensive logging system
 
 ## Architecture Breakdown
 
@@ -40,24 +43,36 @@ DBExportHub follows a client-server architecture:
    - Frontend displays a preview of the data (first 100 records)
    - User can then export the full dataset to Excel
    - Backend generates the Excel file and sends it to the frontend for download
+   - Progress is tracked and displayed to the user in real-time
+   - Operation can be cancelled if needed
+
+### Authentication System
+
+DBExportHub uses a universal token-based authentication system with JWT:
+- Secure token generation with a configurable expiration time
+- Fallback implementation if the JWT package encounters issues
+- Environment variable configuration via SECRET_KEY
+- Token expiration controlled by ACCESS_TOKEN_EXPIRE_MINUTES setting
 
 ## Tech Stack
 
 ### Frontend
 - React.js (v18.2.0) with React Router (v6.11.1) for navigation
-- Material-UI (v5.16.14) for styling and components including MUI Data Grid and Date Pickers
+- Material-UI (v5.16.14) for styling and components including MUI Data Grid (v7.27.2) and Date Pickers Pro (v7.27.1)
 - React Hooks for state management
-- Axios for API calls
+- Axios (v1.4.0) for API calls
 - Vite (v6.2.0) as the build tool
 - TypeScript support
+- Day.js (v1.11.13) for date handling
 
 ### Backend
 - FastAPI (Python) for the API server
 - pyodbc for SQL Server connectivity
 - pandas for data manipulation
 - OpenPyXL for Excel generation
-- JWT for authentication
+- PyJWT for authentication
 - Uvicorn web server
+- Python JSON Logger for structured logging
 
 ### Database
 - Microsoft SQL Server
@@ -93,7 +108,14 @@ DBExportHub follows a client-server architecture:
    pip install -r requirements.txt
    ```
 
-5. Run the FastAPI server:
+5. Create a `.env` file in the backend directory with any necessary environment variables:
+   ```
+   SECRET_KEY=your-secure-secret-key
+   ACCESS_TOKEN_EXPIRE_MINUTES=60
+   BACKEND_CORS_ORIGINS=http://localhost,http://localhost:3000,http://localhost:5173
+   ```
+
+6. Run the FastAPI server:
    ```
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
@@ -110,14 +132,17 @@ DBExportHub follows a client-server architecture:
    npm install
    ```
 
-3. Create a `.env` file based on `.env.example` with your configuration.
+3. Create a `.env` file based on `.env.example` with your configuration:
+   ```
+   VITE_API_URL=http://localhost:8000
+   ```
 
 4. Start the development server:
    ```
    npm run dev
    ```
 
-5. Access the application at `http://localhost:3000` (as configured in vite.config.js)
+5. Access the application at `http://localhost:3000` (default port)
 
 ## Code Structure & Module Explanation
 
@@ -125,63 +150,51 @@ DBExportHub follows a client-server architecture:
 
 ```
 backend/
-├── app/                  # FastAPI application
+├── app/                    # FastAPI application
 │   ├── __init__.py
-│   ├── main.py           # FastAPI entry point
-│   ├── config.py         # Configuration settings
-│   ├── models.py         # Pydantic models
-│   ├── database.py       # Database connection
-│   └── api/              # API endpoints
+│   ├── main.py             # FastAPI entry point
+│   ├── config.py           # Configuration settings
+│   ├── models.py           # Pydantic models
+│   ├── database.py         # Database connection
+│   ├── logger.py           # Logging configuration
+│   └── api/                # API endpoints
 │       ├── __init__.py
-│       ├── export.py     # Export endpoints
-│       └── auth.py       # Auth endpoints
-├── requirements.txt      # Python dependencies
-└── templates/            # Excel templates
+│       ├── auth.py         # Authentication utilities
+│       ├── cancel.py       # Operation cancellation
+│       ├── data_processing.py  # Data processing utilities
+│       ├── database_operations.py  # Database operation utilities
+│       ├── excel_utils.py  # Excel generation utilities
+│       ├── export.py       # Export endpoints wrapper
+│       ├── export_service.py  # Export service implementation
+│       ├── logging_utils.py  # Logging utilities
+│       └── operation_tracker.py  # Operation tracking
+├── logs/                   # Log files directory
+├── templates/              # Excel templates
+├── temp/                   # Temporary files directory
+└── requirements.txt        # Python dependencies
 ```
-
-**Key Backend Files:**
-
-- **main.py**: Entry point for the FastAPI application, defines routes and middleware
-- **config.py**: Configuration settings for the application
-- **models.py**: Pydantic models for request/response validation
-- **database.py**: Database connection utilities
-- **api/export.py**: Endpoints for data preview and Excel export
-- **api/auth.py**: Authentication utilities
 
 ### Frontend Structure
 
 ```
 frontend/
 ├── src/
-│   ├── components/       # Reusable UI components
-│   │   ├── dashboard/    # Dashboard-specific components
-│   │   └── login/        # Login-specific components
-│   ├── contexts/         # React contexts
-│   ├── hooks/            # Custom React hooks
-│   ├── pages/            # Page components
-│   │   ├── Dashboard/    # Export page components
-│   │   └── Login/        # Login page components
-│   ├── services/         # API services
-│   ├── utils/            # Utility functions
-│   ├── App.jsx           # Main App component
-│   ├── index.jsx         # Entry point
-│   └── theme.js          # MUI theme configuration
-├── .env.example          # Environment variables template
-├── package.json          # NPM dependencies
-└── vite.config.js        # Vite configuration
+│   ├── components/         # Reusable UI components
+│   │   ├── dashboard/      # Dashboard-specific components
+│   │   └── login/          # Login-specific components
+│   ├── hooks/              # Custom React hooks
+│   ├── pages/              # Page components
+│   │   ├── Dashboard/      # Export page components
+│   │   └── Login/          # Login page components
+│   ├── services/           # API services
+│   ├── utils/              # Utility functions
+│   ├── App.jsx             # Main App component
+│   ├── index.jsx           # Entry point
+│   └── theme.js            # MUI theme configuration
+├── .env.example            # Environment variables template
+├── package.json            # NPM dependencies
+└── vite.config.js          # Vite configuration
 ```
-
-**Key Frontend Files:**
-
-- **App.jsx**: Main application component with routing and authentication context
-- **pages/Login/LoginPage.jsx**: Login page for database connection
-- **pages/Dashboard/ExportPage.jsx**: Main export interface
-- **components/dashboard/ExportForm.jsx**: Form for export parameters
-- **components/dashboard/PreviewTable.jsx**: Table for data preview
-- **utils/exportUtils.js**: Utility functions for export operations
-- **services/api.js**: API service for backend communication
-- **services/authService.js**: Authentication service
-- **hooks/useAuth.js**: Custom hook for authentication
 
 ## API Documentation
 
@@ -204,17 +217,16 @@ Authenticate user with database credentials.
 **Response:**
 ```json
 {
-  "token": "jwt-token",
-  "token_type": "bearer",
-  "expires_in": 300
+  "access_token": "jwt-token",
+  "token_type": "bearer"
 }
 ```
 
-### Export Endpoints
+### Data Export Endpoints
 
 #### POST /api/export/preview
 
-Get a preview of the export data.
+Get a preview of the data (first 100 records).
 
 **Request:**
 ```json
@@ -227,10 +239,10 @@ Get a preview of the export data.
   "toMonth": 202312,
   "hs": "optional-hs-code",
   "prod": "optional-product-description",
-  "iec": "optional-iec-code",
+  "iec": "optional-iec",
   "expCmp": "optional-exporter-company",
   "forcount": "optional-foreign-country",
-  "forname": "optional-foreign-importer",
+  "forname": "optional-foreign-name",
   "port": "optional-port",
   "preview_only": true,
   "max_records": 100
@@ -240,61 +252,91 @@ Get a preview of the export data.
 **Response:**
 ```json
 {
-  "data": [/* Array of data records */],
+  "data": [
+    { 
+      "column1": "value1",
+      "column2": "value2",
+      ...
+    },
+    ...
+  ],
   "count": 100
 }
 ```
 
 #### POST /api/export/excel
 
-Generate and download an Excel file.
+Export data to Excel.
 
 **Request:**
-(Same as preview endpoint, but with `preview_only: false`)
+Same as preview, but with `preview_only` set to `false`
 
 **Response:**
 Excel file download
 
-## Common Issues & Debugging Guide
+### Operation Management Endpoints
 
-### Connection Issues
+#### GET /api/operations/{operation_id}/progress
 
-1. **Database Connection Failures**
-   - Verify SQL Server credentials are correct
-   - Ensure the SQL Server is accessible from the backend server
-   - Check that the ODBC Driver is installed correctly
-   - Verify firewall settings allow the connection
+Get the progress of an operation.
 
-2. **Token Expiration**
-   - The default token expiration is set to 5 minutes
-   - If experiencing frequent logouts, check the `ACCESS_TOKEN_EXPIRE_MINUTES` setting in `main.py`
+**Response:**
+```json
+{
+  "operation_id": "uuid",
+  "status": "running",
+  "progress": 75,
+  "message": "Processing record 750 of 1000"
+}
+```
 
-### Data Export Issues
+#### POST /api/operations/{operation_id}/cancel
 
-1. **No Data in Preview**
-   - Verify the export parameters are correct
-   - Check that the date range contains data
-   - Ensure the stored procedure is working correctly
+Cancel an ongoing operation.
 
-2. **Excel Export Failures**
-   - Check for sufficient disk space for temporary files
-   - Verify the Excel template exists in the correct location
-   - For large datasets, increase the server timeout settings
+**Response:**
+```json
+{
+  "status": "cancelled",
+  "message": "Operation cancelled successfully"
+}
+```
 
-### Performance Optimization
+## Logging System
 
-1. **Slow Data Preview**
-   - Limit the number of records in the preview
-   - Add appropriate indexes to the database tables
+DBExportHub includes a comprehensive logging system that tracks:
 
-2. **Slow Excel Generation**
-   - Use chunking for large datasets (set `useChunking: true` and `chunkSize: 5000`)
-   - Consider using server-side pagination
+1. API requests and responses
+2. Database operations
+3. Export operations
+4. Authentication events
+5. Errors and exceptions
 
-## Future Enhancement Opportunities
+Logs are stored in the `backend/logs` directory and follow a structured JSON format for easier parsing and analysis.
 
-1. **Data Caching**: Implement client-side caching for frequently accessed data
-2. **Export Templates**: Add support for custom export templates
-3. **Batch Operations**: Enable batch export functionality
-4. **Advanced Filtering**: Implement more sophisticated data filtering options
-5. **User Preferences**: Add user-specific settings and preferences
+## Building for Production
+
+### Backend
+
+For production, run the backend without the `--reload` flag:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Or use a production ASGI server like Gunicorn with Uvicorn workers.
+
+### Frontend
+
+To build the frontend for production:
+
+```bash
+cd frontend
+npm run build
+```
+
+This will create a `dist` directory with optimized production files that can be served by any static file server.
+
+## Troubleshooting
+
+For detailed troubleshooting information, please refer to the installation guide and the logging guide in the project documentation.
