@@ -54,6 +54,33 @@ DBExportHub uses a universal token-based authentication system with JWT:
 - Environment variable configuration via SECRET_KEY
 - Token expiration controlled by ACCESS_TOKEN_EXPIRE_MINUTES setting
 
+### Progress Tracking System
+
+The application features a real-time operation tracking system:
+- Each export operation gets a unique identifier
+- Backend sends progress updates during long-running operations
+- Frontend displays a progress bar with percentage and status
+- Users can cancel operations at any point
+- Automatic cleanup of cancelled or incomplete operations
+
+### Error Handling
+
+DBExportHub includes a comprehensive error handling system:
+- Structured logging with different log levels (INFO, DEBUG, ERROR)
+- Custom error responses with meaningful messages
+- Frontend error display with user-friendly messages
+- Automatic resource cleanup on error
+- Error tracking with operation IDs for troubleshooting
+
+### Memory Optimization
+
+For handling large datasets efficiently:
+- Data is processed in chunks to minimize memory usage
+- Excel files are generated with constant memory mode
+- Configurable batch sizes for database operations
+- Automatic garbage collection during large operations
+- Temporary file management with cleanup
+
 ## Tech Stack
 
 ### Frontend
@@ -69,7 +96,7 @@ DBExportHub uses a universal token-based authentication system with JWT:
 - FastAPI (Python) for the API server
 - pyodbc for SQL Server connectivity
 - pandas for data manipulation
-- OpenPyXL for Excel generation
+- XlsxWriter and OpenPyXL for Excel generation
 - PyJWT for authentication
 - Uvicorn web server
 - Python JSON Logger for structured logging
@@ -113,9 +140,18 @@ DBExportHub uses a universal token-based authentication system with JWT:
    SECRET_KEY=your-secure-secret-key
    ACCESS_TOKEN_EXPIRE_MINUTES=60
    BACKEND_CORS_ORIGINS=http://localhost,http://localhost:3000,http://localhost:5173
+   DB_DRIVER=ODBC Driver 17 for SQL Server
+   TEMP_DIR=./temp
+   TEMPLATES_DIR=./templates
+   LOGS_DIR=./logs
    ```
 
-6. Run the FastAPI server:
+6. Create required directories:
+   ```
+   mkdir -p logs temp templates
+   ```
+
+7. Run the FastAPI server:
    ```
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
@@ -142,7 +178,7 @@ DBExportHub uses a universal token-based authentication system with JWT:
    npm run dev
    ```
 
-5. Access the application at `http://localhost:3000` (default port)
+5. Access the application at `http://localhost:3000` or `http://localhost:5173` (depending on Vite configuration)
 
 ## Code Structure & Module Explanation
 
@@ -200,143 +236,88 @@ frontend/
 
 ### Authentication Endpoints
 
-#### POST /api/auth/login
+- `POST /login`: Authenticates user with SQL Server credentials
+  - Request: `{ server, database, username, password }`
+  - Response: `{ token, user_info }`
 
-Authenticate user with database credentials.
+### Export Endpoints
 
-**Request:**
-```json
-{
-  "server": "sql-server-name",
-  "database": "database-name",
-  "username": "db-username",
-  "password": "db-password"
-}
-```
+- `POST /api/export/preview`: Get a preview of export data
+  - Request: Export parameters (fromMonth, toMonth, filters)
+  - Response: `{ data, operation_id, total_records }`
 
-**Response:**
-```json
-{
-  "access_token": "jwt-token",
-  "token_type": "bearer"
-}
-```
+- `POST /api/export/excel`: Generate and download Excel file
+  - Request: Export parameters (fromMonth, toMonth, filters)
+  - Response: Excel file download
 
-### Data Export Endpoints
+### Operation Endpoints
 
-#### POST /api/export/preview
+- `GET /api/operations/{operation_id}/progress`: Get operation progress
+  - Response: `{ progress, status, message }`
 
-Get a preview of the data (first 100 records).
+- `POST /api/operations/{operation_id}/cancel`: Cancel an operation
+  - Response: `{ success, message }`
 
-**Request:**
-```json
-{
-  "server": "sql-server-name",
-  "database": "database-name",
-  "username": "db-username",
-  "password": "db-password",
-  "fromMonth": 202301,
-  "toMonth": 202312,
-  "hs": "optional-hs-code",
-  "prod": "optional-product-description",
-  "iec": "optional-iec",
-  "expCmp": "optional-exporter-company",
-  "forcount": "optional-foreign-country",
-  "forname": "optional-foreign-name",
-  "port": "optional-port",
-  "preview_only": true,
-  "max_records": 100
-}
-```
+## Deployment Guide
 
-**Response:**
-```json
-{
-  "data": [
-    { 
-      "column1": "value1",
-      "column2": "value2",
-      ...
-    },
-    ...
-  ],
-  "count": 100
-}
-```
+### Production Deployment
 
-#### POST /api/export/excel
+1. **Backend Deployment**:
+   - Use a production ASGI server:
+     ```
+     gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app
+     ```
+   - Configure a reverse proxy (Nginx/Apache) to forward requests
+   - Set up SSL certificates for secure communication
+   - Configure environment variables for production settings
 
-Export data to Excel.
+2. **Frontend Deployment**:
+   - Build the frontend for production:
+     ```
+     npm run build
+     ```
+   - Serve the static files using Nginx or any static file server
+   - Configure CORS headers to allow communication with the backend
+   - Set up content delivery networks (CDNs) for improved performance
 
-**Request:**
-Same as preview, but with `preview_only` set to `false`
+3. **Security Considerations**:
+   - Use HTTPS for all communications
+   - Configure proper firewall rules
+   - Implement rate limiting to prevent abuse
+   - Regularly update dependencies for security patches
+   - Set up proper backup systems
 
-**Response:**
-Excel file download
+## Performance Optimizations
 
-### Operation Management Endpoints
+DBExportHub includes several optimizations for handling large datasets:
 
-#### GET /api/operations/{operation_id}/progress
-
-Get the progress of an operation.
-
-**Response:**
-```json
-{
-  "operation_id": "uuid",
-  "status": "running",
-  "progress": 75,
-  "message": "Processing record 750 of 1000"
-}
-```
-
-#### POST /api/operations/{operation_id}/cancel
-
-Cancel an ongoing operation.
-
-**Response:**
-```json
-{
-  "status": "cancelled",
-  "message": "Operation cancelled successfully"
-}
-```
-
-## Logging System
-
-DBExportHub includes a comprehensive logging system that tracks:
-
-1. API requests and responses
-2. Database operations
-3. Export operations
-4. Authentication events
-5. Errors and exceptions
-
-Logs are stored in the `backend/logs` directory and follow a structured JSON format for easier parsing and analysis.
-
-## Building for Production
-
-### Backend
-
-For production, run the backend without the `--reload` flag:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-Or use a production ASGI server like Gunicorn with Uvicorn workers.
-
-### Frontend
-
-To build the frontend for production:
-
-```bash
-cd frontend
-npm run build
-```
-
-This will create a `dist` directory with optimized production files that can be served by any static file server.
+1. **Chunked Data Processing**: Data is fetched and processed in manageable chunks
+2. **Memory-Efficient Excel Generation**: XlsxWriter with constant memory mode
+3. **Database Connection Pooling**: Efficient connection management
+4. **Progressive Loading**: UI displays data as it becomes available
+5. **Background Processing**: Long-running operations don't block the UI
+6. **Cache Utilization**: Temporary tables for improved query performance
+7. **Resource Cleanup**: Automatic cleanup of temporary files and resources
 
 ## Troubleshooting
 
-For detailed troubleshooting information, please refer to the installation guide and the logging guide in the project documentation.
+Please refer to the `installation_guide.txt` for detailed troubleshooting steps and common issues.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is proprietary software and is not licensed for public use.
+
+## Acknowledgements
+
+- FastAPI for the efficient API framework
+- React and Material-UI for the frontend components
+- Microsoft for SQL Server and ODBC drivers
+- All the open-source libraries that made this project possible

@@ -36,7 +36,7 @@ class Settings:
     LOG_DIR = os.getenv("LOG_DIR", os.path.join(BASE_DIR, "logs"))
 
     # CORS settings
-    BACKEND_CORS_ORIGINS = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173")
+    BACKEND_CORS_ORIGINS = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173,http://192.168.56.1:3000")
     CORS_ORIGINS_LIST = [origin.strip() for origin in BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
 
 # Create an instance of the settings class
