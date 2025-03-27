@@ -114,6 +114,8 @@ For handling large datasets efficiently:
 - SQL Server
 - ODBC Driver for SQL Server (v17+)
 
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+
 ### Backend Setup
 
 1. Navigate to the backend directory:
