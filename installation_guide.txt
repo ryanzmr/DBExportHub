@@ -53,17 +53,55 @@ This will install the following packages:
 - python-dotenv>=0.19.0: For loading environment variables
 - pydantic>=1.8.2: For data validation
 - openpyxl>=3.0.9: For Excel file generation
+- xlsxwriter>=3.0.3: For optimized Excel file generation
 - python-multipart>=0.0.5: For handling form data
 - numpy>=1.20.0: For numerical operations
-- jwt>=1.3.1 and pyjwt>=2.1.0: For authentication
+- PyJWT>=2.1.0: For JWT-based authentication
 - pathlib>=1.0.1: For file path operations
 - uuid>=1.30: For generating unique identifiers
+- python-json-logger>=2.0.4: For structured logging
 
-### 3. Configure Environment Variables (if needed)
+### 3. Configure Environment Variables
 
-Create a `.env` file in the backend directory with any necessary environment variables for your setup.
+Create a `.env` file in the backend directory with the following environment variables:
 
-### 4. Run the Backend Server
+```
+# Authentication
+SECRET_KEY=your-secure-secret-key
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# CORS Settings
+BACKEND_CORS_ORIGINS=http://localhost,http://localhost:3000,http://localhost:5173
+
+# Database Settings
+DB_DRIVER=ODBC Driver 17 for SQL Server
+
+# File Paths
+TEMP_DIR=./temp
+TEMPLATES_DIR=./templates
+LOGS_DIR=./logs
+```
+
+Ensure the ODBC driver name matches your installed version. You can check available drivers using:
+
+#### Windows:
+```
+odbcad32.exe
+```
+
+#### Linux:
+```
+odbcinst -q -d
+```
+
+### 4. Create Required Directories
+
+Ensure the following directories exist in the backend folder:
+```bash
+mkdir -p logs temp templates
+```
+
+### 5. Run the Backend Server
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -118,23 +156,39 @@ VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-The frontend development server will start running at http://localhost:3000.
+The frontend development server will start running at http://localhost:3000 or http://localhost:5173 (depending on Vite configuration).
 
 ## Accessing the Application
 
-Once both the backend and frontend servers are running, you can access the application by opening your web browser and navigating to http://localhost:3000.
+Once both the backend and frontend servers are running, you can access the application by opening your web browser and navigating to the frontend URL (http://localhost:3000 or http://localhost:5173).
+
+## Authentication System
+
+DBExportHub uses a token-based authentication system:
+
+1. The system uses JWT (JSON Web Tokens) for authentication
+2. Tokens are generated with a configurable expiration time (set by ACCESS_TOKEN_EXPIRE_MINUTES)
+3. There's a fallback implementation if the JWT package encounters issues
+4. Tokens are validated on each API request to ensure security
+
+The authentication flow:
+1. User provides SQL Server connection details
+2. Backend validates the connection and issues a JWT token
+3. Frontend stores the token for subsequent API calls
 
 ## Building for Production
 
 ### Backend
 
-For production, you might want to run the backend without the `--reload` flag:
+For production, you should run the backend using a production-grade ASGI server:
 
 ```bash
+# Using Uvicorn without --reload
 uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
 
-Or use a production ASGI server like Gunicorn with Uvicorn workers.
+# Or using Gunicorn with Uvicorn workers
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app
+```
 
 ### Frontend
 
@@ -151,18 +205,33 @@ This will create a `dist` directory with optimized production files that can be 
 
 ### Common Issues
 
-1. **ODBC Driver Issues**: Ensure you have the correct ODBC Driver for SQL Server installed. The application requires v17 or higher.
+1. **ODBC Driver Issues**: 
+   - Error: "The DSN specified does not exist" or "Driver not found"
+   - Solution: Ensure you have the correct ODBC Driver for SQL Server installed and the driver name in your .env file matches exactly
 
-2. **Database Connection**: Make sure your SQL Server is running and accessible with the credentials provided.
+2. **Database Connection**: 
+   - Error: "Cannot connect to SQL Server" or "Login failed"
+   - Solution: Verify SQL Server is running and credentials are correct. Check firewall settings and SQL Server authentication mode.
 
-3. **Port Conflicts**: If the ports 8000 (backend) or 3000 (frontend) are already in use, you may need to change them in the configuration.
+3. **Port Conflicts**: 
+   - Error: "Address already in use" 
+   - Solution: Change the port in the uvicorn command (--port XXXX) or in the Vite configuration for frontend
 
-4. **Node.js or Python Version**: Ensure you're using compatible versions of Node.js (v18+) and Python (v3.8+).
+4. **JWT Authentication Issues**:
+   - Error: "Invalid token" or "Token expired"
+   - Solution: Check SECRET_KEY configuration and ACCESS_TOKEN_EXPIRE_MINUTES in the .env file
+
+5. **Large Export Failures**:
+   - Error: "Memory error" or timeout during large exports
+   - Solution: Increase system memory, use more specific filters, or optimize your SQL Server queries
 
 ### Getting Help
 
-If you encounter any issues during installation or setup, please refer to the project documentation or contact the development team for assistance.
+If you encounter any issues during installation or setup, please refer to:
+- The project documentation
+- Backend logs in the `logs` directory
+- Browser console for frontend errors
 
 ## Next Steps
 
-After successful installation, refer to the user documentation for information on how to use the DBExportHub application for exporting SQL Server data to Excel.
+After successful installation, refer to the EXPORT_CONFIGURATION_GUIDE.md for information on how to use the DBExportHub application for exporting SQL Server data to Excel.

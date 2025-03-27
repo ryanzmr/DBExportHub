@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: 'localhost',
+    // Use true to enable all interfaces but the server will display them nicely
+    host: true,
     port: 3000,
     strictPort: true,
     cors: false,

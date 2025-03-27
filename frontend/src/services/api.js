@@ -1,7 +1,28 @@
 import axios from 'axios';
 
-// Get the API URL from environment variables
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Get the API URL from environment variables or detect based on client location
+const detectApiUrl = () => {
+  // Use environment variable if available (highest priority)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // Check if we're on localhost
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1';
+  
+  // If we're on localhost, use localhost backend
+  if (isLocalhost) {
+    return 'http://localhost:8000';
+  }
+  
+  // If we're accessing from a specific IP, use that same IP for backend
+  // This assumes frontend and backend are on same machine
+  return `http://${window.location.hostname}:8000`;
+};
+
+const API_URL = detectApiUrl();
+console.log('Using API URL:', API_URL);
 
 // Create axios instance with default config
 const apiClient = axios.create({
@@ -19,6 +40,7 @@ const apiService = {
       const response = await apiClient.post('/api/auth/login', credentials);
       return response.data;
     } catch (error) {
+      console.error('Login error:', error);
       throw error.response?.data || error.message;
     }
   },

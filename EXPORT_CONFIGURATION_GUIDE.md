@@ -99,10 +99,22 @@ Toggle the "Advanced Options" switch to access these additional filters:
 ### Cancel
 - **Function**: Cancels an ongoing preview or export operation
 - **Available**: Only when an operation is in progress
+- **API Endpoint**: `/api/operations/{operation_id}/cancel`
+- **Processing**: Immediately stops the running operation and cleans up resources
 
 ### Reset
 - **Function**: Clears all form fields to start fresh
 - **Available**: When no operation is in progress
+
+## Operation Tracking
+
+During export operations, the system provides real-time progress tracking:
+
+1. A progress bar indicates the percentage of completion
+2. Status messages show the current operation stage
+3. Estimated time remaining is displayed when available
+4. For large exports, a counter shows processed records (e.g., "Processing 5,000 of 15,000 records")
+5. The Cancel button is available during this time to abort the operation if needed
 
 ## Backend Processing Flow
 
@@ -114,6 +126,27 @@ Toggle the "Advanced Options" switch to access these additional filters:
 6. For preview: First 100 records are returned to the frontend
 7. For export: All matching records are formatted into Excel using the template
 8. Excel file is sent back to the frontend for download
+
+## Performance Considerations
+
+When working with large datasets:
+
+1. **Be specific with filters**: The more specific your filters, the faster the query execution and smaller the result set
+2. **Consider date ranges carefully**: Very large date ranges (e.g., several years) can result in slow processing
+3. **Use multiple filters**: Combining filters (e.g., HS Code + Country) can significantly reduce processing time
+4. **Preview first**: Always use Preview before running a full export to verify your filter criteria
+5. **Monitor export progress**: Use the progress tracking to estimate completion time
+6. **Cancel if needed**: If an export is taking too long, you can cancel and refine your filters
+
+## Excel Output Formatting
+
+The generated Excel file includes:
+
+1. Formatted headers with background colors
+2. Appropriate column widths based on content type
+3. Date formatting for date fields
+4. Proper number formatting for numeric fields
+5. The filename follows the pattern: `[Parameters]_[MMMYY]EXP.xlsx` (e.g., `39076000_FEB23-MAR23EXP.xlsx`)
 
 ## Tips for Effective Use
 
@@ -131,3 +164,6 @@ If you encounter issues with the export process:
 2. Check that your filter criteria aren't too restrictive
 3. Ensure you have proper permissions to access the requested data
 4. For large exports, allow sufficient time for processing
+5. If an export fails, check the error message for specific details
+6. For memory-related issues, try a more restricted set of filters
+7. If the application becomes unresponsive, refresh the page and try again with different parameters
