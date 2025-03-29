@@ -94,6 +94,10 @@ const ExportPage = () => {
       }
     } catch (err) {
       console.error('Preview error:', err);
+      setPreviewData([]);
+      setPreviewCount(0);
+      setTotalRecords(0);
+      
       if (err.name === 'AbortError' || err.name === 'CanceledError' || axios.isCancel(err)) {
         setError('Process canceled');
       } else if (err.response?.status === 401) {
@@ -101,14 +105,25 @@ const ExportPage = () => {
         logout();
         navigate('/login');
       } else {
-        // Make sure error is a string, not an object
-        const errorMessage = typeof err.response?.data?.detail === 'string' 
-          ? err.response?.data?.detail 
-          : 'Error generating preview';
+        // Handle different types of errors
+        let errorMessage = 'Error generating preview';
+        
+        // Custom error from our own error handling
+        if (err instanceof Error && err.message) {
+          errorMessage = err.message;
+        } 
+        // Error from axios response
+        else if (err.response?.data?.detail) {
+          errorMessage = err.response.data.detail;
+        }
+        // Database transaction log error
+        else if (err.response?.data?.detail && 
+                err.response.data.detail.includes('transaction log') && 
+                err.response.data.detail.includes('full')) {
+          errorMessage = 'Database Error: The SQL Server transaction log is full. Please contact your database administrator.';
+        }
+        
         setError(errorMessage);
-        setPreviewData([]);
-        setPreviewCount(0);
-        setTotalRecords(0);
       }
     } finally {
       setLoading(false);
@@ -134,7 +149,24 @@ const ExportPage = () => {
         return;
       }
       
-      // Handle the download
+      // Check if we received a status response (might be from Excel row limit handling)
+      if (response && response.status) {
+        if (response.status === 'cancelled') {
+          // User chose to cancel the export when row limit was exceeded
+          setError(response.message || 'Export cancelled');
+          return;
+        } else if (response.status === 'error') {
+          // An error occurred during export
+          setError(response.message || 'An error occurred during export');
+          return;
+        } else if (response.status === 'completed') {
+          // Export completed successfully (partial export)
+          // No need to do anything, the download should have been triggered
+          return;
+        }
+      }
+      
+      // Handle the download for normal successful exports
       handleExcelDownload(response, formData);
     } catch (err) {
       // Check if the error is due to cancellation

@@ -55,10 +55,10 @@ Thumbs.db
 Excel_formatting_code.vbp
 
 # Logging files
+logs/
 *.log
 *.log.*
 *.log.*.*
 *.log.*.*.*
 *.log.*.*.*.*
-*.log.*.*.*.*.* 
-.qodo
+*.log.*.*.*.*.*     
