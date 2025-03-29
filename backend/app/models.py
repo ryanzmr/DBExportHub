@@ -31,6 +31,7 @@ class ExportParameters(BaseModel):
     # Additional options
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
+    max_rows: Optional[int] = Field(None, description="Maximum number of rows to export for Excel limitations")
 
 # Export response model
 class ExportResponse(BaseModel):

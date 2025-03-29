@@ -43,7 +43,16 @@ def db_log_debug(message: str, **kwargs):
 
 def db_log_error(message: str, **kwargs):
     """Enhanced database error logging with emojis"""
-    db_logger.error(f"❌ {message}", extra=kwargs)
+    # Make a copy of kwargs to avoid modifying the original
+    log_kwargs = kwargs.copy()
+    
+    # Remove exc_info from log_kwargs if it's already being sent as an argument
+    # This prevents the "Attempt to overwrite 'exc_info' in LogRecord" error
+    if 'exc_info' in log_kwargs:
+        exc_info = log_kwargs.pop('exc_info')
+        db_logger.error(f"❌ {message}", exc_info=exc_info, extra=log_kwargs)
+    else:
+        db_logger.error(f"❌ {message}", extra=log_kwargs)
 
 def create_connection_string(server: str, database: str, username: str, password: str) -> str:
     """Create a connection string for SQL Server"""
@@ -122,6 +131,31 @@ def get_db_connection(server: str, database: str, username: str, password: str):
             operation="connection_established"
         )
         yield conn
+    except pyodbc.ProgrammingError as pe:
+        # Check for transaction log full error
+        if "transaction log for database" in str(pe) and "is full" in str(pe):
+            error_msg = f"Database '{database}' transaction log is full. Please contact your database administrator to backup or truncate the log."
+            db_log_error(
+                error_msg,
+                connection_id=connection_id,
+                server=server,
+                database=database,
+                error=str(pe),
+                operation="transaction_log_full",
+                exc_info=True
+            )
+            raise Exception(error_msg)
+        else:
+            db_log_error(
+                f"Database programming error [ID: {connection_id}]: {str(pe)}",
+                connection_id=connection_id,
+                server=server,
+                database=database,
+                error=str(pe),
+                operation="programming_error",
+                exc_info=True
+            )
+            raise Exception(f"Database programming error: {str(pe)}")
     except Exception as e:
         db_log_error(
             f"Database connection error [ID: {connection_id}]: {str(e)}",
