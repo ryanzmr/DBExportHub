@@ -41,7 +41,8 @@ from .excel_utils import (
     create_excel_formats,
     get_column_widths,
     write_excel_headers,
-    set_column_widths
+    set_column_widths,
+    autofit_columns
 )
 from .operation_tracker import (
     register_operation,
@@ -194,7 +195,7 @@ def generate_excel(params):
             # Write headers to Excel
             write_excel_headers(worksheet, columns, header_format)
             
-            # Set column widths
+            # Set initial column widths
             column_widths = get_column_widths()
             set_column_widths(worksheet, columns, column_widths)
             
@@ -279,6 +280,102 @@ def generate_excel(params):
             
             # Freeze the header row
             worksheet.freeze_panes(1, 0)
+            
+            # Enhanced sampling for column auto-fitting
+            # We'll take larger samples from beginning, middle, and end of the dataset
+            # and also specifically sample rows with potentially long content
+            sample_rows = []
+            sample_size = 3000  # Further increased sample size for better representation
+            
+            # Only sample if we have data
+            if total_rows > 0:
+                export_logger.info(f"[{operation_id}] Collecting samples for column auto-fitting from {total_rows} total rows")
+                
+                # For small datasets, use all rows
+                if total_rows <= 3000:
+                    conn.execute("SET NOCOUNT ON")
+                    sample_cursor = fetch_data_in_chunks(conn, total_rows, 0, operation_id)
+                    sample_rows = sample_cursor.fetchall()
+                    sample_cursor.close()
+                else:
+                    # For large datasets, sample strategically from beginning, middle and end
+                    # This gives better representation of data variations throughout the dataset
+                    
+                    # Beginning sample
+                    conn.execute("SET NOCOUNT ON")
+                    begin_cursor = fetch_data_in_chunks(conn, sample_size, 0, operation_id)
+                    begin_rows = begin_cursor.fetchall()
+                    begin_cursor.close()
+                    sample_rows.extend(begin_rows)
+                    
+                    # Middle sample (if dataset is large enough)
+                    if total_rows > sample_size * 2:
+                        middle_offset = max(0, (total_rows // 2) - (sample_size // 2))
+                        conn.execute("SET NOCOUNT ON")
+                        middle_cursor = fetch_data_in_chunks(conn, sample_size, middle_offset, operation_id)
+                        middle_rows = middle_cursor.fetchall()
+                        middle_cursor.close()
+                        sample_rows.extend(middle_rows)
+                    
+                    # End sample (if dataset is large enough)
+                    if total_rows > sample_size:
+                        end_offset = max(0, total_rows - sample_size)
+                        conn.execute("SET NOCOUNT ON")
+                        end_cursor = fetch_data_in_chunks(conn, sample_size, end_offset, operation_id)
+                        end_rows = end_cursor.fetchall()
+                        end_cursor.close()
+                        sample_rows.extend(end_rows)
+                
+                # Additional targeted sampling for specific columns with potentially long content
+                # This helps ensure we capture rows with the longest content for proper sizing
+                long_text_columns = ['Product', 'Indian Exporter Name', 'Foreign Importer Name', 
+                                    'Exporter Add1', 'Exporter Add2', 'FOR_Add1']
+                
+                # Find column indices for long text columns
+                long_text_indices = []
+                for col_name in long_text_columns:
+                    if col_name in columns:
+                        long_text_indices.append(columns.index(col_name))
+                
+                if long_text_indices:
+                    export_logger.info(f"[{operation_id}] Performing enhanced targeted sampling for long text columns")
+                    
+                    # For each long text column, try to find rows with long content
+                    for col_idx in long_text_indices:
+                        col_name = columns[col_idx]
+                        # Query to find rows with long content in this column
+                        # Increased sample size and lowered threshold to capture more varied content
+                        try:
+                            # First get the longest content rows
+                            query = f"SELECT TOP 150 * FROM {settings.EXPORT_VIEW} WHERE LEN(CONVERT(NVARCHAR(MAX), [{col_name}])) > 40 ORDER BY LEN(CONVERT(NVARCHAR(MAX), [{col_name}])) DESC"
+                            conn.execute("SET NOCOUNT ON")
+                            cursor = conn.cursor()
+                            cursor.execute(query)
+                            long_content_rows = cursor.fetchall()
+                            cursor.close()
+                            
+                            if long_content_rows:
+                                export_logger.info(f"[{operation_id}] Found {len(long_content_rows)} rows with long content in column '{col_name}'")
+                                sample_rows.extend(long_content_rows)
+                                
+                            # Also get rows with medium-length content for better representation
+                            query = f"SELECT TOP 50 * FROM {settings.EXPORT_VIEW} WHERE LEN(CONVERT(NVARCHAR(MAX), [{col_name}])) BETWEEN 20 AND 40 ORDER BY LEN(CONVERT(NVARCHAR(MAX), [{col_name}])) DESC"
+                            conn.execute("SET NOCOUNT ON")
+                            cursor = conn.cursor()
+                            cursor.execute(query)
+                            medium_content_rows = cursor.fetchall()
+                            cursor.close()
+                            
+                            if medium_content_rows:
+                                export_logger.info(f"[{operation_id}] Found {len(medium_content_rows)} rows with medium content in column '{col_name}'")
+                                sample_rows.extend(medium_content_rows)
+                        except Exception as e:
+                            # If the targeted query fails, log and continue with regular samples
+                            export_logger.warning(f"[{operation_id}] Error during targeted sampling for column '{col_name}': {str(e)}")
+        
+            # Apply auto-fit based on the enhanced sampled data
+            export_logger.info(f"[{operation_id}] Applying auto-fit to columns based on {len(sample_rows)} sampled rows")
+            autofit_columns(worksheet, sample_rows, columns)
             
             # Finalize the workbook after all data is written
             workbook.close()
