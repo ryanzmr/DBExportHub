@@ -16,7 +16,6 @@ from .export_service import preview_data as preview_data_service
 from .export_service import generate_excel as generate_excel_service
 # Import CustomJSONEncoder from data_processing to maintain backward compatibility
 from .data_processing import CustomJSONEncoder
-from fastapi.responses import JSONResponse
 
 # Re-export the functions with the same names to maintain backward compatibility
 @log_execution_time
@@ -41,15 +40,7 @@ def generate_excel(params):
     """
     # Call the refactored implementation from export_service.py
     # This will return both the file path and the operation ID
-    result = generate_excel_service(params)
-    
-    # Check if result is a dictionary indicating row limit exceeded
-    if isinstance(result, dict) and result.get("excel_limit_exceeded"):
-        # Return a special response that informs the frontend about row limit being exceeded
-        return result, result["operation_id"]
-    
-    # If not a row limit exceeded case, the result is the expected file path
-    file_path, operation_id = result
+    file_path, operation_id = generate_excel_service(params)
     
     # Return the file path (for streaming) and add the operation ID to the response headers
     return file_path, operation_id

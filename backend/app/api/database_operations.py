@@ -220,7 +220,7 @@ def get_total_row_count(conn, operation_id=None):
     count_cursor.close()
     return total_count
 
-def fetch_data_in_chunks(conn, chunk_size, offset, operation_id, max_rows=None):
+def fetch_data_in_chunks(conn, chunk_size, offset, operation_id):
     """Fetch data from the export view in chunks"""
     # Import here to avoid circular imports
     from .operation_tracker import is_operation_cancelled
@@ -229,52 +229,8 @@ def fetch_data_in_chunks(conn, chunk_size, offset, operation_id, max_rows=None):
     if is_operation_cancelled(operation_id):
         db_logger.info(f"[{operation_id}] Operation cancelled before fetching chunk at offset {offset}")
         raise Exception("Operation cancelled by user")
-    
-    # If max_rows is set, adjust the chunk size
-    if max_rows is not None:
-        # Calculate remaining rows to fetch based on max_rows
-        remaining_rows = max_rows - offset
-        if remaining_rows <= 0:
-            # No more rows to fetch
-            db_logger.info(f"[{operation_id}] Max rows limit reached, no more rows to fetch")
-            # Return empty cursor
-            cursor = conn.cursor()
-            cursor.execute("SELECT TOP 0 * FROM " + settings.EXPORT_VIEW)
-            return cursor
-            
-        # Adjust chunk size if needed to not exceed max_rows
-        chunk_size = min(chunk_size, remaining_rows)
-        db_logger.info(f"[{operation_id}] Adjusted chunk size to {chunk_size} due to max_rows limit ({remaining_rows} rows remaining)")
-    
-    # Get a list of columns to ensure we have a consistent primary key to order by
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT TOP 1 * FROM {settings.EXPORT_VIEW}")
-    columns = [column[0] for column in cursor.description]
-    cursor.close()
-    
-    # Determine the appropriate ORDER BY column(s) for consistent ordering
-    # Try to find the best primary key candidate(s)
-    order_columns = []
-    primary_key_candidates = ['SB_NO', 'INVOICE_NO', 'ITEM_NO', 'SB_NO_ITEM']
-    
-    # Check which candidates exist in our result set
-    for candidate in primary_key_candidates:
-        if candidate.upper() in [col.upper() for col in columns]:
-            order_columns.append(candidate)
-    
-    # If we found suitable order columns, use them
-    if order_columns:
-        order_clause = ", ".join(order_columns)
-        db_logger.info(f"[{operation_id}] Using order columns: {order_clause}")
-    else:
-        # Fallback to the first column as a last resort
-        order_clause = columns[0]
-        db_logger.info(f"[{operation_id}] No primary key candidates found, using first column ({order_clause}) for ordering")
-    
-    # Construct the query with proper ordering to ensure consistency across chunks
-    query = f"SELECT * FROM {settings.EXPORT_VIEW} ORDER BY {order_clause} OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
-    
-    db_logger.info(f"[{operation_id}] Fetching chunk with query: {query}")
+        
+    query = f"SELECT * FROM {settings.EXPORT_VIEW} ORDER BY (SELECT NULL) OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
     
     # Use cursor with optimized fetch size
     cursor = conn.cursor()

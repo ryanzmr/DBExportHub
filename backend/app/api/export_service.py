@@ -2,13 +2,12 @@ import os
 import pandas as pd
 import numpy as np
 import json
-from datetime import datetime, date
+from datetime import datetime
 import tempfile
 import uuid
 import pathlib
 import gc
 from typing import List, Dict, Any, Optional
-from decimal import Decimal
 
 from ..config import settings
 from ..database import get_db_connection
@@ -51,7 +50,6 @@ from .operation_tracker import (
     mark_operation_completed,
     is_operation_cancelled
 )
-from .excel_row_limit import check_row_limit, process_exceeding_limit_response, EXCEL_MAX_ROWS
 
 def cleanup_on_error(workbook, file_path):
     """Clean up resources when an error occurs during Excel generation"""
@@ -128,120 +126,48 @@ def preview_data(params):
         # The cleanup thread will handle it after the timeout
         raise Exception(f"Error generating preview: {str(e)}")
 
-def _legacy_fetch_data_in_chunks(conn, chunk_size, offset, operation_id, max_rows=None):
-    """
-    DEPRECATED: Use fetch_data_in_chunks from database_operations.py instead.
-    This function is kept for reference only.
-    
-    Args:
-        conn: Database connection
-        chunk_size: Number of rows to fetch per chunk
-        offset: Starting offset
-        operation_id: Unique ID for the operation
-        max_rows: Maximum number of rows to fetch (for Excel row limit)
-    
-    Returns:
-        Cursor object with the fetched data
-    """
-    export_logger.debug(f"[{operation_id}] Fetching chunk of data with offset {offset}")
-    
-    # If max_rows is set, use it to limit the query
-    if max_rows is not None:
-        # Calculate the actual chunk size to fetch based on max_rows
-        remaining_rows = max_rows - offset
-        if remaining_rows <= 0:
-            # No more rows to fetch
-            export_logger.debug(f"[{operation_id}] Max rows limit reached, no more rows to fetch")
-            # Return empty cursor
-            return conn.cursor()
-            
-        # Adjust chunk size if needed
-        actual_chunk_size = min(chunk_size, remaining_rows)
-        export_logger.debug(f"[{operation_id}] Adjusted chunk size to {actual_chunk_size} due to max_rows limit")
-    else:
-        actual_chunk_size = chunk_size
-    
-    # Execute query with TOP to limit the number of rows
-    cursor = conn.cursor()
-    
-    # Build the query with proper TOP clause
-    query = f"""
-    SELECT TOP {actual_chunk_size} * 
-    FROM (
-        SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS RowNum, *
-        FROM {settings.EXPORT_VIEW}
-    ) AS RowConstrainedResult
-    WHERE RowNum > {offset}
-    ORDER BY RowNum
-    """
-    
-    cursor.execute(query)
-    return cursor
-
 @log_execution_time
 def generate_excel(params):
     """
-    Generate an Excel file based on export parameters.
-    
-    Args:
-        params: Dictionary containing export parameters
-    
-    Returns:
-        Tuple of (file_path, operation_id)
-    
-    Raises:
-        Exception: If there's an error during Excel generation
+    Generate an Excel file based on the export parameters.
+    Returns the path to the generated Excel file.
     """
-    operation_id = str(uuid.uuid4())
+    operation_id = generate_operation_id()
+    
+    # Register the operation in the tracker
     register_operation(operation_id)
     
-    # Initialize file_path to prevent UnboundLocalError
+    # Variable to track if we need to clean up a partial file
     file_path = None
     workbook = None
     
-    # Initialize start_time for tracking execution time
-    start_time = datetime.now()
-    
     try:
-        # Extract the database connection parameters using attribute access
-        # ExportParameters is a Pydantic model, not a dictionary
-        server = params.server
-        database = params.database
-        username = params.username
-        password = params.password
+        # Log the start of the Excel generation operation
+        log_excel_start(operation_id, params)
         
-        # Connect to the database with the correct parameters using with statement
-        # get_db_connection is a context manager and needs to be used with 'with'
-        with get_db_connection(server, database, username, password) as conn:
-            # Get actual attribute names from params to figure out what fields are available
-            available_attrs = dir(params)
-            export_logger.debug(f"[{operation_id}] Available attributes in params: {available_attrs}")
+        # Connect to the database
+        with get_db_connection(
+            params.server, params.database, params.username, params.password
+        ) as conn:
+            # Check for cancellation before executing procedure
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Export operation cancelled before execution")
+                raise Exception("Operation cancelled by user")
+                
+            # Execute the export procedure and get record count
+            start_time = datetime.now()
+            record_count, cache_used = execute_export_procedure(conn, params, operation_id)
             
-            # Step A: Get query parameters - use proper attribute access based on actual field names
-            query_params = {
-                # Use the correct field names from the ExportParameters model
-                'year': '',  # Not used in the model
-                'month_from': int(params.fromMonth),
-                'month_to': int(params.toMonth),
-                'hs_code': params.hs if hasattr(params, 'hs') else '',
-                'country': params.forcount if hasattr(params, 'forcount') else '',
-                'port': params.port if hasattr(params, 'port') else '',
-                'exporter': params.expCmp if hasattr(params, 'expCmp') else '',
-                'max_rows': getattr(params, 'max_rows', None)
-            }
+            # Check for cancellation after procedure execution
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Export operation cancelled after procedure execution")
+                raise Exception("Operation cancelled by user")
             
-            # Step B: Create filename
+            # Get the first row's HS code for the filename
             first_row_hs = get_first_row_hs_code(conn, operation_id)
-
-            # Look at the actual structure of params to ensure we're using correct access
-            # Convert params to a dict if it's a Pydantic model - create_filename expects a dict
-            params_dict = params
-            if hasattr(params, 'dict'):
-                # Convert Pydantic model to dictionary
-                params_dict = params.dict()
             
             # Create filename based on parameters
-            filename = create_filename(params_dict, first_row_hs)
+            filename = create_filename(params, first_row_hs)
             
             # Ensure temp directory exists
             temp_dir = pathlib.Path(settings.TEMP_DIR)
@@ -277,33 +203,6 @@ def generate_excel(params):
             total_count = get_total_row_count(conn, operation_id)
             export_logger.info(f"[{operation_id}] Total rows to export: {total_count}")
             
-            # Check if the total count exceeds Excel's maximum row limit
-            # Skip the check if we're already limiting the rows
-            max_rows = getattr(params, 'max_rows', None)
-            if max_rows is None:
-                row_limit_result = check_row_limit(total_count, operation_id)
-                
-                # If limit exceeded, we need to return this information so frontend can confirm with user
-                if row_limit_result["exceeds_limit"]:
-                    # We'll add a special header to our response to indicate row limit exceeded
-                    cleanup_on_error(workbook, file_path)
-                    
-                    # Return a dictionary with row limit information
-                    # The caller will handle returning this to the frontend
-                    # The structure matches what the frontend expects
-                    return {
-                        "excel_limit_exceeded": True,
-                        "operation_id": operation_id,
-                        "total_rows": row_limit_result["total_rows"],
-                        "max_rows": row_limit_result["max_rows"],
-                        "message": row_limit_result["message"]
-                    }
-            else:
-                # Log that we're using a limited number of rows
-                export_logger.info(f"[{operation_id}] Limiting export to {max_rows} rows (out of {total_count} total)")
-                # Update total_count to the max_rows for progress tracking
-                total_count = min(total_count, max_rows)
-            
             # Optimize memory usage by using server-side cursor
             conn.execute("SET NOCOUNT ON")
             
@@ -322,7 +221,7 @@ def generate_excel(params):
                 chunk_start = datetime.now()
                 
                 # Fetch data in chunks
-                cursor = fetch_data_in_chunks(conn, 100000, offset, operation_id, max_rows)
+                cursor = fetch_data_in_chunks(conn, 100000, offset, operation_id)
                 
                 # Process all rows from this chunk's cursor
                 rows = cursor.fetchall()
@@ -385,53 +284,27 @@ def generate_excel(params):
                         # Get column name for current column
                         col_name = columns[col_idx] if col_idx < len(columns) else f"Column_{col_idx}"
                         
-                        # Skip this cell if the value is None to avoid unintended data conversion
-                        if value is None:
-                            worksheet.write_blank(row_idx, col_idx, None, data_format)
-                            continue
-                            
-                        # Handle special case for SB_Date column
+                        # Use date format for column 3 (index 2)
                         if col_idx == 2 and value:  # SB_Date column
-                            # Ensure it's actually a date before using date_format
-                            if isinstance(value, (datetime, date)):
-                                worksheet.write_datetime(row_idx, col_idx, value, date_format)
-                            else:
-                                # Try to convert string date to datetime
-                                try:
-                                    if isinstance(value, str) and len(value) >= 8:
-                                        # Try to parse as date
-                                        dt_value = pd.to_datetime(value)
-                                        worksheet.write_datetime(row_idx, col_idx, dt_value, date_format)
-                                    else:
-                                        worksheet.write(row_idx, col_idx, value, data_format)
-                                except:
-                                    # If conversion fails, write as is
-                                    worksheet.write(row_idx, col_idx, value, data_format)
-                        # Use text format for columns that need to preserve leading zeros or exact formatting
+                            worksheet.write(row_idx, col_idx, value, date_format)
+                        # Use text format for columns that need to preserve leading zeros
                         elif col_idx < len(columns) and (
                             # Check if column is in our predefined special format list
                             col_name in special_format_columns or
                             # Or if column name contains 'code' (case insensitive)
                             'code' in col_name.lower() or
-                            # Or if column name contains identifiers that should be preserved exactly
-                            any(id_term in col_name.lower() for id_term in ['id', '_no', 'number', 'iec', 'sb_no'])
+                            # Or if column name contains 'id' or 'no' (common for identifiers)
+                            any(id_term in col_name.lower() for id_term in ['id', '_no', 'number'])
                         ):
-                            # Ensure value is treated as text to preserve exact format
-                            str_value = str(value)
-                            # Force Excel to treat the value as text
-                            worksheet.write_string(row_idx, col_idx, str_value, text_format)
-                        # Handle numeric values appropriately
-                        elif isinstance(value, (int, float, Decimal)):
-                            worksheet.write_number(row_idx, col_idx, value, data_format)
-                        # Handle boolean values
-                        elif isinstance(value, bool):
-                            worksheet.write_boolean(row_idx, col_idx, value, data_format)
-                        # Handle string values - ensure proper encoding/escaping
-                        elif isinstance(value, str):
-                            # Clean/escape any problematic characters
-                            clean_value = value.replace('\x00', '').replace('\r\n', '\n').strip()
-                            worksheet.write_string(row_idx, col_idx, clean_value, data_format)
-                        # Default fallback for any other types
+                            # Ensure value is treated as text to preserve leading zeros
+                            if value is not None:
+                                # Convert to string to preserve exact format
+                                str_value = str(value)
+                                # Force Excel to treat the value as text
+                                # This mimics CopyFromRecordset's behavior in VBA
+                                worksheet.write_string(row_idx, col_idx, str_value, text_format)
+                            else:
+                                worksheet.write_blank(row_idx, col_idx, None, text_format)
                         else:
                             worksheet.write(row_idx, col_idx, value, data_format)
                     row_idx += 1
@@ -571,14 +444,18 @@ def generate_excel(params):
             
             # Return both the file path and the operation ID
             return file_path, operation_id
-            
     except Exception as e:
         log_excel_error(operation_id, e)
         import traceback
         print(traceback.format_exc())
         
         # Clean up partial file if it exists
-        cleanup_on_error(workbook, file_path)
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                export_logger.info(f"[{operation_id}] Removed partial Excel file after error")
+            except Exception as cleanup_err:
+                export_logger.warning(f"[{operation_id}] Failed to remove partial file: {str(cleanup_err)}")
         
         # Don't mark as completed if there was an error
         # The cleanup thread will handle it after the timeout

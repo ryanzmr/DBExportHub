@@ -16,16 +16,9 @@ from .logging_utils import log_excel_completion
 
 def create_filename(params, first_row_hs):
     """Create a filename for the Excel export based on the parameters"""
-    # Helper function to safely get attributes from params (works with both dict and object)
-    def get_param(name, default=""):
-        if isinstance(params, dict):
-            return params.get(name, default)
-        else:
-            return getattr(params, name, default)
-    
     # Extract month and year for filename
-    from_month_str = str(get_param('fromMonth', ''))
-    to_month_str = str(get_param('toMonth', ''))
+    from_month_str = str(params.fromMonth)
+    to_month_str = str(params.toMonth)
     
     # Convert month number to month name
     month_names = {
@@ -35,10 +28,10 @@ def create_filename(params, first_row_hs):
     }
     
     # Get month and year parts
-    from_month = from_month_str[-2:] if len(from_month_str) >= 2 else ''
-    from_year = from_month_str[2:4] if len(from_month_str) >= 4 else ''  # Get the last 2 digits of year (YYYY format)
-    to_month = to_month_str[-2:] if len(to_month_str) >= 2 else ''
-    to_year = to_month_str[2:4] if len(to_month_str) >= 4 else ''  # Get the last 2 digits of year (YYYY format)
+    from_month = from_month_str[-2:]
+    from_year = from_month_str[2:4]  # Get the last 2 digits of year (YYYY format)
+    to_month = to_month_str[-2:]
+    to_year = to_month_str[2:4]  # Get the last 2 digits of year (YYYY format)
     
     # Create month-year strings
     mon1 = month_names.get(from_month, "") + from_year
@@ -54,40 +47,33 @@ def create_filename(params, first_row_hs):
     filename1 = ""
     
     # Add HS code if provided
-    hs_value = get_param('hs')
-    if hs_value and hs_value != "%":
-        hs_code = hs_value.strip().replace(" ", "").split(",")[0]
+    if params.hs and params.hs != "%":
+        hs_code = params.hs.strip().replace(" ", "").split(",")[0]
         filename1 = filename1 + hs_code
     
     # Add product if provided
-    prod_value = get_param('prod')
-    if prod_value and prod_value != "%":
-        filename1 = filename1 + "_" + prod_value.replace(" ", "_")
+    if params.prod and params.prod != "%":
+        filename1 = filename1 + "_" + params.prod.replace(" ", "_")
     
     # Add IEC if provided
-    iec_value = get_param('iec')
-    if iec_value and iec_value != "%":
-        filename1 = filename1 + "_" + iec_value
+    if params.iec and params.iec != "%":
+        filename1 = filename1 + "_" + params.iec
     
     # Add exporter company if provided
-    exporter_value = get_param('expCmp')
-    if exporter_value and exporter_value != "%":
-        filename1 = filename1 + "_" + exporter_value.replace(" ", "_")
+    if params.expCmp and params.expCmp != "%":
+        filename1 = filename1 + "_" + params.expCmp.replace(" ", "_")
     
     # Add foreign country if provided
-    country_value = get_param('forcount')
-    if country_value and country_value != "%":
-        filename1 = filename1 + "_" + country_value.replace(" ", "_")
+    if params.forcount and params.forcount != "%":
+        filename1 = filename1 + "_" + params.forcount.replace(" ", "_")
     
     # Add foreign importer name if provided
-    forname_value = get_param('forname')
-    if forname_value and forname_value != "%":
-        filename1 = filename1 + "_" + forname_value.replace(" ", "_")
+    if params.forname and params.forname != "%":
+        filename1 = filename1 + "_" + params.forname.replace(" ", "_")
     
     # Add port if provided
-    port_value = get_param('port')
-    if port_value and port_value != "%":
-        filename1 = filename1 + "_" + port_value.replace(" ", "_")
+    if params.port and params.port != "%":
+        filename1 = filename1 + "_" + params.port.replace(" ", "_")
     
     # Remove leading underscore if present
     if filename1 and filename1[0] == "_":
