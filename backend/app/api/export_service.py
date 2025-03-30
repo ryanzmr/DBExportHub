@@ -235,40 +235,6 @@ def generate_excel(params):
                 row_idx = total_rows + 1  # Start from after the last processed row (1-based for Excel)
                 
                 # Write the chunk data to Excel
-                # Create a text format for fields that need to preserve leading zeros
-                text_format = workbook.add_format({
-                    'font_name': 'Times New Roman',
-                    'font_size': 10,
-                    'border': 1,
-                    'num_format': '@'  # Set as text format to preserve leading zeros
-                })
-                
-                # Identify columns that need to preserve leading zeros or specific formatting
-                # This is critical for ensuring data integrity similar to CopyFromRecordset in VBA
-                special_format_columns = {
-                    # HS Code related columns - commonly have leading zeros
-                    'HS_Code': text_format,
-                    'HS4': text_format,
-                    'Hs_Code': text_format,  # Different case variations
-                    # Identification numbers and codes - need exact preservation
-                    'iec': text_format,
-                    'SB_NO': text_format,
-                    'Invoice_no': text_format,
-                    'Item_no': text_format,
-                    # Additional columns that might contain codes with leading zeros
-                    'Port Code': text_format,
-                    'Exporter Code': text_format,
-                    'Importer Code': text_format,
-                    'PIN Code': text_format,
-                    'Zip Code': text_format,
-                    'Postal Code': text_format,
-                    # Any column with 'code' in the name might need text formatting
-                    'code': text_format
-                }
-                
-                # Map column names to their indices
-                column_indices = {col_name: idx for idx, col_name in enumerate(columns)}
-                
                 for row in rows:
                     # Check for cancellation periodically 
                     if row_idx % 1000 == 0 and is_operation_cancelled(operation_id):
@@ -281,30 +247,9 @@ def generate_excel(params):
                         worksheet.set_row(row_idx, 15)
                     
                     for col_idx, value in enumerate(row):
-                        # Get column name for current column
-                        col_name = columns[col_idx] if col_idx < len(columns) else f"Column_{col_idx}"
-                        
                         # Use date format for column 3 (index 2)
                         if col_idx == 2 and value:  # SB_Date column
                             worksheet.write(row_idx, col_idx, value, date_format)
-                        # Use text format for columns that need to preserve leading zeros
-                        elif col_idx < len(columns) and (
-                            # Check if column is in our predefined special format list
-                            col_name in special_format_columns or
-                            # Or if column name contains 'code' (case insensitive)
-                            'code' in col_name.lower() or
-                            # Or if column name contains 'id' or 'no' (common for identifiers)
-                            any(id_term in col_name.lower() for id_term in ['id', '_no', 'number'])
-                        ):
-                            # Ensure value is treated as text to preserve leading zeros
-                            if value is not None:
-                                # Convert to string to preserve exact format
-                                str_value = str(value)
-                                # Force Excel to treat the value as text
-                                # This mimics CopyFromRecordset's behavior in VBA
-                                worksheet.write_string(row_idx, col_idx, str_value, text_format)
-                            else:
-                                worksheet.write_blank(row_idx, col_idx, None, text_format)
                         else:
                             worksheet.write(row_idx, col_idx, value, data_format)
                     row_idx += 1

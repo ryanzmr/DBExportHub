@@ -408,28 +408,6 @@ def write_data_to_excel(worksheet, cursor, data_format, date_format, operation_i
     cancellation_check_frequency = 1000
     rows_since_last_check = 0
     
-    # Create a text format for fields that need to preserve leading zeros
-    text_format = data_format
-    if hasattr(data_format, 'copy'):
-        text_format = data_format.copy()
-        text_format.set_num_format('@')  # Set as text format to preserve leading zeros
-    
-    # Get column names to identify which columns need special formatting
-    cursor.execute(f"SELECT TOP 0 * FROM {settings.EXPORT_VIEW}")
-    columns = [column[0] for column in cursor.description]
-    cursor.fetchall()  # Clear the result set
-    
-    # Identify columns that need to preserve leading zeros or specific formatting
-    special_format_columns = {
-        'HS_Code': 'text',
-        'HS4': 'text',
-        'Hs_Code': 'text',  # Different case variations
-        'iec': 'text'
-    }
-    
-    # Map column names to their indices
-    column_indices = {col_name: idx for idx, col_name in enumerate(columns)}
-    
     while True:
         # Check if operation has been cancelled before fetching and processing each batch
         if is_operation_cancelled(operation_id):
@@ -460,14 +438,6 @@ def write_data_to_excel(worksheet, cursor, data_format, date_format, operation_i
                 # Use date format for column 3 (index 2)
                 if col_idx == 2 and value:  # SB_Date column
                     worksheet.write(row_idx, col_idx, value, date_format)
-                # Use text format for columns that need to preserve leading zeros
-                elif col_idx < len(columns) and columns[col_idx] in special_format_columns:
-                    # Convert to string to preserve leading zeros
-                    if value is not None:
-                        str_value = str(value)
-                        worksheet.write(row_idx, col_idx, str_value, text_format)
-                    else:
-                        worksheet.write(row_idx, col_idx, value, text_format)
                 else:
                     worksheet.write(row_idx, col_idx, value, data_format)
             row_idx += 1
