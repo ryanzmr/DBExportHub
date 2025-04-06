@@ -20,12 +20,9 @@ import { TableView, Search } from '@mui/icons-material';
 /**
  * Preview table component for displaying export data preview
  * @param {Object} props - Component props
- * @param {Array} props.previewData - Preview data to display
- * @param {number} props.previewCount - Total count of preview records
- * @param {number} props.totalRecords - Total count of records in database
- * @param {boolean} props.loading - Loading state
+ * @param {Array} props.data - Preview data to display
  */
-const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
+const PreviewTable = ({ data }) => {
   const theme = useTheme();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -33,16 +30,16 @@ const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
   const [filteredData, setFilteredData] = useState([]);
   
   // Get table headers from the first row of preview data
-  const tableHeaders = previewData.length > 0 ? Object.keys(previewData[0]) : [];
+  const tableHeaders = data.length > 0 ? Object.keys(data[0]) : [];
 
   // Filter data based on search term
   useEffect(() => {
-    if (previewData.length > 0) {
+    if (data.length > 0) {
       if (searchTerm.trim() === '') {
-        setFilteredData(previewData);
+        setFilteredData(data);
       } else {
         const lowercasedFilter = searchTerm.toLowerCase();
-        const filtered = previewData.filter(item => {
+        const filtered = data.filter(item => {
           return Object.keys(item).some(key => {
             const value = item[key];
             return value !== null && String(value).toLowerCase().includes(lowercasedFilter);
@@ -54,7 +51,7 @@ const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
       setFilteredData([]);
     }
     setPage(0);
-  }, [previewData, searchTerm]);
+  }, [data, searchTerm]);
 
   // Handle page change
   const handleChangePage = (event, newPage) => {
@@ -84,16 +81,8 @@ const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {totalRecords > 0 && (
-            <Chip 
-              label={`Total records: ${totalRecords}`}
-              color="secondary"
-              size="small"
-              sx={{ mr: 1 }}
-            />
-          )}
           <Chip 
-            label={`${filteredData.length} of ${previewCount} records shown`}
+            label={`${filteredData.length} records shown`}
             color="primary"
             variant="outlined"
             size="small"
@@ -109,7 +98,7 @@ const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
             size="small"
             value={searchTerm}
             onChange={handleSearchChange}
-            disabled={previewData.length === 0}
+            disabled={data.length === 0}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -121,13 +110,7 @@ const PreviewTable = ({ previewData, previewCount, totalRecords, loading }) => {
           />
       </Box>
 
-      {loading ? (
-        <Box sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary">
-            Loading preview data...
-          </Typography>
-        </Box>
-      ) : previewData.length === 0 ? (
+      {data.length === 0 ? (
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="body1" color="text.secondary">
             No preview data available. Use the form above to generate a preview.

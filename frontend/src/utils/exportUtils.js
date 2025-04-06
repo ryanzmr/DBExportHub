@@ -40,9 +40,10 @@ export const fetchPreviewData = async (connectionDetails, formData, signal) => {
  * @param {Object} connectionDetails - Database connection details
  * @param {Object} formData - Form data containing export parameters
  * @param {AbortSignal} signal - AbortSignal for cancellation
+ * @param {boolean} [forceContinue=false] - Whether to continue despite Excel limit
  * @returns {Promise} - Promise that resolves when the export is complete
  */
-export const generateExcelExport = async (connectionDetails, formData, signal) => {
+export const generateExcelExport = async (connectionDetails, formData, signal, forceContinue = false) => {
   try {
     // Add an enhanced progress indicator with more detailed information
     const progressIndicator = document.createElement('div');
@@ -92,6 +93,8 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
       useChunking: true,
       chunkSize: 10000, // Increased chunk size for better performance
       useStreaming: true, // Enable streaming for large datasets
+      // Add force continue flag
+      force_continue_despite_limit: forceContinue,
       // Add cleanup flag
       cleanupConnection: true,
       sessionTimeout: 300, // 5 minutes in seconds
@@ -165,6 +168,30 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
         'X-Client-Request-ID': `export-${Date.now()}`
       }
     }).then(response => {
+      // Check if the response is a JSON object (which would indicate an error or special message)
+      // We need to check this because we expect a blob for successful downloads
+      const contentType = response.headers['content-type'];
+      
+      if (contentType && contentType.includes('application/json')) {
+        // It's a JSON response, so convert blob to JSON
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const jsonResponse = JSON.parse(reader.result);
+              resolve({
+                data: jsonResponse,
+                headers: response.headers,
+                isJson: true
+              });
+            } catch (e) {
+              resolve(response); // Fallback to the original response
+            }
+          };
+          reader.readAsText(response.data);
+        });
+      }
+      
       // Extract operation ID from response headers if available
       operationId = response.headers['x-operation-id'];
       console.log('Export operation ID:', operationId);
@@ -198,54 +225,43 @@ export const generateExcelExport = async (connectionDetails, formData, signal) =
                 `Processed ${progress.current} of ${progress.total} records (${progress.percentage}%)`
               );
             }
-          } catch (error) {
-            console.error('Error polling progress:', error);
+          } catch (err) {
+            console.error('Error fetching progress:', err);
           }
         }, 1000); // Poll every second
       }
       
       return response;
-    });
-    
-    // Handle the download progress once the file starts downloading
-    const fileReader = new FileReader();
-    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
-    // Set up progress tracking for the file reading
-    fileReader.onprogress = (event) => {
-      if (isGeneratingExcel) {
-        // Now we're in download phase
-        isGeneratingExcel = false;
+    }).catch(error => {
+      throw error;
+    }).finally(() => {
+      // Clean up progress indicator after response is received
+      setTimeout(() => {
+        if (document.body.contains(progressIndicator)) {
+          document.body.removeChild(progressIndicator);
+        }
+      }, 1000); // Allow time for the user to see the final state
+      
+      // Clear the progress interval if it's still running
+      if (progressInterval) {
         clearInterval(progressInterval);
       }
-      
-      const percentCompleted = Math.round((event.loaded * 100) / (event.total || event.loaded + 1000000));
-      updateProgressUI(
-        percentCompleted,
-        'Downloading Excel file...',
-        `Downloaded ${Math.round(event.loaded / (1024 * 1024))} MB / ${Math.round((event.total || event.loaded + 1000000) / (1024 * 1024))} MB`
-      );
-    };
+    });
     
-    fileReader.onloadend = () => {
-      // Clean up the intervals when download is complete
-      if (progressInterval) clearInterval(progressInterval);
-      
-      // Remove progress indicator
-      document.body.removeChild(progressIndicator);
-    };
-    
-    // Start reading to initiate the progress events
-    fileReader.readAsArrayBuffer(blob);
+    // Check if we received a JSON response indicating a limit exceeded status
+    if (response.isJson && response.data && response.data.status === 'limit_exceeded') {
+      // Return the limit_exceeded data for the component to handle
+      return {
+        status: 'limit_exceeded',
+        message: response.data.message,
+        operation_id: response.data.operation_id,
+        total_records: response.data.total_records,
+        limit: response.data.limit
+      };
+    }
     
     return response;
   } catch (err) {
-    // Remove progress indicator if it still exists
-    const progressIndicator = document.querySelector('div[style*="position: fixed"][style*="top: 50%"]');
-    if (progressIndicator) {
-      document.body.removeChild(progressIndicator);
-    }
-    
     console.error('Export error:', err);
     throw err;
   }

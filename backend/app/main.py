@@ -322,7 +322,25 @@ async def export_data(params: ExportParameters):
         
         # Generate Excel file
         logger.info(f"Starting Excel generation [ID: {export_id}]", extra={"export_id": export_id})
-        file_path, operation_id = generate_excel(params)
+        result, operation_id = generate_excel(params)
+        
+        # Check if the result is a dictionary indicating a limit exceeded status
+        if isinstance(result, dict) and result.get("status") == "limit_exceeded":
+            # Return the limit exceeded response for the frontend to handle
+            logger.info(
+                f"Export paused due to Excel row limit [ID: {export_id}]: {result['message']}",
+                extra={"export_id": export_id, "operation_id": operation_id}
+            )
+            return JSONResponse(
+                content=result,
+                headers={
+                    'X-Export-ID': export_id,
+                    'X-Operation-ID': operation_id
+                }
+            )
+        
+        # If we reached here, result is a file path
+        file_path = result
         
         # Log the operation ID for tracking
         logger.info(f"Excel generation operation ID: {operation_id}", extra={"export_id": export_id, "operation_id": operation_id})
