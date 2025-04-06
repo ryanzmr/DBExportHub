@@ -24,6 +24,7 @@ class Settings:
     # Export settings
     EXPORT_STORED_PROCEDURE = os.getenv("EXPORT_STORED_PROCEDURE", "ExportData_New1")
     EXPORT_VIEW = os.getenv("EXPORT_VIEW", "EXPDATA")
+    DB_FETCH_BATCH_SIZE = int(os.getenv("DB_FETCH_BATCH_SIZE", 250000))
 
     # File storage settings
     TEMP_DIR = os.getenv("TEMP_DIR", os.path.join(BASE_DIR, "temp"))
