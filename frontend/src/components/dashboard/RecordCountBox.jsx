@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, useTheme, Zoom, Chip, Grid } from '@mui/material';
-import { DataArray, BarChart, ShowChart } from '@mui/icons-material';
+import { Box, Typography, Paper, useTheme, Zoom, Chip, Grid, Tooltip } from '@mui/material';
+import { DataArray, BarChart, ShowChart, Warning } from '@mui/icons-material';
+
+// Constants
+const EXCEL_ROW_LIMIT = 1048576; // Excel's maximum row limit
 
 /**
  * Component to display the total record count in a separate box with enhanced visual design
  * @param {Object} props - Component props
  * @param {number} props.totalRecords - Total count of records in database
+ * @param {number} props.previewCount - Count of records in the preview
  */
-const RecordCountBox = ({ totalRecords }) => {
+const RecordCountBox = ({ totalRecords, previewCount }) => {
   const theme = useTheme();
   const [animate, setAnimate] = useState(false);
   const [counter, setCounter] = useState(0);
+  
+  // Check if record count exceeds Excel's limit
+  const exceedsExcelLimit = totalRecords > EXCEL_ROW_LIMIT;
 
   // Animation effect when the component mounts or totalRecords changes
   useEffect(() => {
@@ -65,7 +72,7 @@ const RecordCountBox = ({ totalRecords }) => {
           boxShadow: `0 4px 20px 0 ${theme.palette.mode === 'dark' 
             ? 'rgba(0,0,0,0.3)' 
             : 'rgba(0,0,0,0.1)'}`,
-          border: `1px solid ${theme.palette.divider}`,
+          border: exceedsExcelLimit ? `2px solid ${theme.palette.warning.main}` : `1px solid ${theme.palette.divider}`,
           overflow: 'hidden',
           position: 'relative'
         }}
@@ -91,7 +98,7 @@ const RecordCountBox = ({ totalRecords }) => {
                 display: 'flex', 
                 justifyContent: 'center', 
                 alignItems: 'center',
-                bgcolor: theme.palette.primary.light,
+                bgcolor: exceedsExcelLimit ? theme.palette.warning.main : theme.palette.primary.light,
                 color: theme.palette.primary.contrastText,
                 borderRadius: '50%',
                 p: 1.5,
@@ -99,7 +106,11 @@ const RecordCountBox = ({ totalRecords }) => {
                 height: { xs: 48, sm: 56, md: 64 }
               }}
             >
-              <DataArray sx={{ fontSize: { xs: 28, sm: 32, md: 36 } }} />
+              {exceedsExcelLimit ? (
+                <Warning sx={{ fontSize: { xs: 28, sm: 32, md: 36 }, color: 'white' }} />
+              ) : (
+                <DataArray sx={{ fontSize: { xs: 28, sm: 32, md: 36 } }} />
+              )}
             </Box>
           </Grid>
           
@@ -118,26 +129,56 @@ const RecordCountBox = ({ totalRecords }) => {
                 Total Records Found
               </Typography>
               
-              <Typography 
-                variant="h4"
-                color="primary"
-                sx={{ 
-                  fontWeight: 700,
-                  lineHeight: 1.2,
-                  mb: 0.5,
-                  fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' }
-                }}
-              >
-                {formattedCounter}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography 
+                  variant="h4"
+                  color={exceedsExcelLimit ? "warning.main" : "primary"}
+                  sx={{ 
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    mb: 0.5,
+                    fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' }
+                  }}
+                >
+                  {formattedCounter}
+                </Typography>
+                
+                {exceedsExcelLimit && (
+                  <Tooltip title={`Exceeds Excel's limit of ${EXCEL_ROW_LIMIT.toLocaleString()} rows`}>
+                    <Warning 
+                      color="warning" 
+                      sx={{ ml: 1, verticalAlign: 'middle' }} 
+                    />
+                  </Tooltip>
+                )}
+              </Box>
               
-              <Chip
-                size="small"
-                icon={<ShowChart />}
-                label="Complete Dataset"
-                color="secondary"
-                sx={{ mt: 1 }}
-              />
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                <Chip
+                  size="small"
+                  icon={<ShowChart />}
+                  label="Complete Dataset"
+                  color="secondary"
+                />
+                
+                {exceedsExcelLimit && (
+                  <Chip
+                    size="small"
+                    icon={<Warning />}
+                    label="Exceeds Excel Limit"
+                    color="warning"
+                  />
+                )}
+                
+                {previewCount > 0 && (
+                  <Chip
+                    size="small"
+                    label={`Preview: ${previewCount} records`}
+                    variant="outlined"
+                    color="primary"
+                  />
+                )}
+              </Box>
             </Box>
           </Grid>
         </Grid>

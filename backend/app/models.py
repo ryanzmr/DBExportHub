@@ -31,6 +31,7 @@ class ExportParameters(BaseModel):
     # Additional options
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
+    force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
 
 # Export response model
 class ExportResponse(BaseModel):
@@ -67,6 +68,7 @@ class ExportRequest(BaseModel):
     port: Optional[str] = None
     preview_only: bool = True
     max_records: int = 100
+    force_continue_despite_limit: bool = False
 
 # Preview response model
 class PreviewResponse(BaseModel):
