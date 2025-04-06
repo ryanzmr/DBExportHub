@@ -39,9 +39,7 @@ from .excel_utils import (
     create_filename,
     setup_excel_workbook,
     create_excel_formats,
-    get_column_widths,
-    write_excel_headers,
-    set_column_widths
+    write_excel_headers
 )
 from .operation_tracker import (
     register_operation,
@@ -219,9 +217,10 @@ def generate_excel(params):
             # Write headers to Excel
             write_excel_headers(worksheet, columns, header_format)
             
-            # Set column widths
-            column_widths = get_column_widths()
-            set_column_widths(worksheet, columns, column_widths)
+            # Initialize max column widths with header lengths
+            max_widths = [len(str(h)) if h else 0 for h in columns]
+            min_width = 8 # Ensure a minimum width
+            padding = 1 # Padding for autofit
             
             # Get total row count for progress tracking
             total_count = get_total_row_count(conn, operation_id)
@@ -251,8 +250,9 @@ def generate_excel(params):
             
                 chunk_start = datetime.now()
                 
-                # Fetch data in chunks
-                cursor = fetch_data_in_chunks(conn, 100000, offset, operation_id)
+                # Fetch data in chunks using configured size
+                batch_size = settings.DB_FETCH_BATCH_SIZE
+                cursor = fetch_data_in_chunks(conn, batch_size, offset, operation_id)
                 
                 # Process all rows from this chunk's cursor
                 rows = cursor.fetchall()
@@ -278,21 +278,21 @@ def generate_excel(params):
                         cleanup_on_error(workbook, file_path)
                         raise Exception("Operation cancelled by user")
                         
-                    # Only set row height for every 10th row to improve performance
-                    if row_idx % 10 == 0:
-                        worksheet.set_row(row_idx, 15)
-                    
                     for col_idx, value in enumerate(row):
-                        # Use date format for column 3 (index 2)
-                        if col_idx == 2 and value:  # SB_Date column
-                            worksheet.write(row_idx, col_idx, value, date_format)
-                        else:
-                            worksheet.write(row_idx, col_idx, value, data_format)
+                        # Apply format during writing
+                        cell_format_to_use = date_format if col_idx == 2 and value else data_format
+                        worksheet.write(row_idx, col_idx, value, cell_format_to_use)
+                        
+                        # Update max width for the column
+                        # Handle None values and ensure comparison is based on string length
+                        cell_content_length = len(str(value)) if value is not None else 0
+                        max_widths[col_idx] = max(max_widths[col_idx], cell_content_length)
+                        
                     row_idx += 1
                     total_rows += 1
                 
-                # Update counters for the next chunk
-                offset += 100000
+                # Update counters for the next chunk using configured size
+                offset += batch_size
                 
                 # Calculate chunk processing time
                 chunk_time = (datetime.now() - chunk_start).total_seconds()
@@ -316,6 +316,21 @@ def generate_excel(params):
                         "progress_pct": min(100, int((total_rows / total_count) * 100))
                     }
                 )
+            
+            # --- Formatting applied AFTER data writing ---
+            export_logger.info(f"[{operation_id}] Applying column formats and auto-fitting columns...")
+            for col_idx, width in enumerate(max_widths):
+                # Determine the correct format for the column
+                # Use date format for column 3 (index 2)
+                cell_format = date_format if col_idx == 2 else data_format
+                
+                # Calculate final width with padding and minimum width
+                final_width = max(min_width, width + padding)
+                
+                # Apply column width ONLY (format applied during write)
+                worksheet.set_column(col_idx, col_idx, final_width)
+            export_logger.info(f"[{operation_id}] Column formatting and auto-fitting complete.")
+            # --- End Formatting ---
             
             # Freeze the header row
             worksheet.freeze_panes(1, 0)

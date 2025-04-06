@@ -101,7 +101,7 @@ def setup_excel_workbook(file_path):
         'default_date_format': 'dd-mmm-yy',  # Set default date format
         'tmpdir': settings.TEMP_DIR,  # Use temp directory for temporary files
         'in_memory': False,      # Don't store everything in memory
-        'strings_to_numbers': True,  # Convert string numbers to numeric values
+        'strings_to_numbers': False, # Preserve strings like leading zeros
         'strings_to_formulas': False,  # Don't convert strings to formulas (faster)
         'strings_to_urls': False,  # Don't convert strings to URLs (faster)
         'nan_inf_to_errors': True  # Convert NaN/Inf to Excel errors
@@ -112,68 +112,39 @@ def setup_excel_workbook(file_path):
     return workbook
 
 def create_excel_formats(workbook):
-    """Create formats for Excel workbook"""
+    """Create formats for Excel workbook based on requirements"""
     # Define formats
     header_format = workbook.add_format({
         'bold': True,
         'font_name': 'Times New Roman',
         'font_size': 10,
-        'border': 1,
-        'bg_color': '#4F81BD',
-        'font_color': 'black',
+        'border': 1, # Thin border
+        'bg_color': '#4F81BD', # Keep existing header background
+        'font_color': 'black', # Keep existing header font color
         'align': 'center',
         'valign': 'vcenter'
+        # Wrap text is False by default for headers unless specified
     })
     
     data_format = workbook.add_format({
         'font_name': 'Times New Roman',
         'font_size': 10,
-        'border': 1
+        'border': 1, # Thin border
+        'valign': 'vcenter', # Align vertical center
+        'text_wrap': False # Disable text wrapping
+        # Let alignment default to left/right based on type
     })
     
     date_format = workbook.add_format({
         'font_name': 'Times New Roman',
         'font_size': 10,
-        'border': 1,
-        'num_format': 'dd-mmm-yy'
+        'border': 1, # Thin border
+        'num_format': 'dd-mmm-yy',
+        'valign': 'vcenter', # Align vertical center
+        'text_wrap': False # Disable text wrapping
     })
     
     return header_format, data_format, date_format
-
-def get_column_widths():
-    """Get column width mappings for Excel export"""
-    return {
-        # Numeric fields - narrower
-        'SB_NO': 12,
-        'HS4': 8,
-        'Hs_Code': 12,
-        'QTY': 10,
-        'Unit': 8,
-        'Value IN FC': 15,
-        'Total SB Value in INR in Lacs': 15,
-        'iec': 12,
-        'Item_no': 8,
-        'Invoice_no': 12,
-        
-        # Date fields
-        'sb_Date': 12,
-        
-        # Short text fields
-        'Unit Rate Currency': 12,
-        'Port of Destination': 18,
-        'Ctry of Destination': 18,
-        'port of origin': 18,
-        'Exporter City': 15,
-        
-        # Long text fields - wider
-        'Product': 40,
-        'Unit Rate in Foreign Currency - FC not specified, Very Imp : Som': 25,
-        'Indian Exporter Name': 35,
-        'Exporter Add1': 35,
-        'Exporter Add2': 35,
-        'Foreign Importer Name': 35,
-        'FOR_Add1': 35
-    }
 
 def write_excel_headers(worksheet, columns, header_format):
     """Write headers to Excel worksheet"""
@@ -184,21 +155,13 @@ def write_excel_headers(worksheet, columns, header_format):
     # Set row height for header
     worksheet.set_row(0, 20)  # Set header row height to 20
 
-def set_column_widths(worksheet, columns, column_widths):
-    """Set column widths in Excel worksheet"""
-    # Apply column widths
-    for col_idx, column in enumerate(columns):
-        # Get width from mapping or use default width of 20 for unknown columns
-        width = column_widths.get(column, 20)
-        worksheet.set_column(col_idx, col_idx, width)
-
 def write_data_to_excel(worksheet, cursor, data_format, date_format, operation_id, total_count):
-    """Write data to Excel worksheet in batches"""
+    """Write data to Excel worksheet in batches (NOTE: This function might be unused)"""
     # Import here to avoid circular imports
     from .operation_tracker import is_operation_cancelled
     
     # Process data in chunks with optimized approach for large datasets
-    batch_size = 100000  # Increased batch size for better performance
+    batch_size = settings.DB_FETCH_BATCH_SIZE  # Use configured batch size
     row_idx = 1  # Start from row 1 (after header)
     total_rows = 0
     
