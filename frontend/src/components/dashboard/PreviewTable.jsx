@@ -13,7 +13,8 @@ import {
   useTheme,
   TablePagination,
   TextField,
-  InputAdornment
+  InputAdornment,
+  CircularProgress
 } from '@mui/material';
 import { TableView, Search } from '@mui/icons-material';
 
@@ -21,8 +22,9 @@ import { TableView, Search } from '@mui/icons-material';
  * Preview table component for displaying export data preview
  * @param {Object} props - Component props
  * @param {Array} props.data - Preview data to display
+ * @param {boolean} props.loading - Loading state
  */
-const PreviewTable = ({ data }) => {
+const PreviewTable = ({ data, loading = false }) => {
   const theme = useTheme();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -81,12 +83,16 @@ const PreviewTable = ({ data }) => {
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Chip 
-            label={`${filteredData.length} records shown`}
-            color="primary"
-            variant="outlined"
-            size="small"
-          />
+          {loading ? (
+            <CircularProgress size={24} sx={{ mr: 2 }} />
+          ) : (
+            <Chip 
+              label={`${filteredData.length} records shown`}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          )}
         </Box>
       </Box>
       
@@ -98,7 +104,7 @@ const PreviewTable = ({ data }) => {
             size="small"
             value={searchTerm}
             onChange={handleSearchChange}
-            disabled={data.length === 0}
+            disabled={data.length === 0 || loading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -110,7 +116,14 @@ const PreviewTable = ({ data }) => {
           />
       </Box>
 
-      {data.length === 0 ? (
+      {loading ? (
+        <Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+          <CircularProgress size={40} sx={{ mb: 2 }} />
+          <Typography variant="body1" color="text.secondary">
+            Loading preview data...
+          </Typography>
+        </Box>
+      ) : data.length === 0 ? (
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="body1" color="text.secondary">
             No preview data available. Use the form above to generate a preview.

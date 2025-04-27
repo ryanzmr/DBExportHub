@@ -201,9 +201,9 @@ const ExportForm = ({
 
             <Grid item xs={3}>
               <TextField
-                label="Importer Country"
-                name="impCnt"
-                value={formData.impCnt}
+                label="Country"
+                name="country"
+                value={formData.country}
                 onChange={handleChange}
                 fullWidth
                 size="small"
@@ -234,8 +234,8 @@ const ExportForm = ({
             <Grid item xs={3}>
               <TextField
                 label="Importer Name"
-                name="impNm"
-                value={formData.impNm}
+                name="impName"
+                value={formData.impName}
                 onChange={handleChange}
                 fullWidth
                 size="small"
@@ -249,9 +249,9 @@ const ExportForm = ({
 
             <Grid item xs={3}>
               <TextField
-                label="Mode of Transport"
-                name="mode"
-                value={formData.mode}
+                label="Shipper"
+                name="shipper"
+                value={formData.shipper}
                 onChange={handleChange}
                 fullWidth
                 size="small"
@@ -265,47 +265,50 @@ const ExportForm = ({
           </Grid>
         </Collapse>
 
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}>
+        <Box sx={styles.actionButtonsContainer}>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleReset}
+            startIcon={<RestartAltOutlined />}
+            sx={styles.actionButton}
+            disabled={loading || exporting}
+          >
+            Reset
+          </Button>
+
           <Button
             variant="contained"
-            color="primary"
-            onClick={handlePreview}
-            disabled={loading || !formData.fromMonth || !formData.toMonth}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PreviewOutlined />}
-            sx={{ mr: 2 }}
+            color="error"
+            onClick={handleCancel}
+            startIcon={<CancelOutlined />}
+            sx={styles.actionButton}
           >
-            {loading ? 'Loading...' : 'Preview'}
+            Cancel
           </Button>
+
+          {!exporting && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handlePreview}
+              startIcon={loading ? <CircularProgress size={20} /> : <PreviewOutlined />}
+              disabled={loading || exporting || isOperationInProgress}
+              sx={styles.actionButton}
+            >
+              {loading ? 'Loading...' : 'Preview'}
+            </Button>
+          )}
 
           <Button
             variant="contained"
             color="success"
             onClick={handleExport}
-            disabled={exporting || !formData.fromMonth || !formData.toMonth}
-            startIcon={exporting ? <CircularProgress size={20} color="inherit" /> : <DownloadOutlined />}
-            sx={{ mr: 2 }}
+            startIcon={exporting ? <CircularProgress size={20} /> : <DownloadOutlined />}
+            disabled={loading || exporting || isOperationInProgress}
+            sx={styles.actionButton}
           >
-            {exporting ? 'Exporting...' : 'Export to Excel'}
-          </Button>
-
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={handleCancel}
-            startIcon={<CancelOutlined />}
-            disabled={!isOperationInProgress}
-            sx={{ mr: 2 }}
-          >
-            Cancel
-          </Button>
-          
-          <Button
-            variant="outlined"
-            onClick={handleReset}
-            startIcon={<RestartAltOutlined />}
-            disabled={isOperationInProgress}
-          >
-            Reset
+            {exporting ? 'Exporting...' : 'Export'}
           </Button>
         </Box>
       </Box>

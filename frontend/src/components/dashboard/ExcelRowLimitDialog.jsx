@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,16 +19,41 @@ import { WarningAmber } from '@mui/icons-material';
  * @param {Function} props.onClose - Function to call when dialog is closed
  * @param {Function} props.onContinue - Function to call when user chooses to continue
  * @param {Function} props.onCancel - Function to call when user chooses to cancel
- * @param {number} props.recordCount - Total number of records
+ * @param {number} props.rowCount - Total number of records
+ * @param {number} props.rowLimit - Excel row limit (defaults to 1048576)
  */
-const ExcelRowLimitDialog = ({ open, onClose, onContinue, onCancel, recordCount }) => {
-  const excelLimit = 1048576; // Excel row limit
-  const exceededBy = recordCount - excelLimit;
+const ExcelRowLimitDialog = ({ 
+  open, 
+  onClose, 
+  onContinue, 
+  onCancel, 
+  rowCount = 0, 
+  rowLimit = 1048576 
+}) => {
+  // Log props for debugging
+  useEffect(() => {
+    console.log('ExcelRowLimitDialog props:', { open, rowCount, rowLimit });
+  }, [open, rowCount, rowLimit]);
+
+  // Ensure values are safe for use
+  const safeRowCount = rowCount && typeof rowCount === 'number' ? rowCount : 0;
+  const safeRowLimit = rowLimit && typeof rowLimit === 'number' ? rowLimit : 1048576;
+  const exceededBy = Math.max(0, safeRowCount - safeRowLimit);
+
+  // Format numbers safely
+  const formatNumber = (num) => {
+    try {
+      return num.toLocaleString();
+    } catch (err) {
+      console.error('Error formatting number:', num, err);
+      return '0';
+    }
+  };
   
   return (
     <Dialog
-      open={open}
-      onClose={onClose}
+      open={!!open}
+      onClose={onClose || (() => {})}
       aria-labelledby="excel-limit-dialog-title"
       aria-describedby="excel-limit-dialog-description"
       PaperProps={{
@@ -49,10 +74,10 @@ const ExcelRowLimitDialog = ({ open, onClose, onContinue, onCancel, recordCount 
       </DialogTitle>
       <DialogContent>
         <DialogContentText id="excel-limit-dialog-description" sx={{ mb: 2 }}>
-          The total number of records ({recordCount.toLocaleString()}) exceeds 1,048,576 (modern Excel row limit).
+          The total number of records ({formatNumber(safeRowCount)}) exceeds {formatNumber(safeRowLimit)} (modern Excel row limit).
         </DialogContentText>
         <DialogContentText color="error" sx={{ fontWeight: 'bold', mb: 2 }}>
-          ⚠️ Warning: Only the first 1,048,576 records will be saved in the Excel file. The remaining {exceededBy.toLocaleString()} records will be discarded.
+          ⚠️ Warning: Only the first {formatNumber(safeRowLimit)} records will be saved in the Excel file. The remaining {formatNumber(exceededBy)} records will be discarded.
         </DialogContentText>
         <DialogContentText>
           Do you want to continue the export process or cancel it?
@@ -60,14 +85,14 @@ const ExcelRowLimitDialog = ({ open, onClose, onContinue, onCancel, recordCount 
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>
         <Button 
-          onClick={onCancel} 
+          onClick={onCancel || (() => {})} 
           color="error" 
           variant="outlined"
         >
           No, Cancel Export
         </Button>
         <Button 
-          onClick={onContinue} 
+          onClick={onContinue || (() => {})} 
           color="primary" 
           variant="contained" 
           autoFocus

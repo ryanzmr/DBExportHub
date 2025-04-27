@@ -75,7 +75,7 @@ Toggle the "Advanced Options" switch to access these additional filters:
 - **Backend Parameter**: `forname` (in the API)
 - **Processing**: Filters export data to include only items for specified importers
 
-### Mode of Transport
+### Shipper
 - **Purpose**: Filter by transportation method
 - **Format**: Text string
 - **Required**: No (Optional)
