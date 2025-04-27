@@ -118,10 +118,24 @@ export const cardHeaderStyles = (theme) => ({
 
 // Form container styles
 export const formContainerStyles = {
-  display: 'grid',
-  gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-  gap: 3,
-  mb: 3
+  formContainer: {
+    padding: 2
+  },
+  actionButtonsContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 2,
+    mt: 3
+  },
+  actionButton: {
+    textTransform: 'none',
+    fontWeight: 500,
+    borderRadius: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    padding: '8px 16px',
+    minWidth: '100px'
+  }
 };
 
 // Table styles

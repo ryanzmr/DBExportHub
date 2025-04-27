@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Card, CardContent, Grid } from '@mui/material';
+import { Box, Card, CardContent, Grid, Container } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
 
 // Custom components
 import ExportHeader from '../../components/dashboard/ExportHeader';
@@ -11,6 +10,7 @@ import PreviewTable from '../../components/dashboard/PreviewTable';
 import RecordCountBox from '../../components/dashboard/RecordCountBox';
 import DashboardFooter from '../../components/dashboard/DashboardFooter';
 import ExcelRowLimitDialog from '../../components/dashboard/ExcelRowLimitDialog';
+import Navigation from '../../components/Navigation';
 
 // Utilities and hooks
 import { useAuth } from '../../App';
@@ -205,36 +205,69 @@ const ExportPage = () => {
     setShowLimitDialog(false);
     setExporting(false);
     setIsOperationInProgress(false);
-    setError('Export cancelled due to Excel row limit');
   };
   
-  // Unified cancel function that handles both preview and export cancellations
+  // Cancel operation (both preview and export)
   const handleCancel = () => {
-    if (loading && previewControllerRef.current) {
-      // Cancel preview operation
+    // Cancel preview if it's in progress
+    if (previewControllerRef.current) {
       previewControllerRef.current.abort();
-      setLoading(false);
-    } else if (exporting && exportControllerRef.current) {
-      // Cancel export operation
-      exportControllerRef.current.abort();
-      setExportCancelled(true);
+      previewControllerRef.current = null;
     }
+    
+    // Cancel export if it's in progress
+    if (exportControllerRef.current) {
+      setExportCancelled(true);
+      exportControllerRef.current.abort();
+      exportControllerRef.current = null;
+    }
+    
+    setLoading(false);
+    setExporting(false);
   };
   
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (previewControllerRef.current) {
+        previewControllerRef.current.abort();
+      }
+      if (exportControllerRef.current) {
+        exportControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Add console.log before return statement to debug props being passed to ExcelRowLimitDialog
+  useEffect(() => {
+    if (showLimitDialog) {
+      console.log('Showing limit dialog with props:', {
+        totalRecords,
+        EXCEL_ROW_LIMIT
+      });
+    }
+  }, [showLimitDialog, totalRecords]);
+
   return (
     <Box sx={{ pb: 4, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <ExportHeader 
-        connectionDetails={connectionDetails} 
-        onLogout={handleLogout} 
-      />
+      <Box sx={{ p: 2 }}>
+        <Navigation />
+      </Box>
       
       <Box sx={{ flex: 1 }}>
-        <Grid container spacing={3} sx={{ flexDirection: 'column' }}>
+        <Grid container spacing={3} sx={{ px: 2 }}>
+          <Grid item xs={12}>
+            <ExportHeader 
+              connectionDetails={connectionDetails} 
+              onLogout={handleLogout}
+            />
+          </Grid>
+
           <Grid item xs={12}>
             <Card>
               <CardContent>
                 <ExportForm 
-                  formData={formData}
+                  formData={formData} 
                   handleChange={handleChange}
                   handlePreview={handlePreview}
                   handleExport={handleExport}
@@ -254,7 +287,7 @@ const ExportPage = () => {
             <Grid item xs={12}>
               <RecordCountBox 
                 previewCount={previewCount} 
-                totalRecords={totalRecords}
+                totalRecords={totalRecords} 
               />
             </Grid>
           )}
@@ -263,7 +296,10 @@ const ExportPage = () => {
             <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <PreviewTable data={previewData} />
+                  <PreviewTable 
+                    data={previewData} 
+                    loading={loading}
+                  />
                 </CardContent>
               </Card>
             </Grid>
@@ -274,12 +310,12 @@ const ExportPage = () => {
       <DashboardFooter />
       
       {/* Excel Row Limit Dialog */}
-      <ExcelRowLimitDialog
+      <ExcelRowLimitDialog 
         open={showLimitDialog}
-        onClose={handleDialogCancel}
+        rowCount={totalRecords}
+        rowLimit={EXCEL_ROW_LIMIT}
         onContinue={handleDialogContinue}
         onCancel={handleDialogCancel}
-        recordCount={totalRecords}
       />
     </Box>
   );

@@ -6,6 +6,7 @@ import axios from 'axios';
 // Pages
 import LoginPage from './pages/Login';
 import ExportPage from './pages/Dashboard';
+import HomePage from './pages/HomePage';
 
 // Context for managing authentication state
 const AuthContext = createContext(null);
@@ -75,20 +76,22 @@ function App() {
     
     checkAuth();
   }, [navigate, location.pathname]);
+  
   // Log navigation for debugging
   useEffect(() => {
     console.log('Current path:', location.pathname);
     console.log('Auth state in navigation effect:', authState);
     
-    // Redirect to export page if authenticated and on login page
+    // Redirect to home page if authenticated and on login page
     if (authState.isAuthenticated && location.pathname === '/login') {
-      console.log('Redirecting from login to export page due to authenticated state');
+      console.log('Redirecting from login to home page due to authenticated state');
       // Add a small delay to ensure state is fully updated before navigation
       setTimeout(() => {
-        navigate('/export', { replace: true });
+        navigate('/home', { replace: true });
       }, 100);
     }
   }, [location, authState, navigate]);
+  
   const login = async (connectionDetails) => {
     try {
       console.log('Login called with:', connectionDetails);
@@ -141,6 +144,7 @@ function App() {
       return false;
     }
   };
+  
   const logout = () => {
     // Clear session storage
     sessionStorage.removeItem('authToken');
@@ -164,9 +168,17 @@ function App() {
         <Routes>
           <Route path="/login" element={
             authState.isAuthenticated ? 
-            <Navigate to="/export" replace /> : 
+            <Navigate to="/home" replace /> : 
             <LoginPage />
           } />
+          <Route 
+            path="/home" 
+            element={
+              authState.isAuthenticated ? 
+              <HomePage /> : 
+              <Navigate to="/login" replace state={{ from: location }} />
+            } 
+          />
           <Route 
             path="/export" 
             element={
@@ -177,7 +189,7 @@ function App() {
           />
           <Route path="/" element={
             authState.isAuthenticated ? 
-            <Navigate to="/export" replace /> : 
+            <Navigate to="/home" replace /> : 
             <Navigate to="/login" replace />
           } />
           <Route path="*" element={<Navigate to="/login" replace />} />
