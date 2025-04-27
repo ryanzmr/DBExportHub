@@ -65,10 +65,20 @@ const ExportForm = ({
 
   return (
     <>
-      <Box sx={headerStyles.cardHeader}>
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        mb: 2,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        paddingBottom: 1.5
+      }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <SaveAlt sx={{ color: theme.palette.primary.main, mr: 2, fontSize: 28 }} />
-          <Typography variant="h6" sx={headerStyles.cardHeaderTitle}>
+          <SaveAlt sx={{ color: theme.palette.primary.main, mr: 1.5, fontSize: 24 }} />
+          <Typography variant="h6" sx={{
+            fontWeight: 600,
+            color: theme.palette.primary.main,
+            fontSize: '1.1rem'
+          }}>
             Export Configuration
           </Typography>
         </Box>
@@ -82,7 +92,11 @@ const ExportForm = ({
             />
           }
           label={
-            <Typography variant="body1" sx={headerStyles.advancedOptionsLabel}>
+            <Typography variant="body2" sx={{
+              fontWeight: 500,
+              color: theme.palette.text.secondary,
+              fontSize: '0.85rem'
+            }}>
               Advanced Options
             </Typography>
           }
@@ -201,7 +215,7 @@ const ExportForm = ({
 
             <Grid item xs={3}>
               <TextField
-                label="Country"
+                label="Importer Country"
                 name="country"
                 value={formData.country}
                 onChange={handleChange}
@@ -266,27 +280,6 @@ const ExportForm = ({
         </Collapse>
 
         <Box sx={styles.actionButtonsContainer}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleReset}
-            startIcon={<RestartAltOutlined />}
-            sx={styles.actionButton}
-            disabled={loading || exporting}
-          >
-            Reset
-          </Button>
-
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleCancel}
-            startIcon={<CancelOutlined />}
-            sx={styles.actionButton}
-          >
-            Cancel
-          </Button>
-
           {!exporting && (
             <Button
               variant="contained"
@@ -309,6 +302,27 @@ const ExportForm = ({
             sx={styles.actionButton}
           >
             {exporting ? 'Exporting...' : 'Export'}
+          </Button>
+
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleReset}
+            startIcon={<RestartAltOutlined />}
+            sx={styles.actionButton}
+            disabled={loading || exporting}
+          >
+            Reset
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancel}
+            startIcon={<CancelOutlined />}
+            sx={styles.actionButton}
+          >
+            Cancel
           </Button>
         </Box>
       </Box>

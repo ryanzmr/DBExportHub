@@ -44,9 +44,17 @@ const Navigation = () => {
   const currentPage = breadcrumbItems[breadcrumbItems.length - 1]?.label || 'Page';
   
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ 
+      bgcolor: '#f5f5fa', 
+      py: 1, 
+      px: 2, 
+      borderRadius: '8px 8px 0 0',
+      borderBottom: '1px solid #e0e0e0',
+      display: 'flex',
+      alignItems: 'center'
+    }}>
       <Breadcrumbs 
-        separator={<NavigateNext fontSize="small" />} 
+        separator={<NavigateNext fontSize="small" color="primary" />} 
         aria-label="breadcrumb"
       >
         {breadcrumbItems.map((item, index) => {
@@ -61,8 +69,12 @@ const Navigation = () => {
               icon={item.icon}
               sx={{ 
                 height: 28,
+                fontWeight: 'bold',
+                px: 0.5,
+                bgcolor: theme.palette.primary.main,
                 '& .MuiChip-label': {
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  px: 1.5
                 }
               }}
             />
@@ -76,8 +88,10 @@ const Navigation = () => {
                 display: 'flex', 
                 alignItems: 'center',
                 textDecoration: 'none',
+                color: theme.palette.text.primary,
+                fontWeight: 500,
                 '&:hover': {
-                  textDecoration: 'underline'
+                  color: theme.palette.primary.main
                 }
               }}
             >
