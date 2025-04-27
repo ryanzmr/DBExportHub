@@ -4,7 +4,7 @@
 // Common text field style used throughout the form
 export const commonTextFieldStyle = {
   '& .MuiInputBase-root': { 
-    height: '56px',
+    height: '48px',
     backgroundColor: '#ffffff',
     transition: 'all 0.2s ease-in-out',
     '&:hover': {
@@ -16,7 +16,7 @@ export const commonTextFieldStyle = {
     }
   },
   '& .MuiInputLabel-root': { 
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     color: '#1a365d',
     fontWeight: 600,
     fontFamily: '"Segoe UI", "Roboto", "Arial", sans-serif',
@@ -34,15 +34,15 @@ export const commonTextFieldStyle = {
     }
   },
   '& .MuiInputBase-input': {
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     fontWeight: 600,
     color: '#000000',
     fontFamily: '"Segoe UI", "Roboto", "Arial", sans-serif',
     letterSpacing: '0.2px',
-    padding: '16px 14px 16px 14px',
+    padding: '12px 14px 12px 14px',
     '&::placeholder': {
       color: 'rgba(0, 0, 0, 0.6)',
-      fontSize: '1.05rem',
+      fontSize: '1rem',
       fontWeight: 500,
       opacity: 0.8
     }
@@ -56,7 +56,7 @@ export const commonTextFieldStyle = {
 // Header styles
 export const headerStyles = (theme) => ({
   appBar: {
-    mb: 4,
+    mb: 2,
     background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
     boxShadow: '0 3px 5px 2px rgba(0, 0, 0, 0.1)'
   },
@@ -65,7 +65,7 @@ export const headerStyles = (theme) => ({
     letterSpacing: '0.01em',
     fontFamily: '"Inter", "Roboto", "Arial", sans-serif',
     textTransform: 'none',
-    fontSize: '1.4rem',
+    fontSize: '1.3rem',
     textShadow: '0 1px 2px rgba(0,0,0,0.1)'
   },
   headerChip: {
@@ -91,57 +91,57 @@ export const cardHeaderStyles = (theme) => ({
   cardHeader: {
     display: 'flex', 
     alignItems: 'center', 
-    mb: 3, 
+    mb: 2, 
     borderBottom: `2px solid ${theme.palette.primary.main}`,
-    p: 2,
+    p: 1.5,
     color: '#1a365d'
   },
   cardHeaderTitle: {
     fontWeight: 700,
-    fontSize: '1.35rem',
+    fontSize: '1.2rem',
     letterSpacing: '0.01em',
     fontFamily: '"Inter", "Roboto", "Arial", sans-serif',
     color: '#1a2b4a'
   },
   advancedOptionsLabel: {
     fontWeight: 500,
-    fontSize: '0.95rem',
+    fontSize: '0.9rem',
     color: '#445577',
     letterSpacing: '0.01em'
   },
   cardHeaderIcon: {
     color: theme.palette.primary.main,
     mr: 2,
-    fontSize: 28
+    fontSize: 24
   }
 });
 
 // Form container styles
 export const formContainerStyles = {
   formContainer: {
-    padding: 2
+    padding: 1
   },
   actionButtonsContainer: {
     display: 'flex',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    gap: 2,
-    mt: 3
+    gap: 1.5,
+    mt: 2
   },
   actionButton: {
     textTransform: 'none',
     fontWeight: 500,
     borderRadius: '8px',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    padding: '8px 16px',
-    minWidth: '100px'
+    padding: '6px 14px',
+    minWidth: '90px'
   }
 };
 
 // Table styles
 export const tableStyles = (theme) => ({
   tableContainer: {
-    maxHeight: '500px',
+    maxHeight: '400px',
     overflowY: 'auto',
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: '8px',
@@ -167,8 +167,8 @@ export const tableStyles = (theme) => ({
   tableHeadCell: {
     color: '#ffffff',
     fontWeight: 600,
-    fontSize: '0.95rem',
-    padding: '12px 16px',
+    fontSize: '0.9rem',
+    padding: '10px 14px',
     textAlign: 'left',
     borderRight: '1px solid rgba(255,255,255,0.15)',
     '&:last-child': {
@@ -176,8 +176,8 @@ export const tableStyles = (theme) => ({
     }
   },
   tableCell: {
-    fontSize: '0.9rem',
-    padding: '10px 16px',
+    fontSize: '0.85rem',
+    padding: '8px 14px',
     borderRight: `1px solid ${theme.palette.divider}`,
     '&:last-child': {
       borderRight: 'none'
@@ -193,7 +193,7 @@ export const tableStyles = (theme) => ({
   },
   emptyState: {
     textAlign: 'center',
-    padding: '40px 0',
+    padding: '30px 0',
     color: theme.palette.text.secondary
   }
 });
@@ -205,9 +205,9 @@ export const buttonStyles = {
     textTransform: 'none',
     fontWeight: 600,
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    padding: '8px 24px',
-    fontSize: '0.95rem',
-    height: '48px',
+    padding: '6px 20px',
+    fontSize: '0.9rem',
+    height: '40px',
     transition: 'all 0.2s ease-in-out',
     '&:hover': {
       boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
@@ -218,9 +218,9 @@ export const buttonStyles = {
     borderRadius: '8px',
     textTransform: 'none',
     fontWeight: 600,
-    padding: '8px 24px',
-    fontSize: '0.95rem',
-    height: '48px',
+    padding: '6px 20px',
+    fontSize: '0.9rem',
+    height: '40px',
     transition: 'all 0.2s ease-in-out',
     '&:hover': {
       backgroundColor: 'rgba(0,0,0,0.08)'

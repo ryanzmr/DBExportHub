@@ -65,8 +65,8 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
       <Paper
         elevation={3}
         sx={{
-          p: { xs: 2, sm: 3 },
-          mb: 3,
+          p: { xs: 1.5, sm: 2 },
+          mb: 2,
           borderRadius: 2,
           background: `linear-gradient(120deg, ${theme.palette.background.paper} 0%, ${theme.palette.grey[50]} 100%)`,
           boxShadow: `0 4px 20px 0 ${theme.palette.mode === 'dark' 
@@ -81,17 +81,17 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
         <Box 
           sx={{ 
             position: 'absolute', 
-            top: -30, 
-            right: -20, 
+            top: -20, 
+            right: -15, 
             opacity: 0.03, 
             transform: 'rotate(10deg)',
-            fontSize: 180
+            fontSize: 140
           }}
         >
           <BarChart />
         </Box>
         
-        <Grid container spacing={2} alignItems="center">
+        <Grid container spacing={1} alignItems="center">
           <Grid item>
             <Box 
               sx={{ 
@@ -101,15 +101,15 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
                 bgcolor: exceedsExcelLimit ? theme.palette.warning.main : theme.palette.primary.light,
                 color: theme.palette.primary.contrastText,
                 borderRadius: '50%',
-                p: 1.5,
-                width: { xs: 48, sm: 56, md: 64 },
-                height: { xs: 48, sm: 56, md: 64 }
+                p: 1,
+                width: { xs: 40, sm: 45, md: 50 },
+                height: { xs: 40, sm: 45, md: 50 }
               }}
             >
               {exceedsExcelLimit ? (
-                <Warning sx={{ fontSize: { xs: 28, sm: 32, md: 36 }, color: 'white' }} />
+                <Warning sx={{ fontSize: { xs: 22, sm: 24, md: 28 }, color: 'white' }} />
               ) : (
-                <DataArray sx={{ fontSize: { xs: 28, sm: 32, md: 36 } }} />
+                <DataArray sx={{ fontSize: { xs: 22, sm: 24, md: 28 } }} />
               )}
             </Box>
           </Grid>
@@ -123,7 +123,8 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
                   display: 'block', 
                   fontWeight: 500,
                   letterSpacing: 1,
-                  mb: 0.5
+                  mb: 0.25,
+                  fontSize: '0.7rem'
                 }}
               >
                 Total Records Found
@@ -131,13 +132,13 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
               
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Typography 
-                  variant="h4"
+                  variant="h5"
                   color={exceedsExcelLimit ? "warning.main" : "primary"}
                   sx={{ 
                     fontWeight: 700,
                     lineHeight: 1.2,
-                    mb: 0.5,
-                    fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' }
+                    mb: 0.25,
+                    fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }
                   }}
                 >
                   {formattedCounter}
@@ -147,26 +148,28 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
                   <Tooltip title={`Exceeds Excel's limit of ${EXCEL_ROW_LIMIT.toLocaleString()} rows`}>
                     <Warning 
                       color="warning" 
-                      sx={{ ml: 1, verticalAlign: 'middle' }} 
+                      sx={{ ml: 1, verticalAlign: 'middle', fontSize: '1.2rem' }} 
                     />
                   </Tooltip>
                 )}
               </Box>
               
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
                 <Chip
                   size="small"
-                  icon={<ShowChart />}
+                  icon={<ShowChart sx={{ fontSize: '0.9rem' }} />}
                   label="Complete Dataset"
                   color="secondary"
+                  sx={{ height: 24, '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }}
                 />
                 
                 {exceedsExcelLimit && (
                   <Chip
                     size="small"
-                    icon={<Warning />}
+                    icon={<Warning sx={{ fontSize: '0.9rem' }} />}
                     label="Exceeds Excel Limit"
                     color="warning"
+                    sx={{ height: 24, '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }}
                   />
                 )}
                 
@@ -176,6 +179,7 @@ const RecordCountBox = ({ totalRecords, previewCount }) => {
                     label={`Preview: ${previewCount} records`}
                     variant="outlined"
                     color="primary"
+                    sx={{ height: 24, '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }}
                   />
                 )}
               </Box>

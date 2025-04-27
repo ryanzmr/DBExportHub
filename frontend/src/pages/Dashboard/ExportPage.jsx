@@ -249,23 +249,23 @@ const ExportPage = () => {
   }, [showLimitDialog, totalRecords]);
 
   return (
-    <Box sx={{ pb: 4, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Box sx={{ p: 2 }}>
-        <Navigation />
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ mb: 0, boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+        <ExportHeader 
+          connectionDetails={connectionDetails} 
+          onLogout={handleLogout}
+        />
       </Box>
       
-      <Box sx={{ flex: 1 }}>
-        <Grid container spacing={3} sx={{ px: 2 }}>
+      <Container maxWidth="xl" sx={{ mt: 3, mb: 3, px: {xs: 2, sm: 3} }}>
+        <Box sx={{ mb: 2 }}>
+          <Navigation />
+        </Box>
+        
+        <Grid container spacing={2}>
           <Grid item xs={12}>
-            <ExportHeader 
-              connectionDetails={connectionDetails} 
-              onLogout={handleLogout}
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
+            <Card elevation={2} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
+              <CardContent sx={{ p: 2 }}>
                 <ExportForm 
                   formData={formData} 
                   handleChange={handleChange}
@@ -294,8 +294,8 @@ const ExportPage = () => {
           
           {previewData.length > 0 && (
             <Grid item xs={12}>
-              <Card>
-                <CardContent>
+              <Card elevation={2} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
+                <CardContent sx={{ p: 2 }}>
                   <PreviewTable 
                     data={previewData} 
                     loading={loading}
@@ -305,9 +305,11 @@ const ExportPage = () => {
             </Grid>
           )}
         </Grid>
-      </Box>
+      </Container>
       
-      <DashboardFooter />
+      <Box sx={{ mt: 'auto' }}>
+        <DashboardFooter />
+      </Box>
       
       {/* Excel Row Limit Dialog */}
       <ExcelRowLimitDialog 

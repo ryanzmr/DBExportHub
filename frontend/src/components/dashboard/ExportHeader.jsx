@@ -26,20 +26,41 @@ const ExportHeader = ({ connectionDetails, onLogout }) => {
   const [notificationCount, setNotificationCount] = useState(0);
 
   return (
-    <AppBar position="static" sx={styles.appBar}>
-      <Toolbar>
+    <AppBar position="static" sx={{
+      background: 'linear-gradient(90deg, #5C6BC0 0%, #3F51B5 100%)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+      mb: 0
+    }}>
+      <Toolbar sx={{ minHeight: '64px', py: 0.5, px: {xs: 1, sm: 2} }}>
         <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-          <Storage sx={{ mr: 2, fontSize: 28 }} />
-          <Typography variant="h5" component="div" sx={styles.headerTitle}>
+          <Storage sx={{ mr: 1.5, fontSize: 26, color: 'white' }} />
+          <Typography variant="h5" component="div" sx={{
+            fontWeight: 700,
+            letterSpacing: '0.01em',
+            color: 'white',
+            fontSize: {xs: '1.2rem', sm: '1.4rem'},
+            mr: 2
+          }}>
             DBExportHub
           </Typography>
+          
           <Chip
             label={`${connectionDetails?.database} @ ${connectionDetails?.server}`}
-            sx={styles.headerChip}
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              fontWeight: 500,
+              fontSize: '0.8rem',
+              height: 28,
+              '& .MuiChip-label': {
+                px: 1.5
+              }
+            }}
           />
+          
           <Typography variant="body2" sx={{ 
             ml: 2, 
-            color: 'rgba(255,255,255,0.85)', 
+            color: 'rgba(255,255,255,0.9)', 
             display: { xs: 'none', md: 'block' },
             fontWeight: 500,
             letterSpacing: '0.01em',
@@ -53,7 +74,7 @@ const ExportHeader = ({ connectionDetails, onLogout }) => {
           <Tooltip title="Help Center">
             <Button 
               color="inherit" 
-              sx={{ minWidth: 'auto', mr: 1 }}
+              sx={{ minWidth: 'auto', mr: 1, color: 'white' }}
             >
               <Help />
             </Button>
@@ -62,7 +83,7 @@ const ExportHeader = ({ connectionDetails, onLogout }) => {
           <Tooltip title="Notifications">
             <Button 
               color="inherit" 
-              sx={{ minWidth: 'auto', mr: 1 }}
+              sx={{ minWidth: 'auto', mr: 1, color: 'white' }}
             >
               <Badge badgeContent={notificationCount} color="error" invisible={notificationCount === 0}>
                 <Notifications />
@@ -141,19 +162,20 @@ const ExportHeader = ({ connectionDetails, onLogout }) => {
                 mr: 2,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1
+                gap: 1,
+                color: 'white'
               }}
               onMouseEnter={() => setShowTooltip(true)}
               onMouseLeave={() => setShowTooltip(false)}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.dark }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.2)' }}>
                 {connectionDetails?.username ? connectionDetails.username.charAt(0).toUpperCase() : <AccountCircle />}
               </Avatar>
               <Typography 
                 variant="body2" 
                 sx={{ 
                   display: { xs: 'none', sm: 'block' },
-                  color: 'inherit',
+                  color: 'white',
                   fontWeight: 500
                 }}
               >
@@ -163,10 +185,22 @@ const ExportHeader = ({ connectionDetails, onLogout }) => {
           </Tooltip>
           
           <Button 
-            color="inherit" 
+            variant="contained"
+            color="secondary"
             onClick={onLogout}
             startIcon={<LogoutOutlined />}
-            sx={styles.logoutButton}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+              px: 2,
+              py: 0.5,
+              bgcolor: 'rgba(255,255,255,0.15)',
+              '&:hover': {
+                bgcolor: 'rgba(255,255,255,0.25)'
+              }
+            }}
           >
             Logout
           </Button>
