@@ -33,6 +33,30 @@ class ExportParameters(BaseModel):
     max_records: int = Field(100, description="Maximum number of records to return for preview")
     force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
 
+# Import parameters model based on the stored procedure parameters
+class ImportParameters(BaseModel):
+    # Connection details (from login)
+    server: str
+    database: str
+    username: str
+    password: str
+    
+    # Import parameters (matching the stored procedure parameters)
+    fromMonth: int = Field(..., description="Start month in format YYYYMM")
+    toMonth: int = Field(..., description="End month in format YYYYMM")
+    hs: Optional[str] = Field("", description="HS Code filter")
+    prod: Optional[str] = Field("", description="Product description filter")
+    iec: Optional[str] = Field("", description="IEC filter")
+    impCmp: Optional[str] = Field("", description="Importer company filter")  # Changed from expCmp to impCmp
+    forcount: Optional[str] = Field("", description="Foreign country filter")
+    forname: Optional[str] = Field("", description="Foreign exporter name filter")
+    port: Optional[str] = Field("", description="Port filter")
+    
+    # Additional options
+    preview_only: bool = Field(True, description="If true, only return preview data")
+    max_records: int = Field(100, description="Maximum number of records to return for preview")
+    force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
+
 # Export response model
 class ExportResponse(BaseModel):
     file_path: str

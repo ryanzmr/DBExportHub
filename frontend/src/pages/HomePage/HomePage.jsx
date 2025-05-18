@@ -202,8 +202,7 @@ const HomePage = () => {
               description="Import data from different sources into your database with validation."
               icon={<CloudUploadOutlined fontSize="inherit" />}
               actionText="Go to Import"
-              onClick={() => {}}
-              disabled={true}
+              onClick={() => navigate('/import')}
             />
           </Grid>
           

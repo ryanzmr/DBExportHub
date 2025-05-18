@@ -101,6 +101,62 @@ const apiService = {
     }
   },
   
+  // Import Data preview
+  previewImportData: async (params) => {
+    try {
+      const response = await apiClient.post('/api/import/preview', params);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  
+  // Data import
+  importData: async (params) => {
+    try {
+      // Create an AbortController for cancellation
+      const controller = new AbortController();
+      const signal = controller.signal;
+      
+      // For file downloads, we need to set responseType to blob
+      const response = await apiClient.post('/api/import/excel', params, {
+        responseType: 'blob',
+        signal: signal
+      });
+      
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from content-disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'import.xlsx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=([^;]+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/"/g, '');
+        }
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      return { 
+        status: 'success', 
+        message: 'Import completed successfully',
+        controller: controller // Return controller for cancellation
+      };
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        return { status: 'cancelled', message: 'Import was cancelled' };
+      }
+      throw error.response?.data || error.message;
+    }
+  },
+  
   // Health check
   healthCheck: async () => {
     try {

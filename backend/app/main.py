@@ -14,8 +14,9 @@ import logging
 
 # Import your existing modules
 from .database import get_db_connection, test_connection
-from .models import ExportParameters, PreviewResponse, LoginRequest
+from .models import ExportParameters, ImportParameters, PreviewResponse, LoginRequest
 from .api.export import generate_excel, preview_data, CustomJSONEncoder
+from .api.import_module import generate_excel as generate_excel_import, preview_data as preview_data_import
 from .api.cancel import cancel_router
 from .logger import logger, access_logger, log_api_request
 from .config import settings
@@ -291,6 +292,65 @@ async def get_preview(params: ExportParameters):
             detail=f"Error generating preview: {str(e)}"
         )
 
+# Add routes for import operations
+@app.post("/api/import/preview")
+@log_api_request()
+async def import_preview(params: ImportParameters):
+    """Generate a preview of the import data"""
+    try:
+        # Mask sensitive information for logging
+        masked_params = params.dict(exclude={"password"})
+        masked_params["password"] = "[REDACTED]"
+        logger.info(f"Import preview request received with parameters: {masked_params}")
+        
+        # Call the import preview function
+        result = preview_data_import(params)
+        
+        # Return the result
+        return result
+    except Exception as e:
+        logger.error(f"Error in import preview: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating import preview: {str(e)}")
+
+@app.post("/api/import/excel", response_class=StreamingResponse)
+@log_api_request()
+async def import_excel(params: ImportParameters):
+    """Generate an Excel file for download"""
+    try:
+        # Mask sensitive information for logging
+        masked_params = params.dict(exclude={"password"})
+        masked_params["password"] = "[REDACTED]"
+        logger.info(f"Import excel request received with parameters: {masked_params}")
+        
+        # Call the import function
+        file_path, operation_id = generate_excel_import(params)
+        
+        # Return the file as a download
+        filename = os.path.basename(file_path)
+        
+        def iterfile():
+            with open(file_path, mode="rb") as file_like:
+                yield from file_like
+            # Clean up after sending
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Access-Control-Expose-Headers': 'Content-Disposition, X-Operation-ID',
+            'X-Operation-ID': operation_id
+        }
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers=headers
+        )
+    except Exception as e:
+        logger.error(f"Error in import excel: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating import excel: {str(e)}")
+
+
 # Export data endpoint with streaming response
 @app.post("/api/export", response_class=StreamingResponse)
 @log_api_request()
@@ -454,6 +514,66 @@ async def cleanup_connection(connection_info: dict):
     except Exception as e:
         logger.error(f"Cleanup error for session {session_id}: {str(e)}", extra={"session_id": session_id}, exc_info=True)
         return {"status": "error", "message": str(e)}
+
+# Add a test endpoint for Excel generation
+@app.get("/api/test-excel")
+async def test_excel_generation():
+    try:
+        import xlsxwriter
+        import os
+        from tempfile import gettempdir
+        import pathlib
+        
+        # Create a simple Excel file
+        temp_dir = pathlib.Path(settings.TEMP_DIR)
+        os.makedirs(temp_dir, exist_ok=True)
+        file_path = os.path.join(temp_dir, "test_excel.xlsx")
+        
+        # Create workbook with basic settings
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet('Test Sheet')
+        
+        # Add a simple header
+        header_format = workbook.add_format({
+            'bold': True,
+            'border': 1,
+            'bg_color': '#4F81BD',
+            'font_color': 'white'
+        })
+        
+        # Write test data
+        worksheet.write(0, 0, "Column 1", header_format)
+        worksheet.write(0, 1, "Column 2", header_format)
+        
+        # Add some test data rows
+        for i in range(5):
+            worksheet.write(i+1, 0, f"Data {i+1}")
+            worksheet.write(i+1, 1, i*10)
+        
+        # Close the workbook
+        workbook.close()
+        
+        # Return the file as a download
+        def iterfile():
+            with open(file_path, mode="rb") as file_like:
+                yield from file_like
+            # Clean up after sending
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        headers = {
+            'Content-Disposition': 'attachment; filename="test_excel.xlsx"',
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers=headers
+        )
+    except Exception as e:
+        logger.error(f"Test Excel error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating test Excel: {str(e)}")
 
 # Add a new endpoint to get export operation progress
 @app.get("/api/progress/{operation_id}")
