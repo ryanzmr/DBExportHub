@@ -63,7 +63,7 @@ def setup_logging():
     
     # Create console handler with a higher log level
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)  # Set to DEBUG to show more verbose output
     
     # Enhanced console formatter with emojis
     console_formatter = logging.Formatter(
@@ -193,6 +193,13 @@ logger = setup_logging()
 access_logger = logging.getLogger("access")
 db_logger = logging.getLogger("database")
 export_logger = logging.getLogger("export")
+import_logger = logging.getLogger("import")
+
+# Make sure each component logger uses the console handler
+access_logger.propagate = True  # Ensure logs propagate to root logger with console handler
+db_logger.propagate = True
+export_logger.propagate = True
+import_logger.propagate = True
 
 
 def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -320,4 +327,4 @@ def log_api_request(request_data: Optional[Dict[str, Any]] = None) -> Callable:
         
         return wrapper
     
-    return decorator 
+    return decorator

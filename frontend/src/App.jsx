@@ -6,6 +6,7 @@ import axios from 'axios';
 // Pages
 import LoginPage from './pages/Login';
 import ExportPage from './pages/Dashboard';
+import ImportPage from './pages/Dashboard/Import';
 import HomePage from './pages/HomePage';
 
 // Context for managing authentication state
@@ -184,6 +185,14 @@ function App() {
             element={
               authState.isAuthenticated ? 
               <ExportPage /> : 
+              <Navigate to="/login" replace state={{ from: location }} />
+            } 
+          />
+          <Route 
+            path="/import" 
+            element={
+              authState.isAuthenticated ? 
+              <ImportPage /> : 
               <Navigate to="/login" replace state={{ from: location }} />
             } 
           />

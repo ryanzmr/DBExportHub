@@ -24,6 +24,11 @@ class Settings:
     # Export settings
     EXPORT_STORED_PROCEDURE = os.getenv("EXPORT_STORED_PROCEDURE", "ExportData_New1")
     EXPORT_VIEW = os.getenv("EXPORT_VIEW", "EXPDATA")
+    
+    # Import settings
+    IMPORT_STORED_PROCEDURE = os.getenv("IMPORT_STORED_PROCEDURE", "ImportJNPTData_New1")
+    IMPORT_VIEW = os.getenv("IMPORT_VIEW", "IMPDATA")
+    
     DB_FETCH_BATCH_SIZE = int(os.getenv("DB_FETCH_BATCH_SIZE", 250000))
 
     # File storage settings

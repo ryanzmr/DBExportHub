@@ -93,7 +93,7 @@ const Header = ({ title }) => {
         navigate('/export');
         break;
       case 2:
-        // Import page not yet implemented
+        navigate('/import');
         break;
       case 3:
         // Analytics page not yet implemented
@@ -118,7 +118,7 @@ const Header = ({ title }) => {
   const navigationItems = [
     { label: 'Home', icon: <HomeOutlined />, path: '/home', disabled: false },
     { label: 'Export', icon: <CloudDownloadOutlined />, path: '/export', disabled: false },
-    { label: 'Import', icon: <CloudUploadOutlined />, path: '/import', disabled: true },
+    { label: 'Import', icon: <CloudUploadOutlined />, path: '/import', disabled: false },
     { label: 'Analytics', icon: <AnalyticsOutlined />, path: '/analytics', disabled: true },
     { label: 'Settings', icon: <SettingsOutlined />, path: '/settings', disabled: true },
     { label: 'Help', icon: <HelpOutlineOutlined />, path: '/help', disabled: true }
@@ -211,7 +211,7 @@ const Header = ({ title }) => {
           >
             <Tab label="HOME" />
             <Tab label="EXPORT" />
-            <Tab label="IMPORT" disabled />
+            <Tab label="IMPORT" />
             <Tab label="ANALYTICS" disabled />
             <Tab label="SETTINGS" disabled />
           </Tabs>

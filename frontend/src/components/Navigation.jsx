@@ -43,6 +43,14 @@ const Navigation = () => {
   const breadcrumbItems = getPathSegments();
   const currentPage = breadcrumbItems[breadcrumbItems.length - 1]?.label || 'Page';
   
+  // Check if we're on the home page - if so, don't show breadcrumbs
+  const isHomePage = location.pathname === '/' || location.pathname === '/home';
+  
+  // Don't render the breadcrumbs navigation on home page
+  if (isHomePage) {
+    return null;
+  }
+  
   return (
     <Box sx={{ 
       bgcolor: '#f5f5fa', 
