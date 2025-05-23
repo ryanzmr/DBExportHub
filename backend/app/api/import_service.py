@@ -11,12 +11,41 @@ import os
 import threading
 from typing import List, Dict, Any, Optional
 
-# Import the operations lock
-from .operation_tracker import _operations_lock
+# Month code mapping for filenames
+month_code = {
+    202401: "JAN24",
+    202402: "FEB24",
+    202403: "MAR24",
+    202404: "APR24",
+    202405: "MAY24",
+    202406: "JUN24",
+    202407: "JUL24",
+    202408: "AUG24",
+    202409: "SEP24",
+    202410: "OCT24",
+    202411: "NOV24",
+    202412: "DEC24",
+    202501: "JAN25",
+    202502: "FEB25",
+    202503: "MAR25",
+    202504: "APR25",
+    202505: "MAY25",
+    202506: "JUN25",
+    202507: "JUL25",
+    202508: "AUG25",
+    202509: "SEP25",
+    202510: "OCT25",
+    202511: "NOV25",
+    202512: "DEC25"
+}
+
+# Import the operations lock and operations functions
+from .operation_tracker import _operations_lock, register_operation, mark_operation_completed, is_operation_cancelled, get_operation_details, update_operation_progress
 
 from ..config import settings
 from ..database import get_db_connection
 from ..logger import import_logger, log_execution_time
+from .logging_utils import log_excel_completion, log_excel_error
 
 # Import modularized components
 from .database_operations_import import (
@@ -191,6 +220,11 @@ def generate_excel(params):
             if operation_details:
                 with _operations_lock:
                     operation_details["total_count"] = total_count
+                    
+            # Log Excel generation start with timestamp to match export system format
+            filename = f"{params.hs}_{month_code[params.fromMonth]}IMP.xlsx" if params.hs else f"IMPORT_{params.fromMonth}_to_{params.toMonth}.xlsx"
+            import_logger.info(f"🚀 [{operation_id}] Starting Excel generation at {datetime.now()}, filename: {filename}")
+            import_logger.info(f"📊 [{operation_id}] Total rows to import: {total_count}")
             
             # Check if count exceeds Excel row limit and handle accordingly
             if total_count > EXCEL_ROW_LIMIT and not params.force_continue_despite_limit:
@@ -376,11 +410,21 @@ def generate_excel(params):
             # Freeze the header row for better navigation
             worksheet.freeze_panes(1, 0)
             
-            import_logger.info(f"[{operation_id}] Applied standard column widths for better performance")
+            import_logger.info(f"[{operation_id}] Column formatting and auto-fitting complete.")
             
             # Close the workbook
             workbook.close()
             workbook = None
+            
+            # Store the file path in the operation details for later retrieval
+            operation_details = get_operation_details(operation_id)
+            if operation_details:
+                with _operations_lock:
+                    operation_details["file_path"] = file_path
+                    
+            # Log the full path information for consistency with export system
+            absolute_path = os.path.abspath(file_path)
+            import_logger.info(f"[{operation_id}] Excel file generated at: {absolute_path}")
             
             # Mark operation as completed
             mark_operation_completed(operation_id)

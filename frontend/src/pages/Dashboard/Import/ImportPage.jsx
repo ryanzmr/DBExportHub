@@ -166,10 +166,8 @@ const ImportPage = () => {
       console.log('Initiating Excel download...');
       
       // Use our dedicated download handler from importUtils.js
+      // This now includes a non-intrusive toast notification instead of an alert
       handleExcelDownload(response, formData);
-      
-      // Show success message to the user
-      alert("Excel file generation completed successfully! If the download didn't start automatically, please check your browser settings.");
       
       console.log('Excel download process completed');
       

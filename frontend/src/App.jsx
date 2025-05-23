@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Box, CssBaseline } from '@mui/material';
 import axios from 'axios';
+import apiService from './services/api';
 
 // Pages
 import LoginPage from './pages/Login';
@@ -78,17 +79,31 @@ function App() {
     checkAuth();
   }, [navigate, location.pathname]);
   
-  // Log navigation for debugging
+  // Log navigation for debugging and save current path
   useEffect(() => {
     console.log('Current path:', location.pathname);
     console.log('Auth state in navigation effect:', authState);
     
+    // Store the current path in sessionStorage if authenticated
+    // This will be used to restore the page after refresh
+    if (authState.isAuthenticated && 
+        location.pathname !== '/login' && 
+        location.pathname !== '/') {
+      sessionStorage.setItem('lastPath', location.pathname);
+      console.log('Saved current path to session storage:', location.pathname);
+    }
+    
     // Redirect to home page if authenticated and on login page
     if (authState.isAuthenticated && location.pathname === '/login') {
       console.log('Redirecting from login to home page due to authenticated state');
+      
+      // Check if there's a saved path to restore
+      const lastPath = sessionStorage.getItem('lastPath');
+      const redirectTo = lastPath || '/home';
+      
       // Add a small delay to ensure state is fully updated before navigation
       setTimeout(() => {
-        navigate('/home', { replace: true });
+        navigate(redirectTo, { replace: true });
       }, 100);
     }
   }, [location, authState, navigate]);
@@ -97,11 +112,11 @@ function App() {
     try {
       console.log('Login called with:', connectionDetails);
       
-      // Request JWT token from backend
-      const response = await axios.post('http://localhost:8000/api/auth/login', connectionDetails);
+      // Request JWT token from backend using the configured API service
+      const response = await apiService.login(connectionDetails);
       
-      if (response.data.token) {
-        const token = response.data.token;
+      if (response.token) {
+        const token = response.token;
         // Set token expiry to 60 minutes from now to match backend configuration
         const tokenExpiry = new Date(new Date().getTime() + 60 * 60000).toISOString();
         
