@@ -38,7 +38,11 @@ const apiService = {
   login: async (credentials) => {
     try {
       const response = await apiClient.post('/api/auth/login', credentials);
-      return response.data;
+      // Transform the backend response format to what the app expects
+      return {
+        token: response.data.access_token,
+        tokenType: response.data.token_type
+      };
     } catch (error) {
       console.error('Login error:', error);
       throw error.response?.data || error.message;
@@ -157,15 +161,7 @@ const apiService = {
     }
   },
   
-  // Health check
-  healthCheck: async () => {
-    try {
-      const response = await apiClient.get('/api/health');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  }
+  // NOTE: Health check endpoint was removed to match the original export system implementation
 };
 
 export default apiService;
