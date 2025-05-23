@@ -227,70 +227,130 @@ def get_first_row_hs_code_import(conn, operation_id):
 
 @log_execution_time
 def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
-    """Fetch data in chunks to avoid memory issues"""
+    """Fetch data in chunks to avoid memory issues - using cursor-based approach like the export system"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled
+    from .operation_tracker import is_operation_cancelled, get_operation_details
     
     if batch_size is None:
         batch_size = settings.DB_FETCH_BATCH_SIZE
     
-    # Get total row count
-    total_count = get_total_row_count_import(conn, operation_id)
+    # Get operation details which should already have total_count cached
+    operation_details = get_operation_details(operation_id)
     
-    # Calculate number of batches
-    num_batches = (total_count + batch_size - 1) // batch_size
+    # Use cached total count if available, otherwise fetch it (fallback)
+    total_count = operation_details.get('total_count') if operation_details else None
+    if total_count is None:
+        total_count = get_total_row_count_import(conn, operation_id)
+        # Cache it if we had to look it up
+        if operation_details:
+            with _operations_lock:
+                operation_details['total_count'] = total_count
     
-    import_logger.info(
-        f"[{operation_id}] Fetching {total_count} rows in {num_batches} batches of {batch_size}",
+    # Check if we need to limit the number of rows due to Excel row limit
+    max_rows = operation_details.get('max_rows', total_count) if operation_details else total_count
+    
+    # Use the smaller of total_count or max_rows
+    rows_to_fetch = min(total_count, max_rows)
+    
+    # Calculate number of batches based on the limited row count
+    num_batches = (rows_to_fetch + batch_size - 1) // batch_size
+    
+    # Log message about how many rows we're actually fetching
+    if rows_to_fetch < total_count:
+        import_logger.info(
+            f"[{operation_id}] Limiting to {rows_to_fetch} rows (of {total_count} total) in {num_batches} batches of {batch_size}",
+            extra={
+                "operation_id": operation_id,
+                "total_count": total_count,
+                "rows_to_fetch": rows_to_fetch,
+                "num_batches": num_batches,
+                "batch_size": batch_size
+            }
+        )
+    else:
+        import_logger.info(
+            f"[{operation_id}] Fetching {total_count} rows in {num_batches} batches of {batch_size}",
+            extra={
+                "operation_id": operation_id,
+                "total_count": total_count,
+                "num_batches": num_batches,
+                "batch_size": batch_size
+            }
+        )
+    
+    # Execute one query to get all the data and use a cursor-based approach like the export system
+    # Build the main query once
+    query = f"SELECT * FROM {settings.IMPORT_VIEW} ORDER BY [DATE]"
+    
+    import_logger.debug(
+        f"[{operation_id}] Executing main query and setting up cursor",
         extra={
             "operation_id": operation_id,
-            "total_count": total_count,
-            "num_batches": num_batches,
-            "batch_size": batch_size
+            "rows_to_fetch": rows_to_fetch
         }
     )
     
-    # Fetch data in batches
-    for batch_num in range(num_batches):
-        # Check if operation has been cancelled
-        if is_operation_cancelled(operation_id):
-            import_logger.info(f"[{operation_id}] Data fetch cancelled during batch {batch_num + 1}/{num_batches}")
-            raise Exception("Operation cancelled by user")
+    # Set up cursor with optimized fetch settings
+    cursor = conn.cursor()
+    cursor.execute(query)
+    
+    # Set cursor options for better performance
+    cursor.arraysize = 10000  # Increased batch size for better performance
+    
+    try:
+        # Process data in batches using cursor-based approach
+        rows_processed = 0
+        batch_num = 0
         
-        # Calculate offset
-        offset = batch_num * batch_size
-        
-        # Build query with OFFSET/FETCH
-        query = f"""
-        SELECT * FROM {settings.IMPORT_VIEW}
-        ORDER BY [DATE]
-        OFFSET {offset} ROWS
-        FETCH NEXT {batch_size} ROWS ONLY
-        """
-        
-        import_logger.debug(
-            f"[{operation_id}] Fetching batch {batch_num + 1}/{num_batches}",
-            extra={
-                "operation_id": operation_id,
-                "batch_num": batch_num + 1,
-                "offset": offset
-            }
-        )
-        
-        # Execute query and convert to DataFrame
-        start_time = datetime.now()
-        df = query_to_dataframe(conn, query)
-        execution_time = (datetime.now() - start_time).total_seconds()
-        
-        # Log batch fetch
-        import_logger.info(
-            f"[{operation_id}] Batch {batch_num + 1}/{num_batches} fetched in {execution_time:.2f} seconds, returned {len(df)} rows",
-            extra={
-                "operation_id": operation_id,
-                "batch_num": batch_num + 1,
-                "execution_time": execution_time,
-                "row_count": len(df)
-            }
-        )
-        
-        yield df
+        while rows_processed < rows_to_fetch:
+            # Check if operation has been cancelled
+            if is_operation_cancelled(operation_id):
+                import_logger.info(f"[{operation_id}] Data fetch cancelled during batch {batch_num + 1}/{num_batches}")
+                raise Exception("Operation cancelled by user")
+            
+            # Calculate how many rows we should fetch in this batch
+            current_batch_size = min(batch_size, rows_to_fetch - rows_processed)
+            if current_batch_size <= 0:
+                break
+            
+            batch_num += 1
+            
+            import_logger.debug(
+                f"[{operation_id}] Fetching batch {batch_num}/{num_batches}",
+                extra={
+                    "operation_id": operation_id,
+                    "batch_num": batch_num,
+                    "rows_processed": rows_processed
+                }
+            )
+            
+            # Fetch the batch from cursor
+            start_time = datetime.now()
+            rows = cursor.fetchmany(current_batch_size)
+            
+            # If no rows returned, we're done
+            if not rows:
+                break
+                
+            # Convert to DataFrame
+            columns = [column[0] for column in cursor.description]
+            df = pd.DataFrame.from_records(rows, columns=columns)
+            
+            execution_time = (datetime.now() - start_time).total_seconds()
+            rows_processed += len(df)
+            
+            # Log batch fetch
+            import_logger.info(
+                f"[{operation_id}] Batch {batch_num}/{num_batches} fetched in {execution_time:.2f} seconds, returned {len(df)} rows",
+                extra={
+                    "operation_id": operation_id,
+                    "batch_num": batch_num,
+                    "execution_time": execution_time,
+                    "row_count": len(df)
+                }
+            )
+            
+            yield df
+    finally:
+        # Always close the cursor
+        cursor.close()

@@ -301,7 +301,7 @@ const ImportForm = ({
             disabled={loading || exporting || isOperationInProgress}
             sx={styles.actionButton}
           >
-            {exporting ? 'Importing...' : 'Import'}
+            {exporting ? 'Downloading...' : 'Download'}
           </Button>
 
           <Button

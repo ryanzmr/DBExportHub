@@ -631,5 +631,61 @@ async def get_operation_progress(operation_id: str):
     
     return JSONResponse(content=response)
 
+# Add a new endpoint to get import operation progress
+@app.get("/api/import/progress/{operation_id}")
+async def get_import_operation_progress(operation_id: str):
+    """
+    Get the progress of an import operation
+    """
+    from .api.operation_tracker import get_operation_status
+    
+    # Log the request
+    access_logger.info(
+        f"👁️ 📈 Received GET request for import operation progress: {operation_id}",
+        extra={
+            "operation_id": operation_id,
+            "path": f"/api/import/progress/{operation_id}"
+        }
+    )
+    
+    # Get the operation status
+    status = get_operation_status(operation_id)
+    
+    if status is None:
+        # Log the error
+        access_logger.warning(
+            f"👁️ ⚠️ Import operation not found: {operation_id}",
+            extra={
+                "operation_id": operation_id
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Import operation with ID {operation_id} not found"
+        )
+    
+    # Prepare response
+    response = {
+        "operation_id": operation_id,
+        "status": status["status"],
+        "progress": status.get("progress", {
+            "current": 0,
+            "total": 0,
+            "percentage": 0
+        })
+    }
+    
+    # Log the response
+    access_logger.info(
+        f"👁️ ✅ Completed GET request for import operation progress: {operation_id}, status: {status['status']}, progress: {response['progress']['percentage']}%",
+        extra={
+            "operation_id": operation_id,
+            "status": status["status"],
+            "progress": response["progress"]["percentage"]
+        }
+    )
+    
+    return JSONResponse(content=response)
+
 # Include the cancellation router
 app.include_router(cancel_router, prefix="/api/operations")

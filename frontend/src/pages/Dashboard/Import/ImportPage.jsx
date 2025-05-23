@@ -126,25 +126,27 @@ const ImportPage = () => {
   
   // Function to execute the actual export
   const executeImport = async (forceContinue = false) => {
+    setExporting(true);
+    setError('');
     exportControllerRef.current = new AbortController();
     const signal = exportControllerRef.current.signal;
     
     try {
       console.log('Starting Excel import with parameters:', { ...formData, server: connectionDetails.server });
       
+      // This will return a response object with data as Blob
       const response = await generateImportExcel(connectionDetails, formData, signal, forceContinue);
       console.log('Excel import response received:', { 
-        responseType: typeof response, 
+        status: response.status,
         hasData: !!response.data,
         dataType: response.data ? (response.data instanceof Blob ? 'Blob' : 
                     response.data instanceof ArrayBuffer ? 'ArrayBuffer' : 
-                    typeof response.data) : 'none',
-        status: response.status,
-        headers: response.headers ? Object.fromEntries(Object.entries(response.headers).map(([k, v]) => [k, typeof v === 'function' ? '[Function]' : v])) : null
+                    typeof response.data) : 'none'
       });
       
       // If export was cancelled, don't proceed with download
       if (exportCancelled) {
+        console.log('Export was cancelled, skipping download');
         return;
       }
       
@@ -160,22 +162,17 @@ const ImportPage = () => {
         return;
       }
       
-      // Make sure we have a proper blob for download
-      if (response.data instanceof Blob) {
-        // Handle the download - the data is already a Blob
-        console.log('Handling Excel download with Blob data');
-        handleExcelDownload(response, formData);
-      } else if (response.data instanceof ArrayBuffer) {
-        // Convert ArrayBuffer to Blob
-        console.log('Converting ArrayBuffer to Blob for Excel download');
-        const blob = new Blob([response.data], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-        });
-        handleExcelDownload({ ...response, data: blob }, formData);
-      } else {
-        console.error('Unexpected response data type:', typeof response.data);
-        setError('Error processing Excel file from server response');
-      }
+      // Use the utility function to handle the download
+      console.log('Initiating Excel download...');
+      
+      // Use our dedicated download handler from importUtils.js
+      handleExcelDownload(response, formData);
+      
+      // Show success message to the user
+      alert("Excel file generation completed successfully! If the download didn't start automatically, please check your browser settings.");
+      
+      console.log('Excel download process completed');
+      
     } catch (err) {
       // Check if the error is due to cancellation
       if (err.name === 'AbortError' || err.name === 'CanceledError' || axios.isCancel(err) || exportCancelled) {
