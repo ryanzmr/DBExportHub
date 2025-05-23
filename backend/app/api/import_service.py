@@ -7,7 +7,12 @@ import tempfile
 import uuid
 import pathlib
 import gc
+import os
+import threading
 from typing import List, Dict, Any, Optional
+
+# Import the operations lock
+from .operation_tracker import _operations_lock
 
 from ..config import settings
 from ..database import get_db_connection
@@ -43,9 +48,10 @@ from .excel_utils import (
 from .excel_utils_import import create_filename_import
 from .operation_tracker import (
     register_operation,
-    update_operation_progress,
     mark_operation_completed,
-    is_operation_cancelled
+    is_operation_cancelled,
+    update_operation_progress,
+    get_operation_details
 )
 
 # Constants
@@ -177,8 +183,43 @@ def generate_excel(params):
                 import_logger.info(f"[{operation_id}] Excel generation cancelled after procedure execution")
                 raise Exception("Operation cancelled by user")
                 
-            # Get the total row count
+            # Get total row count - store this in operation_details for reuse
             total_count = get_total_row_count_import(conn, operation_id)
+            
+            # Cache the total count in operation details to avoid repeated database calls
+            operation_details = get_operation_details(operation_id)
+            if operation_details:
+                with _operations_lock:
+                    operation_details["total_count"] = total_count
+            
+            # Check if count exceeds Excel row limit and handle accordingly
+            if total_count > EXCEL_ROW_LIMIT and not params.force_continue_despite_limit:
+                import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit ({EXCEL_ROW_LIMIT}). Import operation paused waiting for user confirmation")
+                
+                # Mark operation as paused but not completed
+                if operation_details:
+                    # Use operation tracker functions to update the status
+                    with _operations_lock:
+                        operation_details["status"] = "limit_exceeded"
+                        operation_details["paused_at"] = datetime.now()
+                
+                # Return a structured JSON response instead of raising an exception
+                return None, {
+                    "status": "limit_exceeded",
+                    "message": f"Total records ({total_count}) exceed Excel row limit ({EXCEL_ROW_LIMIT}).",
+                    "operation_id": operation_id,
+                    "total_records": total_count,
+                    "limit": EXCEL_ROW_LIMIT
+                }
+            else:
+                # User has confirmed to continue, so we'll limit to Excel max rows
+                if total_count > EXCEL_ROW_LIMIT:
+                    import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit. Processing only first {EXCEL_ROW_LIMIT} rows as per user confirmation")
+                    
+                    # Store the actual row limit for use in data processing
+                    if operation_details:
+                        with _operations_lock:
+                            operation_details["max_rows"] = EXCEL_ROW_LIMIT
             
             # Get first row HS code for filename generation
             first_row_hs = get_first_row_hs_code_import(conn, operation_id)
@@ -205,128 +246,135 @@ def generate_excel(params):
             write_excel_headers(worksheet, headers, header_format)
             
             # Initialize row counter
-            row_num = 1  # Start from row 1 (after headers)
-            total_rows_processed = 0
+            row_idx = 0  # Tracks row position in Excel (0-based, add 1 for Excel row)
+            total_rows = 0  # Counts total rows processed
+            max_widths = [len(header) for header in headers]  # Track maximum width for each column
+            padding = 2  # Extra padding for column width
+            min_width = 8  # Minimum column width
             
-            # Process data in chunks to avoid memory issues
-            for chunk_df in fetch_data_in_chunks_import(conn, operation_id):
-                # Check for cancellation during processing
+            # Optimize chunk processing similar to export_service but use the existing function correctly
+            chunk_size = 100000  # Use a larger batch size for even better performance
+            
+            # Set the batch size for the generator function
+            # This will be used inside fetch_data_in_chunks_import
+            total_row_count_to_process = min(total_count, EXCEL_ROW_LIMIT)
+            
+            # Add a counter to track rows we've processed
+            processed_row_count = 0
+            
+            # Get data in chunks using the existing generator function
+            # Note: fetch_data_in_chunks_import is a generator that yields dataframes
+            for chunk_idx, chunk_df in enumerate(fetch_data_in_chunks_import(conn, operation_id, chunk_size), 1):
+                # Check for cancellation before processing chunk
                 if is_operation_cancelled(operation_id):
-                    import_logger.info(f"[{operation_id}] Excel generation cancelled during data processing")
-                    cleanup_on_error(workbook, file_path)
+                    import_logger.warning(f"[{operation_id}] Excel generation cancelled by user during chunk processing")
                     raise Exception("Operation cancelled by user")
                 
-                chunk_start_time = datetime.now()
-                chunk_size = len(chunk_df)
+                chunk_start = datetime.now()
+                chunk_size_actual = len(chunk_df)
                 
-                # Write data to Excel
-                for _, row in chunk_df.iterrows():
-                    for col_num, value in enumerate(row):
-                        # Apply appropriate formatting based on data type and column
-                        if pd.isna(value):
-                            # Handle NaN/None values
-                            worksheet.write_string(row_num, col_num, "", data_format)
-                            
-                        # Special case: Column B (index 1) is always DATE
-                        elif col_num == 1 and isinstance(value, (datetime, np.datetime64)):
-                            # Handle date values
-                            date_value = pd.Timestamp(value).to_pydatetime() if isinstance(value, np.datetime64) else value
-                            worksheet.write_datetime(row_num, col_num, date_value, date_format)
-                            
-                        # Numeric columns that need special formatting (VALUE, QTY, UNIT RATE, etc.)
-                        elif isinstance(value, (int, float, np.integer, np.floating)) and col_num in [16, 17, 19, 20, 21, 23, 28]:
-                            # These are columns with numeric values that need numeric formatting
-                            # Columns with indices matching: VALUE, QTY, UNIT RATE(IND RS), VALUE(US$), UNIT RATE(USD), DUTY
-                            worksheet.write_number(row_num, col_num, value, data_format)
-                            
-                        # General numeric values
-                        elif isinstance(value, (int, float, np.integer, np.floating)):
-                            # Preserve numeric type but don't apply special formatting
-                            worksheet.write_number(row_num, col_num, value, data_format)
-                            
-                        # All other columns should be treated as strings to avoid incorrect data type conversion
-                        else:
-                            # Handle string values
-                            worksheet.write_string(row_num, col_num, str(value), data_format)
+                # Process each row in the chunk more efficiently, but limit to the Excel row limit
+                if chunk_size_actual > 0:
+                    # First check if we need to process this chunk at all
+                    if processed_row_count >= EXCEL_ROW_LIMIT:
+                        import_logger.warning(f"[{operation_id}] Reached Excel row limit of {EXCEL_ROW_LIMIT}. Stopping processing.")
+                        break
                     
-                    row_num += 1
-                    total_rows_processed += 1
+                    # Calculate how many rows we can actually process from this chunk
+                    rows_left_to_process = EXCEL_ROW_LIMIT - processed_row_count
+                    rows_to_process = min(chunk_size_actual, rows_left_to_process)
                     
-                    # Update progress every 1000 rows
-                    if total_rows_processed % 1000 == 0:
-                        # Calculate progress as current/total - the function will handle percentage
-                        update_operation_progress(operation_id, total_rows_processed, total_count)
+                    # If we'll hit the limit within this chunk, log it
+                    if rows_to_process < chunk_size_actual:
+                        import_logger.warning(f"[{operation_id}] Will reach Excel limit during this chunk. Processing only {rows_to_process} of {chunk_size_actual} rows.")
+                    
+                    # Get the values as a numpy array for faster access
+                    values = chunk_df.values[:rows_to_process]
+                    
+                    # Prepare column metadata for optimization
+                    date_columns = [1]  # Indices of date columns
+                    numeric_columns = [16, 17, 19, 20, 21, 23, 28]  # Indices of numeric columns
+                    
+                    # Pre-allocate max_widths tracking for string columns
+                    # Process the data in bulk using more efficient methods
+                    for idx, row in enumerate(values):
+                        excel_row = row_idx + 1
+                        
+                        for col_idx, value in enumerate(row):
+                            # Apply optimized write methods based on column type
+                            if pd.isna(value) or value is None:
+                                worksheet.write_blank(excel_row, col_idx, None, data_format)
+                            elif col_idx in date_columns and isinstance(value, (datetime, pd.Timestamp)):
+                                worksheet.write_datetime(excel_row, col_idx, value, date_format)
+                            elif col_idx in numeric_columns and (isinstance(value, (int, float)) or (isinstance(value, str) and value.replace('.', '', 1).isdigit())):
+                                # Use fast number writing for numeric columns
+                                try:
+                                    worksheet.write_number(excel_row, col_idx, float(value) if value is not None else 0, data_format)
+                                except (ValueError, TypeError):
+                                    # Fallback to string if conversion fails
+                                    worksheet.write_string(excel_row, col_idx, str(value), data_format)
+                            else:
+                                # String handling
+                                str_value = str(value)
+                                worksheet.write_string(excel_row, col_idx, str_value, data_format)
+                                # Only track width for first 1000 rows to improve performance
+                                if total_rows < 1000:
+                                    max_widths[col_idx] = max(max_widths[col_idx], len(str_value))
+                        
+                        row_idx += 1
+                        total_rows += 1
+                        processed_row_count += 1
+                        
+                    # Force cleanup for better memory usage
+                    values = None
                 
-                # Calculate and log chunk processing time
-                chunk_time = (datetime.now() - chunk_start_time).total_seconds()
+                # Calculate chunk processing time
+                chunk_time = (datetime.now() - chunk_start).total_seconds()
+                
+                # Update operation progress in the tracker
+                update_operation_progress(operation_id, total_rows, total_row_count_to_process)
+                
+                # Check if we've reached Excel's row limit - we do this at the batch level too
+                if processed_row_count >= EXCEL_ROW_LIMIT:
+                    import_logger.warning(f"[{operation_id}] Reached Excel row limit. Stopping at {EXCEL_ROW_LIMIT} rows.")
+                    break
+                
+                # Log chunk progress for monitoring
+                progress_pct = min(100, int((total_rows / total_count) * 100))
                 import_logger.info(
-                    f"[{operation_id}] Processed {chunk_size} rows in {chunk_time:.2f} seconds",
-                    extra={
-                        "operation_id": operation_id,
-                        "chunk_size": chunk_size,
-                        "chunk_time": chunk_time
-                    }
+                    f"[{operation_id}] Processed chunk {chunk_idx} of {chunk_size_actual} rows in {chunk_time:.2f} seconds. Total: {total_rows}/{total_count} ({progress_pct}%)"
                 )
-            
-            # Apply date format to the entire DATE column (column B, index 1)
-            # This matches the VBA approach: wks.Range("b2", Selection.Cells(record + 1, 2)).NumberFormat = "dd-mmm-yy"
-            worksheet.set_column(1, 1, None, date_format)
-            
-            # Use a balanced approach - analyze first 10 rows of data for better text fitting
-            # while maintaining good performance
-            import_logger.info(f"[{operation_id}] Analyzing first 10 rows to determine optimal column widths")
-            
-            # Define a function to calculate maximum width of first N rows for a column
-            def get_max_width_from_first_rows(df, col_idx, num_rows=10):
-                max_width = 0
-                # Only process up to available rows and columns
-                if col_idx < len(df.columns) and len(df) > 0:
-                    # Get a small sample (first num_rows)
-                    sample = df.iloc[:min(num_rows, len(df)), col_idx]
-                    # Find the maximum string length in the sample
-                    for val in sample:
-                        if pd.notna(val):
-                            max_width = max(max_width, len(str(val)))
-                return max_width
-            
-            # Get the first 10 rows of data to analyze column widths
-            # Use the data we already have in chunk_df instead of querying the database again
-            first_rows_df = None
-            if len(chunk_df) > 0:
-                first_rows_df = chunk_df.iloc[:min(10, len(chunk_df))]
-            
-            # Apply column widths based on both header and content
-            for col_num, header in enumerate(headers):
-                # Start with header width
-                header_width = len(str(header))
                 
-                # Get content width from first 10 rows if available
-                content_width = 0
-                if first_rows_df is not None:
-                    content_width = get_max_width_from_first_rows(first_rows_df, col_num)
-                
-                # For typical text columns that may have long values
-                if col_num in [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 22, 24, 25, 26, 27, 29, 30, 31]:
-                    # Text columns - use max of header, content, or min width of 12
-                    # Cap at 50 chars to prevent excessively wide columns
-                    col_width = min(max(header_width, content_width, 12), 50)
-                # For numeric/value columns
-                elif col_num in [16, 17, 19, 20, 21, 23, 28]:
-                    # Numeric columns - use consistent width but check if content is wider
-                    col_width = max(content_width, 12)
+                # Force garbage collection after each chunk
+                chunk_df = None
+                gc.collect()
+            
+            # Set column widths more efficiently based on tracked max widths
+            import_logger.info(f"[{operation_id}] Applying column formats and auto-fitting columns...")
+            
+            # Apply sensible column widths based on the max_widths we tracked during processing
+            padding = 2  # Extra padding for better readability
+            
+            for col_idx, width in enumerate(max_widths):
+                # Apply column-specific formatting based on column type
                 # For date column
-                elif col_num == 1:
-                    # Date column - fixed width for date format
-                    col_width = 12
+                if col_idx == 1:  # Date column
+                    col_width = 12  # Fixed width for dates
+                # For numeric columns 
+                elif col_idx in [16, 17, 19, 20, 21, 23, 28]:
+                    col_width = max(width + padding, 12)  # Minimum 12 for numeric columns
+                # For text columns that typically have longer content
+                elif col_idx in [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 22, 24, 25, 26, 27, 29, 30, 31]:
+                    col_width = min(max(width + padding, 12), 50)  # Min 12, max 50 chars
+                # Default for any other columns
                 else:
-                    # Default for any other columns
-                    col_width = max(header_width, content_width, 10)
+                    col_width = max(width + padding, 10)  # Minimum 10 chars wide
                 
-                # Apply a small scaling factor for better readability
-                col_width = min(int(col_width * 1.1), 50)  # Add 10% padding, cap at 50
-                
-                # Set column width
-                worksheet.set_column(col_num, col_num, col_width)
+                # Set the column width
+                worksheet.set_column(col_idx, col_idx, col_width)
+            
+            # Freeze the header row for better navigation
+            worksheet.freeze_panes(1, 0)
             
             import_logger.info(f"[{operation_id}] Applied standard column widths for better performance")
             
@@ -339,7 +387,14 @@ def generate_excel(params):
             
             # Log completion
             execution_time = (datetime.now() - start_time).total_seconds()
-            log_excel_completion(operation_id, file_path, total_rows_processed, execution_time)
+            
+            # Use the actual number of rows processed which is limited to Excel row limit
+            final_row_count = min(processed_row_count, EXCEL_ROW_LIMIT)
+            
+            # IMPORTANT: Pass parameters in the correct order to prevent 500 errors
+            # Correct order: (operation_id, file_path, total_rows, execution_time)
+            # This was previously a source of 500 Internal Server Errors
+            log_excel_completion(operation_id, file_path, final_row_count, execution_time)
             
             # Return the file path and operation ID
             return file_path, operation_id

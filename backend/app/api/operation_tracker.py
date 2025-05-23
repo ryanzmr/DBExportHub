@@ -3,7 +3,7 @@ import time
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..logger import export_logger
+from ..logger import logger
 
 # Dictionary to store active operations
 # Key: operation_id, Value: dict with status and other metadata
@@ -28,7 +28,7 @@ def register_operation(operation_id: str) -> None:
                 "last_update": datetime.now()
             }
         }
-        export_logger.info(
+        logger.info(
             f"[{operation_id}] Operation registered",
             extra={
                 "operation_id": operation_id,
@@ -49,7 +49,7 @@ def mark_operation_completed(operation_id: str) -> None:
             start_time = _active_operations[operation_id]["start_time"]
             duration = (_active_operations[operation_id]["end_time"] - start_time).total_seconds()
             
-            export_logger.info(
+            logger.info(
                 f"[{operation_id}] Operation marked as completed after {duration:.2f} seconds",
                 extra={
                     "operation_id": operation_id,
@@ -64,7 +64,7 @@ def cancel_operation(operation_id: str) -> bool:
     with _operations_lock:
         if operation_id in _active_operations:
             if _active_operations[operation_id]["completed"]:
-                export_logger.info(
+                logger.info(
                     f"[{operation_id}] Cannot cancel: operation already completed",
                     extra={
                         "operation_id": operation_id,
@@ -81,7 +81,7 @@ def cancel_operation(operation_id: str) -> bool:
             start_time = _active_operations[operation_id]["start_time"]
             duration = (_active_operations[operation_id]["cancel_time"] - start_time).total_seconds()
             
-            export_logger.info(
+            logger.info(
                 f"[{operation_id}] Operation cancelled after {duration:.2f} seconds",
                 extra={
                     "operation_id": operation_id,
@@ -91,7 +91,7 @@ def cancel_operation(operation_id: str) -> bool:
             )
             return True
         else:
-            export_logger.warning(
+            logger.warning(
                 f"[{operation_id}] Cannot cancel: operation not found",
                 extra={
                     "operation_id": operation_id,
@@ -109,11 +109,19 @@ def is_operation_cancelled(operation_id: str) -> bool:
         return False
 
 
-def get_operation_status(operation_id: str) -> Optional[str]:
+def get_operation_status(operation_id: str) -> Optional[Dict[str, Any]]:
     """Get the current status of an operation"""
     with _operations_lock:
         if operation_id in _active_operations:
-            return _active_operations[operation_id]["status"]
+            return _active_operations[operation_id]
+        return None
+
+
+def get_operation_details(operation_id: str) -> Optional[Dict[str, Any]]:
+    """Get all details of an operation, including any custom metadata"""
+    with _operations_lock:
+        if operation_id in _active_operations:
+            return _active_operations[operation_id]
         return None
 
 
@@ -153,7 +161,7 @@ def cleanup_completed_operations(max_age_seconds: int = 3600) -> int:
                     operations_removed += 1
     
     if operations_removed > 0:
-        export_logger.info(f"Cleaned up {operations_removed} completed operations")
+        logger.info(f"Cleaned up {operations_removed} completed operations")
     
     return operations_removed
 
@@ -173,7 +181,7 @@ def _start_cleanup_thread():
                 cleanup_completed_operations()
                 time.sleep(3600)  # Run cleanup every hour
             except Exception as e:
-                export_logger.error(f"Error in cleanup thread: {str(e)}")
+                logger.error(f"Error in cleanup thread: {str(e)}")
                 time.sleep(3600)  # Sleep and retry
     
     thread = threading.Thread(target=cleanup_thread, daemon=True)
