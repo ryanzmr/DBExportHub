@@ -1,109 +1,163 @@
 # DBExportHub
 
-A web-based application for exporting SQL Server data to Excel based on specific conditions.
+A modern web-based application for exporting and importing SQL Server trade/shipping data to Excel based on specific filtering conditions.
 
 ## Project Overview
 
-DBExportHub is a modern replacement for an outdated VB6 application that exports trade/shipping data from SQL Server to Excel. The application provides a user-friendly interface for specifying export parameters, previewing data, and downloading formatted Excel files. It's designed to handle large datasets efficiently and provide a seamless user experience.
+DBExportHub is a comprehensive replacement for a legacy VB6 application, designed to efficiently extract, process, and export trade/shipping data from SQL Server databases to formatted Excel files. The application features a user-friendly interface for setting export parameters, previewing data, and downloading Excel reports. Additionally, it now includes an import functionality for reverse data flow operations.
 
-## Features
+## Core Features
 
-- Secure database connection with dynamic credentials
-- Parameter-based data extraction
-- Data preview capability (first 100 records)
-- Excel export with proper formatting
-- Optimized for large datasets
-- Token-based authentication
-- Responsive user interface
-- Real-time operation progress tracking
-- Cancellable operations
-- Comprehensive logging system
+- **Secure Database Connectivity**: Dynamic SQL Server authentication with JWT token-based session management
+- **Flexible Data Filtering**: Multiple parameter options for precise data extraction (date range, HS codes, companies, countries, etc.)
+- **Interactive Data Preview**: View the first 100 records before exporting full datasets
+- **Excel Export with Professional Formatting**: Properly formatted spreadsheets with custom styling
+- **Large Dataset Handling**: Optimized for handling millions of records with memory-efficient processing
+- **Real-time Progress Tracking**: Live updates on operation progress with percentage completion
+- **Operation Management**: Ability to cancel long-running operations
+- **Comprehensive Logging**: Detailed activity tracking for troubleshooting and auditing
+- **Error Handling**: Graceful error recovery with user-friendly messages
+- **Responsive UI**: Modern Material UI design that works across devices
+- **Data Import Capability**: Support for importing data back into SQL Server (new feature)
 
-## Architecture Breakdown
+## Technical Architecture
 
-### System Architecture
+### System Architecture Overview
 
-DBExportHub follows a client-server architecture:
+DBExportHub implements a modern client-server architecture with clear separation of concerns:
 
-1. **Frontend (Client)**: React.js application that provides the user interface
-2. **Backend (Server)**: FastAPI application that handles database connections and data processing
-3. **Database**: Microsoft SQL Server that stores the data to be exported
+1. **Frontend Layer** (React.js):
+   - User interface and interaction handling
+   - Form validation and data presentation
+   - Authentication state management
+   - HTTP request management with Axios
+   - Progress tracking visualization
 
-### Workflow Process
+2. **Backend Layer** (FastAPI):
+   - RESTful API endpoints for data operations
+   - Database connection management
+   - Authentication and security
+   - Data processing and transformation
+   - Excel file generation
+   - Progress tracking system
+   - Logging and error handling
 
-1. **Authentication Flow**:
-   - User provides SQL Server connection details (server, database, username, password)
-   - Backend validates the connection and issues a JWT token
-   - Frontend stores the token and uses it for subsequent API calls
+3. **Database Layer** (Microsoft SQL Server):
+   - Data storage
+   - Stored procedures for data extraction
+   - Transaction management
 
-2. **Data Export Flow**:
-   - User specifies export parameters (date range, filters, etc.)
-   - Frontend sends a preview request to the backend
-   - Backend executes the stored procedure with the specified parameters
-   - Frontend displays a preview of the data (first 100 records)
-   - User can then export the full dataset to Excel
-   - Backend generates the Excel file and sends it to the frontend for download
-   - Progress is tracked and displayed to the user in real-time
-   - Operation can be cancelled if needed
+### Authentication Flow
 
-### Authentication System
+The application implements a secure authentication flow:
 
-DBExportHub uses a universal token-based authentication system with JWT:
-- Secure token generation with a configurable expiration time
-- Fallback implementation if the JWT package encounters issues
-- Environment variable configuration via SECRET_KEY
-- Token expiration controlled by ACCESS_TOKEN_EXPIRE_MINUTES setting
+1. User enters SQL Server credentials (server, database, username, password)
+2. Backend validates the connection by attempting to connect to the database
+3. Upon successful connection, a JWT token is generated containing connection details (excluding password)
+4. Token is returned to the frontend with a configurable expiration time (default: 60 minutes)
+5. Frontend stores the token in session storage and includes it in the Authorization header for all subsequent API calls
+6. Backend validates the token for each request and extracts connection details
 
-### Progress Tracking System
+**Security Features**:
+- Password is never stored in the token or client-side storage
+- Token expiration handling with auto-logout
+- Custom JWT implementation with fallback mechanism for compatibility
+- CORS protection for API endpoints
 
-The application features a real-time operation tracking system:
-- Each export operation gets a unique identifier
-- Backend sends progress updates during long-running operations
-- Frontend displays a progress bar with percentage and status
-- Users can cancel operations at any point
-- Automatic cleanup of cancelled or incomplete operations
+### Data Export Process
 
-### Error Handling
+The export workflow is designed for efficiency and user experience:
 
-DBExportHub includes a comprehensive error handling system:
-- Structured logging with different log levels (INFO, DEBUG, ERROR)
-- Custom error responses with meaningful messages
-- Frontend error display with user-friendly messages
-- Automatic resource cleanup on error
-- Error tracking with operation IDs for troubleshooting
+1. **Parameter Selection**:
+   - User selects date range (fromMonth, toMonth) and optional filters
+   - Form validates input before submission
 
-### Memory Optimization
+2. **Preview Generation**:
+   - Frontend requests a preview with preview_only=true parameter
+   - Backend executes the stored procedure with limited output (max_records=100)
+   - Results are returned as JSON with column metadata
+   - Frontend displays the preview in a data grid
 
-For handling large datasets efficiently:
-- Data is processed in chunks to minimize memory usage
-- Excel files are generated with constant memory mode
-- Configurable batch sizes for database operations
-- Automatic garbage collection during large operations
-- Temporary file management with cleanup
+3. **Excel Generation**:
+   - User initiates full export after reviewing preview
+   - Backend creates a unique operation ID for tracking
+   - Stored procedure is executed with full data retrieval
+   - Data is processed in chunks to optimize memory usage
+   - Excel workbook is created with XlsxWriter in constant_memory mode
+   - Progress updates are sent to frontend during processing
+   - Completed file is streamed to the user's browser
+   - Temporary files are automatically cleaned up
+
+4. **Excel Row Limit Handling**:
+   - System checks if result set exceeds Excel's row limit (1,048,576 rows)
+   - If exceeded, user is prompted to confirm partial export
+   - User can choose to continue (with truncated data) or cancel
+
+### Memory Optimization and Performance
+
+The application employs several techniques to handle large datasets efficiently:
+
+1. **Chunked Data Processing**:
+   - Data is fetched and processed in configurable batches
+   - Each batch is written to Excel and then released from memory
+   - Prevents out-of-memory errors when dealing with millions of rows
+
+2. **Constant Memory Excel Generation**:
+   - XlsxWriter is configured in constant_memory mode
+   - Worksheet data is written sequentially and flushed to disk
+   - Significantly reduces memory footprint for large exports
+
+3. **Garbage Collection**:
+   - Explicit garbage collection after processing large chunks
+   - Temporary object cleanup to free resources
+
+4. **Database Optimization**:
+   - Efficient parameter passing to stored procedures
+   - Connection pooling and proper connection closure
+   - Temporary table usage for intermediate results
+
+### Operation Tracking System
+
+The application includes a sophisticated operation tracking system:
+
+1. Each operation (preview, export) receives a unique identifier
+2. Operation status is maintained in an in-memory tracker
+3. Clients can poll for progress updates via a dedicated endpoint
+4. Progress is reported as percentage complete with status message
+5. Users can cancel operations at any point
+6. Automatic cleanup of abandoned operations after configurable timeout
 
 ## Tech Stack
 
 ### Frontend
-- React.js (v18.2.0) with React Router (v6.11.1) for navigation
-- Material-UI (v5.16.14) for styling and components including MUI Data Grid (v7.27.2) and Date Pickers Pro (v7.27.1)
-- React Hooks for state management
-- Axios (v1.4.0) for API calls
-- Vite (v6.2.0) as the build tool
-- TypeScript support
-- Day.js (v1.11.13) for date handling
+- **React.js (v18.2.0)**: Core UI library with React Router (v6.11.1) for SPA navigation
+- **Material-UI (v5.16.14)**: Component library including:
+  - MUI Data Grid (v7.27.2) for data table display
+  - Date Pickers Pro (v7.27.1) for advanced date selection
+  - Theme customization for consistent styling
+- **State Management**: React Context API and Hooks (useState, useEffect, useRef) 
+- **HTTP Client**: Axios (v1.4.0) with interceptors for authentication headers
+- **Build System**: Vite (v6.2.0) for fast development and optimized production builds
+- **Date Library**: Day.js (v1.11.13) for date formatting and manipulation
+- **Form Handling**: Controlled components with custom validation
 
 ### Backend
-- FastAPI (Python) for the API server
-- pyodbc for SQL Server connectivity
-- pandas for data manipulation
-- XlsxWriter and OpenPyXL for Excel generation
-- PyJWT for authentication
-- Uvicorn web server
-- Python JSON Logger for structured logging
+- **FastAPI (Python)**: Modern, high-performance API framework with automatic OpenAPI documentation
+- **Database Connectivity**: pyodbc for SQL Server connections with connection pooling
+- **Data Processing**: pandas for efficient data manipulation and transformation
+- **Excel Generation**: 
+  - XlsxWriter for high-performance Excel file creation with constant memory mode
+  - Custom formatting and styling modules
+- **Authentication**: PyJWT for token generation and validation with fallback mechanism
+- **Web Server**: Uvicorn ASGI server with websocket support
+- **Logging**: Python JSON Logger for structured, searchable logs with emoji support
+- **Error Handling**: Custom exception handlers with detailed error reporting
+- **Progress Tracking**: In-memory operation tracker with polling endpoint
 
 ### Database
-- Microsoft SQL Server
-- Existing stored procedures
+- **Microsoft SQL Server**: Core database engine
+- **Stored Procedures**: Custom procedures for efficient data extraction
+- **ODBC Driver**: Driver 17 for SQL Server (configurable)
 
 ## Setup & Installation Guide
 
@@ -190,36 +244,65 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 backend/
 ├── app/                    # FastAPI application
-│   ├── __init__.py
-│   ├── main.py             # FastAPI entry point
-│   ├── config.py           # Configuration settings
-│   ├── models.py           # Pydantic models
-│   ├── database.py         # Database connection
-│   ├── logger.py           # Logging configuration
-│   └── api/                # API endpoints
-│       ├── __init__.py
+│   ├── __init__.py         # Package initialization
+│   ├── main.py             # FastAPI entry point with route definitions
+│   ├── config.py           # Environment and application configuration
+│   ├── models.py           # Pydantic data models for validation
+│   ├── database.py         # SQL Server connection management
+│   ├── logger.py           # Structured logging configuration
+│   └── api/                # API endpoints and business logic
+│       ├── __init__.py     # API package initialization
 │       ├── auth.py         # Authentication utilities
-│       ├── cancel.py       # Operation cancellation
-│       ├── data_processing.py  # Data processing utilities
-│       ├── database_operations.py  # Database operation utilities
-│       ├── excel_utils.py  # Excel generation utilities
-│       ├── export.py       # Export endpoints wrapper
-│       ├── export_service.py  # Export service implementation
-│       ├── logging_utils.py  # Logging utilities
-│       └── operation_tracker.py  # Operation tracking
-├── logs/                   # Log files directory
-├── templates/              # Excel templates
-├── temp/                   # Temporary files directory
-└── requirements.txt        # Python dependencies
+│       ├── cancel.py       # Operation cancellation handlers
+│       ├── data_processing.py  # Data transformation utilities
+│       ├── database_operations.py  # Database query execution
+│       ├── excel_utils.py  # Excel file generation utilities
+│       ├── export.py       # Export endpoint implementation
+│       ├── export_service.py  # Core export business logic
+│       ├── import_module.py  # Import functionality implementation
+│       ├── logging_utils.py  # Specialized logging functions
+│       └── operation_tracker.py  # Progress tracking system
+├── logs/                   # Application log files
+├── temp/                   # Temporary storage for generated files
+├── templates/              # Excel template files
+├── venv/                   # Python virtual environment
+├── requirements.txt        # Python dependencies
+└── .env                    # Environment variables configuration
 ```
 
 ### Frontend Structure
 
 ```
 frontend/
-├── src/
+├── src/                    # Source code
 │   ├── components/         # Reusable UI components
 │   │   ├── dashboard/      # Dashboard-specific components
+│   │   │   ├── ExportForm.jsx       # Export parameter form
+│   │   │   ├── ExportHeader.jsx     # Dashboard header
+│   │   │   ├── PreviewTable.jsx     # Data preview grid
+│   │   │   ├── RecordCountBox.jsx   # Record count display
+│   │   │   ├── ProgressTracker.jsx  # Export progress tracking
+│   │   │   └── ExcelRowLimitDialog.jsx  # Excel limit warning
+│   │   ├── Navigation.jsx  # App navigation component
+│   │   └── common/         # Shared UI components
+│   ├── hooks/              # Custom React hooks
+│   │   └── useProgress.js  # Hook for tracking operation progress
+│   ├── pages/              # Application pages
+│   │   ├── Login/          # Login page components
+│   │   ├── Dashboard/      # Main dashboard page
+│   │   │   ├── ExportPage.jsx  # Export functionality
+│   │   │   └── Import.jsx      # Import functionality
+│   │   └── HomePage.jsx    # Application home page
+│   ├── services/           # API service layer
+│   │   └── api.js          # Axios API client configuration
+│   ├── utils/              # Utility functions
+│   │   ├── exportUtils.js  # Export-related helper functions
+│   │   └── formatters.js   # Data formatting utilities
+│   ├── App.jsx             # Main application component
+│   ├── index.jsx           # Application entry point
+│   ├── theme.js            # Material UI theme configuration
+│   └── index.css           # Global styles
+├── public/                 # Static assets
 │   │   └── login/          # Login-specific components
 │   ├── hooks/              # Custom React hooks
 │   ├── pages/              # Page components
