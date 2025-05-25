@@ -11,33 +11,38 @@ import os
 import threading
 from typing import List, Dict, Any, Optional
 
-# Month code mapping for filenames
-month_code = {
-    202401: "JAN24",
-    202402: "FEB24",
-    202403: "MAR24",
-    202404: "APR24",
-    202405: "MAY24",
-    202406: "JUN24",
-    202407: "JUL24",
-    202408: "AUG24",
-    202409: "SEP24",
-    202410: "OCT24",
-    202411: "NOV24",
-    202412: "DEC24",
-    202501: "JAN25",
-    202502: "FEB25",
-    202503: "MAR25",
-    202504: "APR25",
-    202505: "MAY25",
-    202506: "JUN25",
-    202507: "JUL25",
-    202508: "AUG25",
-    202509: "SEP25",
-    202510: "OCT25",
-    202511: "NOV25",
-    202512: "DEC25"
+# Month names mapping for dynamic month code generation
+month_names = {
+    "01": "JAN", "02": "FEB", "03": "MAR", "04": "APR", 
+    "05": "MAY", "06": "JUN", "07": "JUL", "08": "AUG", 
+    "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC"
 }
+
+def get_month_code(year_month):
+    """
+    Dynamically generate a month code (e.g., 'JAN24') from a year_month integer (e.g., 202401).
+    Works for any year, not just 2024-2025.
+    
+    Args:
+        year_month (int): Year and month in format YYYYMM (e.g., 202401 for January 2024)
+        
+    Returns:
+        str: Month code in format MMMYY (e.g., JAN24)
+    """
+    # Convert to string for easier processing
+    year_month_str = str(year_month)
+    
+    # Extract month and year parts
+    if len(year_month_str) >= 6:
+        month = year_month_str[-2:]  # Last two digits are the month
+        year = year_month_str[2:4]   # 3rd and 4th digits are the year (YY part of YYYY)
+        
+        # Get month name and combine with year
+        month_name = month_names.get(month, "UNK")
+        return f"{month_name}{year}"
+    else:
+        # Handle invalid format gracefully
+        return f"UNK{year_month_str[-2:] if len(year_month_str) >= 2 else '??'}"
 
 # Import the operations lock and operations functions
 from .operation_tracker import _operations_lock, register_operation, mark_operation_completed, is_operation_cancelled, get_operation_details, update_operation_progress
@@ -222,7 +227,7 @@ def generate_excel(params):
                     operation_details["total_count"] = total_count
                     
             # Log Excel generation start with timestamp to match export system format
-            filename = f"{params.hs}_{month_code[params.fromMonth]}IMP.xlsx" if params.hs else f"IMPORT_{params.fromMonth}_to_{params.toMonth}.xlsx"
+            filename = f"{params.hs}_{get_month_code(params.fromMonth)}IMP.xlsx" if params.hs else f"IMPORT_{params.fromMonth}_to_{params.toMonth}.xlsx"
             import_logger.info(f"🚀 [{operation_id}] Starting Excel generation at {datetime.now()}, filename: {filename}")
             import_logger.info(f"📊 [{operation_id}] Total rows to import: {total_count}")
             
