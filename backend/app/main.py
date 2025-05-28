@@ -16,7 +16,7 @@ import logging
 from .database import get_db_connection, test_connection
 from .models import ExportParameters, ImportParameters, PreviewResponse, LoginRequest
 from .api.export import generate_excel, preview_data, CustomJSONEncoder
-from .api.import_module import generate_excel as generate_excel_import, preview_data as preview_data_import
+from .api.import_api import generate_excel as generate_excel_import, preview_data as preview_data_import
 from .api.cancel import cancel_router
 from .logger import logger, access_logger, log_api_request
 from .config import settings
