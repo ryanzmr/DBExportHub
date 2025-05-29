@@ -11,11 +11,11 @@ from typing import List, Dict, Any, Optional
 import xlsxwriter
 
 from ..config import settings
-from ..logger import export_logger, import_logger, log_execution_time # Added import_logger
+from ..logger import export_logger, log_execution_time
 from .logging_utils import log_excel_completion
 
-def create_filename(params, first_row_hs, operation_type: str): # Added operation_type
-    """Create a filename for the Excel export/import based on the parameters"""
+def create_filename(params, first_row_hs):
+    """Create a filename for the Excel export based on the parameters"""
     # Extract month and year for filename
     from_month_str = str(params.fromMonth)
     to_month_str = str(params.toMonth)
@@ -59,13 +59,9 @@ def create_filename(params, first_row_hs, operation_type: str): # Added operatio
     if params.iec and params.iec != "%":
         filename1 = filename1 + "_" + params.iec
     
-    # Add company name based on operation type
-    if operation_type == 'import':
-        if params.impCmp and params.impCmp != "%":
-            filename1 = filename1 + "_" + params.impCmp.replace(" ", "_")
-    elif operation_type == 'export':
-        if params.expCmp and params.expCmp != "%":
-            filename1 = filename1 + "_" + params.expCmp.replace(" ", "_")
+    # Add exporter company if provided
+    if params.expCmp and params.expCmp != "%":
+        filename1 = filename1 + "_" + params.expCmp.replace(" ", "_")
     
     # Add foreign country if provided
     if params.forcount and params.forcount != "%":
@@ -90,14 +86,10 @@ def create_filename(params, first_row_hs, operation_type: str): # Added operatio
             hs_code = str(first_row_hs[0]).strip()
             filename1 = hs_code[:8] if len(hs_code) > 8 else hs_code
         else:
-            if operation_type == 'import':
-                filename1 = "Import"
-            else: # export
-                filename1 = "Export"
+            filename1 = "Export"
     
-    # Final filename format
-    suffix = "IMP.xlsx" if operation_type == 'import' else "EXP.xlsx"
-    filename = f"{filename1}_{month_year}{suffix}"
+    # Final filename format: Parameters_MMMYYEXP.xlsx
+    filename = f"{filename1}_{month_year}EXP.xlsx"
     return filename
 
 def setup_excel_workbook(file_path):

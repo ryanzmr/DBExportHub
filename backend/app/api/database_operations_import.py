@@ -1,163 +1,356 @@
 # Import-specific database operations
+import pandas as pd
+import numpy as np
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
 from ..config import settings
-from ..logger import import_logger as logger # Use specific logger for import operations
-from .generic_db_operations import (
-    generic_execute_procedure,
-    generic_get_preview_data,
-    generic_get_first_row_hs_code,
-    generic_get_column_headers,
-    generic_get_total_row_count,
-    generic_fetch_data_in_chunks,
-    _get_param_value # Helper for param mapping
-)
-from .operation_tracker import is_operation_cancelled, get_operation_details, _operations_lock # For direct cancellation checks and operation details
+from ..database import get_db_connection, execute_query, query_to_dataframe
+from ..logger import import_logger, log_execution_time, mask_sensitive_data
 
-# Specific configuration for Import operations
-VIEW_NAME = settings.IMPORT_VIEW
-PROCEDURE_NAME = settings.IMPORT_STORED_PROCEDURE
-HS_CODE_COLUMN = "hs_code" # As per current database_operations_import.py
-IMPORT_PREVIEW_SAMPLE_SIZE = 100
-IMPORT_ORDER_BY_COLUMN_FOR_CHUNKING = "[DATE]" # As per current database_operations_import.py
+# Cache to store the last executed query parameters and timestamp
+_query_cache = {
+    "params": None,
+    "timestamp": None,
+    "record_count": 0
+}
 
-# Define the parameter mapping for the import stored procedure
-# Using a list of tuples to maintain order.
-IMPORT_PARAM_MAPPING = [
-    ("fromMonth", lambda p: _get_param_value(p, "fromMonth")),
-    ("ToMonth", lambda p: _get_param_value(p, "toMonth")),
-    ("hs", lambda p: _get_param_value(p, "hs")),
-    ("prod", lambda p: _get_param_value(p, "prod")),
-    ("Iec", lambda p: _get_param_value(p, "iec")),
-    ("ImpCmp", lambda p: _get_param_value(p, "impCmp")), # Changed from ExpCmp
-    ("forcount", lambda p: _get_param_value(p, "forcount")),
-    ("forname", lambda p: _get_param_value(p, "forname")),
-    ("port", lambda p: _get_param_value(p, "port"))
-]
-
-def execute_import_procedure(conn, params, operation_id):
-    """Execute the import stored procedure using the generic handler."""
-    if is_operation_cancelled(operation_id):
-        logger.info(f"[{operation_id}] Import operation cancelled before executing generic procedure.")
-        raise Exception("Operation cancelled by user")
+def _params_match(cached_params, new_params):
+    """Compare two sets of parameters to determine if they match"""
+    if not cached_params:
+        return False
         
-    logger.info(f"[{operation_id}] Calling generic_execute_procedure for IMPORT with view: {VIEW_NAME} and proc: {PROCEDURE_NAME}")
-    return generic_execute_procedure(
-        conn=conn,
-        params=params,
-        operation_id=operation_id,
-        procedure_name=PROCEDURE_NAME,
-        view_name=VIEW_NAME,
-        logger=logger,
-        param_mapping=IMPORT_PARAM_MAPPING
-    )
+    # Compare essential filter parameters
+    key_params = [
+        "fromMonth", "ToMonth", "hs", "prod", "Iec",
+        "impCmp", "forcount", "forname", "port"
+    ]
+    
+    for key in key_params:
+        if getattr(cached_params, key, None) != getattr(new_params, key, None):
+            return False
+    
+    return True
 
-def get_preview_data_import(conn, operation_id, sample_size=IMPORT_PREVIEW_SAMPLE_SIZE): # Default to specific sample size
-    """Get preview data for import using the generic handler."""
+def _check_temp_table_exists(conn):
+    """Check if the temporary table exists and has data"""
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT TOP 1 * FROM {settings.IMPORT_VIEW}")
+        has_data = cursor.fetchone() is not None
+        cursor.close()
+        return has_data
+    except Exception:
+        return False
+
+@log_execution_time
+def execute_import_procedure(conn, params, operation_id):
+    """Execute the import stored procedure with the given parameters"""
+    # Import here to avoid circular imports
+    from .operation_tracker import is_operation_cancelled
+    
+    # Check if operation has been cancelled before executing procedure
     if is_operation_cancelled(operation_id):
-        logger.info(f"[{operation_id}] Import preview cancelled.")
+        import_logger.info(f"[{operation_id}] Operation cancelled before executing stored procedure")
         raise Exception("Operation cancelled by user")
     
-    # The original get_preview_data_import also had update_operation_progress calls.
-    # These should ideally be in the service layer or handled consistently.
-    # For now, focusing on refactoring the DB call.
-    # from .operation_tracker import update_operation_progress
-    # update_operation_progress(operation_id, 0, 100) # Example, might need adjustment
+    # Build the query parameters for the stored procedure
+    sp_params = {
+        "fromMonth": params.fromMonth,
+        "ToMonth": params.toMonth,
+        "hs": params.hs or "",
+        "prod": params.prod or "",
+        "Iec": params.iec or "",
+        "ImpCmp": params.impCmp or "",  # Changed from ExpCmp to ImpCmp
+        "forcount": params.forcount or "",
+        "forname": params.forname or "",
+        "port": params.port or ""
+    }
+    
+    # Check if we need to re-execute the stored procedure
+    cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn)
+    
+    if not cache_valid:
+        import_logger.info(
+            f"[{operation_id}] Cache miss or invalid, executing stored procedure",
+            extra={
+                "operation_id": operation_id,
+                "cached": False,
+                "sp_params": mask_sensitive_data(sp_params)
+            }
+        )
+        
+        sp_start_time = datetime.now()
+        
+        # Execute the stored procedure to populate the temp table
+        param_list = list(sp_params.values())
+        sp_call = f"EXEC {settings.IMPORT_STORED_PROCEDURE} ?, ?, ?, ?, ?, ?, ?, ?, ?"
+        
+        import_logger.debug(f"[{operation_id}] Executing stored procedure: {sp_call}", extra={"operation_id": operation_id})
+        
+        # Use cursor directly for executing stored procedure
+        cursor = conn.cursor()
+        cursor.execute(sp_call, param_list)
+        conn.commit()
+        cursor.close()
+        
+        sp_execution_time = (datetime.now() - sp_start_time).total_seconds()
+        import_logger.info(
+            f"[{operation_id}] Stored procedure executed in {sp_execution_time:.2f} seconds",
+            extra={
+                "operation_id": operation_id,
+                "execution_time": sp_execution_time
+            }
+        )
+        
+        # Update cache
+        _query_cache["params"] = params
+        _query_cache["timestamp"] = datetime.now()
+        
+        # Get record count
+        record_count = get_total_row_count_import(conn, operation_id)
+        _query_cache["record_count"] = record_count
+        
+        return record_count, False
+    else:
+        # Use cached results
+        import_logger.info(
+            f"[{operation_id}] Using cached results from previous query",
+            extra={
+                "operation_id": operation_id,
+                "cached": True,
+                "cache_age": (datetime.now() - _query_cache["timestamp"]).total_seconds()
+            }
+        )
+        
+        return _query_cache["record_count"], True
 
-    logger.info(f"[{operation_id}] Calling generic_get_preview_data for IMPORT. Max records: {sample_size}, view: {VIEW_NAME}")
-    df = generic_get_preview_data(
-        conn=conn,
-        operation_id=operation_id,
-        view_name=VIEW_NAME,
-        logger=logger,
-        max_records=sample_size 
+@log_execution_time
+def get_preview_data_import(conn, operation_id, sample_size=100):
+    """Get a limited number of rows for preview
+    
+    Args:
+        conn: Database connection
+        operation_id: Operation ID for tracking
+        sample_size: Number of rows to fetch (default 100)
+    
+    Returns:
+        DataFrame with preview data
+    """
+    # Import here to avoid circular imports
+    from .operation_tracker import is_operation_cancelled, update_operation_progress
+    
+    # Check if operation has been cancelled
+    if is_operation_cancelled(operation_id):
+        import_logger.info(f"[{operation_id}] Preview data fetch cancelled")
+        raise Exception("Operation cancelled by user")
+    
+    # Update progress
+    update_operation_progress(operation_id, 0, 100)
+    
+    # Get preview data with configurable row limit
+    query = f"SELECT TOP {sample_size} * FROM {settings.IMPORT_VIEW} ORDER BY [DATE]"
+    
+    import_logger.debug(f"[{operation_id}] Executing preview query: {query}", extra={"operation_id": operation_id})
+    
+    # Execute query and convert to DataFrame
+    start_time = datetime.now()
+    df = query_to_dataframe(conn, query)
+    execution_time = (datetime.now() - start_time).total_seconds()
+    
+    # Log query execution
+    import_logger.info(
+        f"[{operation_id}] Preview query executed in {execution_time:.2f} seconds, returned {len(df)} rows",
+        extra={
+            "operation_id": operation_id,
+            "execution_time": execution_time,
+            "row_count": len(df)
+        }
     )
-    # update_operation_progress(operation_id, 100, 100) # Example
+    
+    # Update progress
+    update_operation_progress(operation_id, 100, 100)
+    
     return df
 
+@log_execution_time
 def get_total_row_count_import(conn, operation_id):
-    """Get the total row count for import using the generic handler."""
-    if is_operation_cancelled(operation_id): # Added cancellation check
-        logger.info(f"[{operation_id}] Get total row count for IMPORT cancelled.")
-        raise Exception("Operation cancelled by user")
+    """Get the total number of rows in the result set"""
+    query = f"SELECT COUNT(*) FROM {settings.IMPORT_VIEW}"
+    
+    import_logger.debug(f"[{operation_id}] Executing count query: {query}", extra={"operation_id": operation_id})
+    
+    # Execute query
+    cursor = conn.cursor()
+    cursor.execute(query)
+    count = cursor.fetchone()[0]
+    cursor.close()
+    
+    import_logger.info(f"[{operation_id}] Total row count: {count}", extra={"operation_id": operation_id, "row_count": count})
+    
+    return count
 
-    logger.info(f"[{operation_id}] Calling generic_get_total_row_count for IMPORT. View: {VIEW_NAME}")
-    return generic_get_total_row_count(
-        conn=conn,
-        operation_id=operation_id,
-        view_name=VIEW_NAME,
-        logger=logger
-    )
-
+@log_execution_time
 def get_column_headers_import(conn, operation_id):
-    """Get column headers for import using the generic handler."""
-    if is_operation_cancelled(operation_id): # Added cancellation check
-        logger.info(f"[{operation_id}] Get column headers for IMPORT cancelled.")
-        raise Exception("Operation cancelled by user")
+    """Get the column headers from the result set"""
+    query = f"SELECT TOP 0 * FROM {settings.IMPORT_VIEW}"
+    
+    import_logger.debug(f"[{operation_id}] Executing headers query: {query}", extra={"operation_id": operation_id})
+    
+    # Execute query
+    cursor = conn.cursor()
+    cursor.execute(query)
+    headers = [column[0] for column in cursor.description]
+    cursor.close()
+    
+    import_logger.debug(f"[{operation_id}] Column headers: {headers}", extra={"operation_id": operation_id})
+    
+    return headers
 
-    logger.info(f"[{operation_id}] Calling generic_get_column_headers for IMPORT. View: {VIEW_NAME}")
-    return generic_get_column_headers(
-        conn=conn,
-        operation_id=operation_id,
-        view_name=VIEW_NAME,
-        logger=logger
-    )
-
+@log_execution_time
 def get_first_row_hs_code_import(conn, operation_id):
-    """Get the first row's HS code for import using the generic handler."""
-    if is_operation_cancelled(operation_id): # Added cancellation check
-        logger.info(f"[{operation_id}] Get first HS code for IMPORT cancelled.")
-        raise Exception("Operation cancelled by user")
+    """Get the HS code from the first row for filename generation"""
+    query = f"SELECT TOP 1 hs_code FROM {settings.IMPORT_VIEW}"
+    
+    import_logger.debug(f"[{operation_id}] Executing HS code query: {query}", extra={"operation_id": operation_id})
+    
+    # Execute query
+    cursor = conn.cursor()
+    cursor.execute(query)
+    row = cursor.fetchone()
+    cursor.close()
+    
+    hs_code = row[0] if row else None
+    import_logger.debug(f"[{operation_id}] First row HS code: {hs_code}", extra={"operation_id": operation_id})
+    
+    return [hs_code] if hs_code else [None]
 
-    logger.info(f"[{operation_id}] Calling generic_get_first_row_hs_code for IMPORT. View: {VIEW_NAME}, Column: {HS_CODE_COLUMN}")
-    return generic_get_first_row_hs_code(
-        conn=conn,
-        operation_id=operation_id,
-        view_name=VIEW_NAME,
-        logger=logger,
-        hs_code_column_name=HS_CODE_COLUMN
-    )
-
+@log_execution_time
 def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
-    """
-    Fetch data in chunks for import using the generic handler.
-    The generic function returns a generator of DataFrames.
-    This replaces the old behavior of complex batching with cursor.fetchmany().
-    The calling service (import_service.py) will need to be adapted.
-    """
-    if is_operation_cancelled(operation_id):
-        logger.info(f"[{operation_id}] Fetch data in chunks for IMPORT cancelled.")
-        raise Exception("Operation cancelled by user")
-
-    # Determine chunk_size: use provided batch_size or default from settings
-    chunk_size_to_use = batch_size if batch_size is not None else settings.DB_FETCH_BATCH_SIZE
+    """Fetch data in chunks to avoid memory issues - using cursor-based approach like the export system"""
+    # Import here to avoid circular imports
+    from .operation_tracker import is_operation_cancelled, get_operation_details
     
-    # The original fetch_data_in_chunks_import had complex logic to limit rows based on 'max_rows'
-    # from operation_details and then iterated with cursor.fetchmany().
-    # The generic_fetch_data_in_chunks uses OFFSET/FETCH which is simpler for pagination
-    # but doesn't inherently limit total rows fetched other than by exhausting the source.
-    # If 'max_rows' limiting is critical, the service layer calling this might need to stop iterating
-    # the generator after a certain number of rows.
-
-    logger.info(f"[{operation_id}] Calling generic_fetch_data_in_chunks for IMPORT. View: {VIEW_NAME}, Chunk: {chunk_size_to_use}, OrderBy: {IMPORT_ORDER_BY_COLUMN_FOR_CHUNKING}")
+    if batch_size is None:
+        batch_size = settings.DB_FETCH_BATCH_SIZE
     
-    # The generic_fetch_data_in_chunks does not use an 'offset' parameter directly in its signature for the initial call,
-    # it manages offset internally when order_by_column is provided.
-    # The original import function did not take an 'offset' parameter either, it was a generator itself.
-    return generic_fetch_data_in_chunks(
-        conn=conn,
-        operation_id=operation_id,
-        view_name=VIEW_NAME,
-        logger=logger,
-        chunk_size=chunk_size_to_use,
-        # offset_val is not applicable for the first call here, generic function handles it.
-        order_by_column=IMPORT_ORDER_BY_COLUMN_FOR_CHUNKING
+    # Get operation details which should already have total_count cached
+    operation_details = get_operation_details(operation_id)
+    
+    # Use cached total count if available, otherwise fetch it (fallback)
+    total_count = operation_details.get('total_count') if operation_details else None
+    if total_count is None:
+        total_count = get_total_row_count_import(conn, operation_id)
+        # Cache it if we had to look it up
+        if operation_details:
+            with _operations_lock:
+                operation_details['total_count'] = total_count
+    
+    # Check if we need to limit the number of rows due to Excel row limit
+    max_rows = operation_details.get('max_rows', total_count) if operation_details else total_count
+    
+    # Use the smaller of total_count or max_rows
+    rows_to_fetch = min(total_count, max_rows)
+    
+    # Calculate number of batches based on the limited row count
+    num_batches = (rows_to_fetch + batch_size - 1) // batch_size
+    
+    # Log message about how many rows we're actually fetching
+    if rows_to_fetch < total_count:
+        import_logger.info(
+            f"[{operation_id}] Limiting to {rows_to_fetch} rows (of {total_count} total) in {num_batches} batches of {batch_size}",
+            extra={
+                "operation_id": operation_id,
+                "total_count": total_count,
+                "rows_to_fetch": rows_to_fetch,
+                "num_batches": num_batches,
+                "batch_size": batch_size
+            }
+        )
+    else:
+        import_logger.info(
+            f"[{operation_id}] Fetching {total_count} rows in {num_batches} batches of {batch_size}",
+            extra={
+                "operation_id": operation_id,
+                "total_count": total_count,
+                "num_batches": num_batches,
+                "batch_size": batch_size
+            }
+        )
+    
+    # Execute one query to get all the data and use a cursor-based approach like the export system
+    # Build the main query once
+    query = f"SELECT * FROM {settings.IMPORT_VIEW} ORDER BY [DATE]"
+    
+    import_logger.debug(
+        f"[{operation_id}] Executing main query and setting up cursor",
+        extra={
+            "operation_id": operation_id,
+            "rows_to_fetch": rows_to_fetch
+        }
     )
-
-# Reminder: The change in `fetch_data_in_chunks_import` return type (from a custom generator
-# yielding DataFrames from cursor.fetchmany to a generator of DataFrames from OFFSET/FETCH)
-# will require changes in `backend/app/api/import_service.py`.
-# The import_service.py currently iterates like:
-# `for chunk_idx, chunk_df in enumerate(fetch_data_in_chunks_import(conn, operation_id, chunk_size), 1):`
-# This loop structure should still be compatible. However, the underlying mechanism of how
-# `fetch_data_in_chunks_import` produces those DataFrames has changed.
-# The original also had logic for `max_rows` from `operation_details`. This limiting logic
-# might need to be reimplemented in the service layer if still required with the new generic chunking.
+    
+    # Set up cursor with optimized fetch settings
+    cursor = conn.cursor()
+    cursor.execute(query)
+    
+    # Set cursor options for better performance
+    cursor.arraysize = 10000  # Increased batch size for better performance
+    
+    try:
+        # Process data in batches using cursor-based approach
+        rows_processed = 0
+        batch_num = 0
+        
+        while rows_processed < rows_to_fetch:
+            # Check if operation has been cancelled
+            if is_operation_cancelled(operation_id):
+                import_logger.info(f"[{operation_id}] Data fetch cancelled during batch {batch_num + 1}/{num_batches}")
+                raise Exception("Operation cancelled by user")
+            
+            # Calculate how many rows we should fetch in this batch
+            current_batch_size = min(batch_size, rows_to_fetch - rows_processed)
+            if current_batch_size <= 0:
+                break
+            
+            batch_num += 1
+            
+            import_logger.debug(
+                f"[{operation_id}] Fetching batch {batch_num}/{num_batches}",
+                extra={
+                    "operation_id": operation_id,
+                    "batch_num": batch_num,
+                    "rows_processed": rows_processed
+                }
+            )
+            
+            # Fetch the batch from cursor
+            start_time = datetime.now()
+            rows = cursor.fetchmany(current_batch_size)
+            
+            # If no rows returned, we're done
+            if not rows:
+                break
+                
+            # Convert to DataFrame
+            columns = [column[0] for column in cursor.description]
+            df = pd.DataFrame.from_records(rows, columns=columns)
+            
+            execution_time = (datetime.now() - start_time).total_seconds()
+            rows_processed += len(df)
+            
+            # Log batch fetch
+            import_logger.info(
+                f"[{operation_id}] Batch {batch_num}/{num_batches} fetched in {execution_time:.2f} seconds, returned {len(df)} rows",
+                extra={
+                    "operation_id": operation_id,
+                    "batch_num": batch_num,
+                    "execution_time": execution_time,
+                    "row_count": len(df)
+                }
+            )
+            
+            yield df
+    finally:
+        # Always close the cursor
+        cursor.close()

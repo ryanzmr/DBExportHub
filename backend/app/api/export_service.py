@@ -1,243 +1,365 @@
 import os
 import pandas as pd
-# import numpy as np # No longer explicitly used in this file after refactor
-# import json # No longer explicitly used
+import numpy as np
+import json
 from datetime import datetime
-# import tempfile # No longer explicitly used
-# import uuid # No longer explicitly used
+import tempfile
+import uuid
 import pathlib
-import gc # Still used for garbage collection
-from typing import List, Dict, Any, Optional # Still used for type hints
+import gc
+from typing import List, Dict, Any, Optional
 
 from ..config import settings
 from ..database import get_db_connection
-from ..logger import export_logger # Specific logger for export operations
-# Removed log_execution_time as it's applied by decorator, not directly called
+from ..logger import export_logger, log_execution_time
 
-# Import base service helpers
-from .base_file_service import (
-    cleanup_excel_resources,
-    handle_preview_data,
-    initiate_excel_generation,
-    EXCEL_ROW_LIMIT # Constant from base service
+# Import modularized components
+from .database_operations import (
+    execute_export_procedure,
+    get_preview_data,
+    get_first_row_hs_code,
+    get_column_headers,
+    get_total_row_count,
+    fetch_data_in_chunks
+)
+from .logging_utils import (
+    generate_operation_id,
+    log_preview_start,
+    log_preview_completion,
+    log_preview_error,
+    log_excel_start,
+    log_excel_completion,
+    log_excel_error
+)
+from .data_processing import (
+    CustomJSONEncoder,
+    process_dataframe_for_json
+)
+from .excel_utils import (
+    create_filename,
+    setup_excel_workbook,
+    create_excel_formats,
+    write_excel_headers
+)
+from .operation_tracker import (
+    register_operation,
+    update_operation_progress,
+    mark_operation_completed,
+    is_operation_cancelled
 )
 
-# Import and alias modules as per instructions
-from . import database_operations as export_db_ops
-from . import excel_utils as export_excel_utils
-from . import data_processing
-from . import logging_utils
-from . import operation_tracker
+# Constants
+EXCEL_ROW_LIMIT = 1048576  # Maximum number of rows in modern Excel
 
-# generate_operation_id is now part of logging_utils, so it's accessed via logging_utils.generate_operation_id
-# CustomJSONEncoder was part of data_processing, assumed still available there if needed elsewhere.
+def cleanup_on_error(workbook, file_path):
+    """Clean up resources when an error occurs during Excel generation"""
+    # Close workbook to release file handles
+    if workbook:
+        try:
+            workbook.close()
+        except Exception:
+            pass
+            
+    # Clean up partial file
+    if file_path and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            export_logger.info(f"Removed partial Excel file after operation failure or cancellation")
+        except Exception as cleanup_err:
+            export_logger.warning(f"Failed to remove partial file: {str(cleanup_err)}")
 
-# @log_execution_time # This decorator is on the function, so it remains.
-def preview_data(params: Any) -> Dict[str, Any]:
+@log_execution_time
+def preview_data(params):
     """
     Generate a preview of the data based on the export parameters.
-    Delegates most logic to handle_preview_data from base_file_service.
+    Returns a limited number of records for preview in the UI.
     """
-    operation_id = logging_utils.generate_operation_id()
-    operation_tracker.register_operation(operation_id)
+    operation_id = generate_operation_id()
+    
+    # Register the operation in the tracker
+    register_operation(operation_id)
     
     try:
-        # No specific additional info function needed for export preview beyond common fields
-        return handle_preview_data(
-            params=params,
-            operation_id=operation_id,
-            logger=export_logger,
-            db_ops_module=export_db_ops,
-            data_processing_module=data_processing,
-            logging_utils_module=logging_utils,
-            operation_tracker_module=operation_tracker,
-            db_connection_func=get_db_connection # Pass the actual DB connection function
-        )
+        start_time = datetime.now()
+        
+        # Log the start of the preview operation
+        log_preview_start(operation_id, params)
+        
+        # Connect to the database
+        with get_db_connection(
+            params.server, params.database, params.username, params.password
+        ) as conn:
+            # Check for cancellation before executing procedure
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Preview operation cancelled before execution")
+                raise Exception("Operation cancelled by user")
+                
+            # Execute the export procedure and get record count
+            record_count, cache_used = execute_export_procedure(conn, params, operation_id)
+            
+            # Check for cancellation after procedure execution
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Preview operation cancelled after procedure execution")
+                raise Exception("Operation cancelled by user")
+            
+            # Query the temp table for preview data
+            df = get_preview_data(conn, params, operation_id)
+            
+            # Log the completion of the preview operation
+            log_preview_completion(operation_id, start_time, len(df), record_count)
+            
+            # Process the DataFrame for JSON serialization
+            result = process_dataframe_for_json(df)
+            
+            # Mark the operation as completed
+            mark_operation_completed(operation_id)
+            
+            # Return the result, operation ID, and total record count
+            return {
+                "data": result,
+                "operation_id": operation_id,
+                "total_records": record_count
+            }
     except Exception as e:
-        # Error logging is handled by handle_preview_data.
-        # This service should re-raise to be caught by higher-level handlers or return error response.
-        # The original service re-raised with a specific message.
-        raise Exception(f"[{operation_id}] Error generating export preview: {str(e)}")
+        log_preview_error(operation_id, e)
+        # Don't mark as completed if there was an error
+        # The cleanup thread will handle it after the timeout
+        raise Exception(f"Error generating preview: {str(e)}")
 
-
-# @log_execution_time # This decorator is on the function, so it remains.
-def generate_excel(params: Any) -> Tuple[Optional[str], Optional[str]]: # Return type changed slightly based on potential early exit
+@log_execution_time
+def generate_excel(params):
     """
     Generate an Excel file based on the export parameters.
-    Uses helper functions from base_file_service for common steps.
+    Returns the path to the generated Excel file.
     """
-    operation_id = logging_utils.generate_operation_id()
-    operation_tracker.register_operation(operation_id)
-
-    conn = None
-    workbook = None
+    operation_id = generate_operation_id()
+    
+    # Register the operation in the tracker
+    register_operation(operation_id)
+    
+    # Variable to track if we need to clean up a partial file
     file_path = None
-    start_time = datetime.now() # For overall execution time logging
-
+    workbook = None
+    
     try:
-        # Initial steps: logging, DB connection, procedure execution, limit checks
-        # db_ops_module.execute_procedure is called inside initiate_excel_generation
-        # The specific execute_export_procedure will be called via export_db_ops.execute_procedure
-        # (assuming execute_procedure is the common method name in the refactored db_ops modules)
-        # For now, let's assume export_db_ops.execute_export_procedure is directly used by initiate_excel_generation
-        # if we pass export_db_ops to it.
-        # The `initiate_excel_generation` in base_file_service.py expects `db_ops_module.execute_procedure`.
-        # So `database_operations.py` should have `execute_procedure` as an alias or the main function.
-        # For this refactoring, we assume that `export_db_ops` (i.e., `database_operations.py`)
-        # now has `execute_procedure` as the standardized name for what was `execute_export_procedure`.
+        # Log the start of the Excel generation operation
+        log_excel_start(operation_id, params)
         
-        conn, record_count, _, effective_total_rows_for_excel, limit_exceeded_response = \
-            initiate_excel_generation(
-                params=params,
-                operation_id=operation_id,
-                logger=export_logger,
-                db_ops_module=export_db_ops, # Pass the aliased export_db_ops
-                logging_utils_module=logging_utils,
-                operation_tracker_module=operation_tracker,
-                db_connection_func=get_db_connection
-            )
-
-        if limit_exceeded_response:
-            # If limit is exceeded and not forced, return the response from helper
-            # The connection would have been closed by initiate_excel_generation in this case.
-            conn = None # Ensure conn is None as it's closed by helper
-            return limit_exceeded_response, operation_id # Matches original return structure for this case
-
-        # --- If proceeding with Excel generation ---
-        first_row_hs = export_db_ops.get_first_row_hs_code(conn, operation_id)
-        
-        # Use aliased export_excel_utils for create_filename
-        # Pass operation_type='export' as per instruction for future-proofing if create_filename becomes generic
-        filename = export_excel_utils.create_filename(params, first_row_hs, operation_type='export') 
-        
-        temp_dir = pathlib.Path(settings.TEMP_DIR)
-        os.makedirs(temp_dir, exist_ok=True)
-        file_path = str(temp_dir / filename)
-        file_path = os.path.abspath(file_path)
-        
-        export_logger.info(f"[{operation_id}] Starting Excel file writing at {datetime.now()}, filename: {filename}")
-
-        if operation_tracker.is_operation_cancelled(operation_id):
-            raise Exception("Operation cancelled by user before workbook creation")
-
-        workbook = export_excel_utils.setup_excel_workbook(file_path)
-        worksheet = workbook.add_worksheet('Export Data')
-        header_format, data_format, date_format = export_excel_utils.create_excel_formats(workbook)
-        columns = export_db_ops.get_column_headers(conn, operation_id)
-        export_excel_utils.write_excel_headers(worksheet, columns, header_format)
-
-        max_widths = [len(str(h)) if h else 0 for h in columns]
-        min_width = 8
-        padding = 1
-        
-        # total_count_for_progress is effective_total_rows_for_excel
-        export_logger.info(f"[{operation_id}] Total rows to write to Excel: {effective_total_rows_for_excel}")
-
-        if hasattr(conn, 'execute') and callable(getattr(conn, 'execute')) : # Check if conn is not None and has execute
-            conn.execute("SET NOCOUNT ON") # SQL Server specific optimization
-
-        total_rows_written = 0
-        
-        # fetch_data_in_chunks from export_db_ops now returns a generator of DataFrames
-        # The old code used offset and batch_size for cursor.fetchall().
-        # The new generic_fetch_data_in_chunks (used by export_db_ops.fetch_data_in_chunks)
-        # handles pagination internally. The `offset` parameter for the initial call is usually 0 or None.
-        # The `chunk_size` is passed to `fetch_data_in_chunks`.
-        
-        # The loop needs to iterate while total_rows_written < effective_total_rows_for_excel
-        # and the generator yields data.
-        
-        # The `offset` parameter for `fetch_data_in_chunks` in `database_operations.py` is the
-        # `offset_val` for `generic_fetch_data_in_chunks`.
-        # We need to manage the offset for multiple calls if `fetch_data_in_chunks` itself isn't
-        # a generator that handles all data.
-        # Ah, `generic_fetch_data_in_chunks` IS a generator. So we just iterate over it once.
-        # The `offset` and `batch_size` are handled by it.
-        
-        # The `fetch_data_in_chunks` in `export_db_ops` takes `chunk_size`, `offset`, `operation_id`.
-        # The generic one takes `chunk_size`, `offset_val`, `order_by_column`.
-        # The refactored `export_db_ops.fetch_data_in_chunks` should now be a generator.
-
-        # The old loop: `while total_rows < total_count:`
-        # Inside, it called `fetch_data_in_chunks` to get a cursor, then `rows = cursor.fetchall()`.
-        # The new `export_db_ops.fetch_data_in_chunks` is ALREADY A GENERATOR of DataFrames.
-        # So, we just need one loop over this generator.
-        
-        excel_row_idx = 1 # Excel rows are 1-based after header
-        for df_chunk in export_db_ops.fetch_data_in_chunks(conn, settings.DB_FETCH_BATCH_SIZE, 0, operation_id): # Initial offset 0
-            if operation_tracker.is_operation_cancelled(operation_id):
-                raise Exception("Operation cancelled during Excel data writing")
-
-            chunk_start_time = datetime.now()
+        # Connect to the database
+        with get_db_connection(
+            params.server, params.database, params.username, params.password
+        ) as conn:
+            # Check for cancellation before executing procedure
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Export operation cancelled before execution")
+                raise Exception("Operation cancelled by user")
+                
+            # Execute the export procedure and get record count
+            start_time = datetime.now()
+            record_count, cache_used = execute_export_procedure(conn, params, operation_id)
             
-            if df_chunk.empty:
-                break # No more data from generator
+            # Check if the record count exceeds Excel's row limit
+            if record_count > EXCEL_ROW_LIMIT:
+                export_logger.warning(
+                    f"[{operation_id}] Record count ({record_count}) exceeds Excel row limit ({EXCEL_ROW_LIMIT}). "
+                    f"Only first {EXCEL_ROW_LIMIT} rows will be exported."
+                )
+                
+                # If user hasn't explicitly confirmed to continue with limited data,
+                # we'll check for a flag in params
+                if not params.force_continue_despite_limit:
+                    # Check if the client explicitly instructed to continue despite the limit
+                    if not getattr(params, 'ignore_excel_limit', False):
+                        export_logger.info(f"[{operation_id}] Export operation paused waiting for user confirmation")
+                        # Return information about the limit being reached
+                        return {
+                            "status": "limit_exceeded",
+                            "message": f"Total records ({record_count}) exceeds Excel row limit ({EXCEL_ROW_LIMIT})",
+                            "operation_id": operation_id,
+                            "total_records": record_count,
+                            "limit": EXCEL_ROW_LIMIT
+                        }, operation_id
+            
+            # Check for cancellation after procedure execution
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Export operation cancelled after procedure execution")
+                raise Exception("Operation cancelled by user")
+            
+            # Get the first row's HS code for the filename
+            first_row_hs = get_first_row_hs_code(conn, operation_id)
+            
+            # Create filename based on parameters
+            filename = create_filename(params, first_row_hs)
+            
+            # Ensure temp directory exists
+            temp_dir = pathlib.Path(settings.TEMP_DIR)
+            os.makedirs(temp_dir, exist_ok=True)
+            file_path = str(temp_dir / filename)
+            file_path = os.path.abspath(file_path)
+            
+            export_logger.info(f"[{operation_id}] Starting Excel generation at {datetime.now()}, filename: {filename}")
+            
+            # Check for cancellation before creating workbook
+            if is_operation_cancelled(operation_id):
+                export_logger.info(f"[{operation_id}] Export operation cancelled before workbook creation")
+                raise Exception("Operation cancelled by user")
+            
+            # Create workbook with optimized settings
+            workbook = setup_excel_workbook(file_path)
+            worksheet = workbook.add_worksheet('Export Data')
+            
+            # Create Excel formats
+            header_format, data_format, date_format = create_excel_formats(workbook)
+            
+            # Get column headers
+            columns = get_column_headers(conn, operation_id)
+            
+            # Write headers to Excel
+            write_excel_headers(worksheet, columns, header_format)
+            
+            # Initialize max column widths with header lengths
+            max_widths = [len(str(h)) if h else 0 for h in columns]
+            min_width = 8 # Ensure a minimum width
+            padding = 1 # Padding for autofit
+            
+            # Get total row count for progress tracking
+            total_count = get_total_row_count(conn, operation_id)
+            export_logger.info(f"[{operation_id}] Total rows to export: {total_count}")
+            
+            # If total count exceeds Excel limit, we'll only process up to the limit
+            if total_count > EXCEL_ROW_LIMIT:
+                export_logger.warning(
+                    f"[{operation_id}] Limiting export to {EXCEL_ROW_LIMIT} rows out of {total_count} total records."
+                )
+                total_count = EXCEL_ROW_LIMIT
+            
+            # Optimize memory usage by using server-side cursor
+            conn.execute("SET NOCOUNT ON")
+            
+            # Variables to track total rows processed
+            total_rows = 0
+            offset = 0
 
-            # Limit rows from this chunk if we are about to exceed effective_total_rows_for_excel
-            rows_to_write_this_chunk = len(df_chunk)
-            if total_rows_written + rows_to_write_this_chunk > effective_total_rows_for_excel:
-                rows_to_write_this_chunk = effective_total_rows_for_excel - total_rows_written
-                df_chunk = df_chunk.head(rows_to_write_this_chunk) # Slice the DataFrame
-
-            if rows_to_write_this_chunk == 0: # Should not happen if effective_total_rows_for_excel is managed correctly
-                break
-
-            for _, row_data in df_chunk.iterrows(): # Iterate over DataFrame rows
-                if operation_tracker.is_operation_cancelled(operation_id): # Check inside inner loop too
-                     raise Exception("Operation cancelled during Excel data writing")
-
-                for col_idx, value in enumerate(row_data):
-                    cell_format_to_use = date_format if col_idx == 2 and value else data_format # Assuming Date is col 2
-                    worksheet.write(excel_row_idx, col_idx, value, cell_format_to_use)
-                    cell_content_length = len(str(value)) if value is not None else 0
-                    if col_idx < len(max_widths): # Ensure col_idx is within bounds
+            # Loop until all data is processed or Excel limit is reached
+            while total_rows < total_count:
+                # Check if operation has been cancelled before processing each chunk
+                if is_operation_cancelled(operation_id):
+                    export_logger.info(f"[{operation_id}] Operation cancelled during Excel generation at row {total_rows}/{total_count}")
+                    cleanup_on_error(workbook, file_path)
+                    raise Exception("Operation cancelled by user")
+            
+                chunk_start = datetime.now()
+                
+                # Fetch data in chunks using configured size
+                batch_size = settings.DB_FETCH_BATCH_SIZE
+                cursor = fetch_data_in_chunks(conn, batch_size, offset, operation_id)
+                
+                # Process all rows from this chunk's cursor
+                rows = cursor.fetchall()
+                cursor.close()
+                
+                if not rows:
+                    break
+                    
+                # Process this chunk of data
+                chunk_size_actual = len(rows)
+                row_idx = total_rows + 1  # Start from after the last processed row (1-based for Excel)
+                
+                # Write the chunk data to Excel
+                for row in rows:
+                    # Check if we've reached Excel's row limit
+                    if total_rows >= EXCEL_ROW_LIMIT:
+                        export_logger.warning(f"[{operation_id}] Reached Excel row limit. Stopping at {EXCEL_ROW_LIMIT} rows.")
+                        break
+                        
+                    # Check for cancellation periodically 
+                    if row_idx % 1000 == 0 and is_operation_cancelled(operation_id):
+                        export_logger.info(f"[{operation_id}] Operation cancelled during Excel data writing at row {row_idx}/{total_count}")
+                        cleanup_on_error(workbook, file_path)
+                        raise Exception("Operation cancelled by user")
+                        
+                    for col_idx, value in enumerate(row):
+                        # Apply format during writing
+                        cell_format_to_use = date_format if col_idx == 2 and value else data_format
+                        worksheet.write(row_idx, col_idx, value, cell_format_to_use)
+                        
+                        # Update max width for the column
+                        # Handle None values and ensure comparison is based on string length
+                        cell_content_length = len(str(value)) if value is not None else 0
                         max_widths[col_idx] = max(max_widths[col_idx], cell_content_length)
-                excel_row_idx += 1
+                        
+                    row_idx += 1
+                    total_rows += 1
+                
+                # Update counters for the next chunk using configured size
+                offset += batch_size
+                
+                # Calculate chunk processing time
+                chunk_time = (datetime.now() - chunk_start).total_seconds()
+                
+                # Update operation progress in the tracker directly with accumulated total
+                update_operation_progress(operation_id, total_rows, total_count)
+                
+                # Check if we've reached Excel's row limit
+                if total_rows >= EXCEL_ROW_LIMIT:
+                    break
+                
+                # Log the current chunk progress with accumulated totals
+                export_logger.info(
+                    f"[{operation_id}] Processed chunk of {chunk_size_actual} rows in {chunk_time:.6f} seconds. Total: {total_rows}/{total_count} ({min(100, int((total_rows / total_count) * 100))}%)",
+                    extra={
+                        "operation_id": operation_id,
+                        "rows_processed": chunk_size_actual,
+                        "chunk_time": chunk_time,
+                        "total_rows": total_rows,
+                        "total_count": total_count,
+                        "progress_pct": min(100, int((total_rows / total_count) * 100))
+                    }
+                )
             
-            total_rows_written += rows_to_write_this_chunk
+            # --- Formatting applied AFTER data writing ---
+            export_logger.info(f"[{operation_id}] Applying column formats and auto-fitting columns...")
+            for col_idx, width in enumerate(max_widths):
+                # Determine the correct format for the column
+                # Use date format for column 3 (index 2)
+                cell_format = date_format if col_idx == 2 else data_format
+                
+                # Calculate final width with padding and minimum width
+                final_width = max(min_width, width + padding)
+                
+                # Apply column width ONLY (format applied during write)
+                worksheet.set_column(col_idx, col_idx, final_width)
+            export_logger.info(f"[{operation_id}] Column formatting and auto-fitting complete.")
+            # --- End Formatting ---
             
-            chunk_time_taken = (datetime.now() - chunk_start_time).total_seconds()
-            operation_tracker.update_operation_progress(operation_id, total_rows_written, effective_total_rows_for_excel)
+            # Freeze the header row
+            worksheet.freeze_panes(1, 0)
             
-            logging_utils.log_excel_progress(export_logger, operation_id, rows_to_write_this_chunk, chunk_time_taken, total_rows_written, effective_total_rows_for_excel)
-
-            if total_rows_written >= effective_total_rows_for_excel:
-                break # Reached the limit
+            # Finalize the workbook after all data is written
+            workbook.close()
             
-            gc.collect() # Garbage collect after processing a chunk
-
-        export_logger.info(f"[{operation_id}] Applying column formats and auto-fitting columns...")
-        for col_idx, width in enumerate(max_widths):
-            final_width = max(min_width, width + padding)
-            worksheet.set_column(col_idx, col_idx, final_width)
-        export_logger.info(f"[{operation_id}] Column formatting and auto-fitting complete.")
-        
-        worksheet.freeze_panes(1, 0)
-        
-        # Workbook is closed in the finally block by cleanup_excel_resources
-
-        total_execution_time = (datetime.now() - start_time).total_seconds()
-        logging_utils.log_excel_completion(export_logger, operation_id, file_path, total_rows_written, total_execution_time)
-        operation_tracker.mark_operation_completed(operation_id)
-        
-        return file_path, operation_id
-
+            # Log the completion of the Excel generation operation
+            execution_time = (datetime.now() - start_time).total_seconds()
+            log_excel_completion(operation_id, file_path, total_rows, execution_time)
+            
+            # Mark the operation as completed
+            mark_operation_completed(operation_id)
+            
+            # Return both the file path and the operation ID
+            return file_path, operation_id
     except Exception as e:
-        logging_utils.log_excel_error(export_logger, operation_id, e)
-        # No need for explicit traceback print here, logger should handle it.
-        # Ensure conn is closed if it was opened by initiate_excel_generation and not passed to finally block
-        # The finally block below will handle cleanup including workbook and conn if it's set.
-        raise Exception(f"[{operation_id}] Error generating export Excel file: {str(e)}")
-    finally:
-        # Cleanup resources: workbook, and connection if it's still open
-        if workbook: # Workbook is created in the try block
-             cleanup_excel_resources(workbook, file_path, export_logger, operation_id) # file_path might be None if error before its creation
-        elif file_path and os.path.exists(file_path): # If workbook creation failed but file was created
-             cleanup_excel_resources(None, file_path, export_logger, operation_id)
-
-        if conn: # conn is from initiate_excel_generation or the with block for preview
+        log_excel_error(operation_id, e)
+        import traceback
+        print(traceback.format_exc())
+        
+        # Clean up partial file if it exists
+        if file_path and os.path.exists(file_path):
             try:
-                conn.close()
-                export_logger.info(f"[{operation_id}] Database connection closed in finally block.")
-            except Exception as db_close_err:
-                export_logger.error(f"[{operation_id}] Error closing database connection in finally block: {db_close_err}")
+                os.remove(file_path)
+                export_logger.info(f"[{operation_id}] Removed partial Excel file after error")
+            except Exception as cleanup_err:
+                export_logger.warning(f"[{operation_id}] Failed to remove partial file: {str(cleanup_err)}")
+        
+        # Don't mark as completed if there was an error
+        # The cleanup thread will handle it after the timeout
+        raise Exception(f"Error generating Excel file: {str(e)}")
