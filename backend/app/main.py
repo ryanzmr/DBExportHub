@@ -13,13 +13,17 @@ import base64
 import logging
 
 # Import your existing modules
-from .database import get_db_connection, test_connection
-from .models import ExportParameters, ImportParameters, PreviewResponse, LoginRequest
-from .api.export import generate_excel, preview_data, CustomJSONEncoder
-from .api.import_api import generate_excel as generate_excel_import, preview_data as preview_data_import
-from .api.cancel import cancel_router
-from .logger import logger, access_logger, log_api_request
-from .config import settings
+from .database.connection import get_db_connection, test_connection # Correct
+from .models.schemas import ExportParameters, ImportParameters, PreviewResponse, LoginRequest, OperationProgressResponse, TestConnectionResponse, CleanupResponse, HealthCheckResponse, LoginResponse as LoginResponseModel # Correct, added more for clarity
+from .api.exports.routes import router as export_router # Import router
+from .api.imports.routes import router as import_router # Import router
+from .api.auth.handlers import router as auth_router # Import router
+from .api.operations.cancel_handlers import cancel_router # Correct
+from .logging_operation.loggers import logger, access_logger # Correct
+from .config.settings import settings # Correct
+from .utilities.data_utils import CustomJSONEncoder # Correct
+# Removed direct import of generate_excel, preview_data from routes files as they are now part of routers
+# The CustomJSONEncoder is not used in main.py directly, but good to have a consistent import if it were.
 
 # JWT constants from config
 SECRET_KEY = settings.SECRET_KEY
@@ -117,8 +121,11 @@ app.add_middleware(
     expose_headers=["Content-Disposition", "Content-Length"],  # Expose headers needed for file download
 )
 
-# Include the cancel router for route registration
-app.include_router(cancel_router)
+# Include the routers
+app.include_router(auth_router, prefix="/api") # Add prefix for auth routes
+app.include_router(export_router, prefix="/api") # Add prefix for export routes
+app.include_router(import_router, prefix="/api") # Add prefix for import routes
+app.include_router(cancel_router, prefix="/api") # cancel_router already has /operations prefix
 
 # Custom middleware for request logging
 @app.middleware("http")
@@ -175,260 +182,56 @@ async def log_requests(request: Request, call_next):
         )
         raise  # Re-raise the exception to be handled by FastAPI
 
-# Authentication endpoint
-@app.post("/api/auth/login")
-async def login(login_data: LoginRequest):
-    try:
-        # Connect to the database to verify credentials
-        with get_db_connection(
-            login_data.server, login_data.database, login_data.username, login_data.password
-        ) as conn:
-            # If we reach here, connection was successful
-            # Create an access token with user data
-            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            
-            # Create a token with connection details (except password)
-            token_data = {
-                "server": login_data.server,
-                "database": login_data.database,
-                "username": login_data.username,
-                # Do not include password in the token
-                "session_id": str(uuid.uuid4()),  # Unique session ID
-                "created_at": datetime.utcnow().isoformat()
-            }
-            
-            access_token = create_access_token(
-                data=token_data, expires_delta=access_token_expires
-            )
-            
-            return {"access_token": access_token, "token_type": "bearer"}
-    except Exception as e:
-        logger.error(f"Login error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials or server/database not accessible",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+# Removed direct endpoint definitions for /api/auth/login, /api/test-connection,
+# /api/export/preview, /api/export/excel, /api/import/preview, /api/import/excel.
+# These are now handled by their respective routers.
 
-# Test connection endpoint
-@app.post("/api/test-connection")
-async def test_db_connection(params: LoginRequest):
-    try:
-        result = test_connection(params.server, params.database, params.username, params.password)
-        return {"success": result["success"], "message": result["message"]}
-    except Exception as e:
-        logger.error(f"Test connection error: {str(e)}", exc_info=True)
-        return {"success": False, "message": str(e)}
+# Universal token functions (create_access_token, verify_token) were moved to api/auth/handlers.py
+# If needed by other parts of main.py (not apparent now), they'd need to be imported from there or a shared auth utility.
 
-# Export endpoints
-@app.post("/api/export/preview")
-async def export_preview(params: ExportParameters):
+# Operation progress endpoint - kept in main.py as it's a general operation utility
+@app.get("/api/operations/{operation_id}/progress", response_model=OperationProgressResponse) # Standardized path
+async def get_operation_progress(operation_id: str) -> Dict[str, Any]: # Return type hint using Pydantic model
     try:
-        # Log the request with masked sensitive information
-        masked_params = params.dict()
-        masked_params["password"] = "[REDACTED]"
-        logger.info(f"Export preview request received with parameters: {masked_params}")
+        from .utilities.operation_tracker import get_operation_details # Path already updated
         
-        # Call the preview function
-        preview_result = preview_data(params)
-        
-        return preview_result
-    except Exception as e:
-        logger.error(f"Error in export preview: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
-
-# Main export endpoint that the frontend calls
-@app.post("/api/export", response_class=StreamingResponse)
-async def export_data(params: ExportParameters):
-    # This endpoint forwards to the export_excel endpoint for consistency
-    return await export_excel(params)
-
-@app.post("/api/export/excel", response_class=StreamingResponse)
-async def export_excel(params: ExportParameters):
-    try:
-        # Log the request with masked sensitive information
-        masked_params = params.dict()
-        masked_params["password"] = "[REDACTED]"
-        logger.info(f"Export excel request received with parameters: {masked_params}")
-        
-        # Call the export function
-        file_path, operation_id = generate_excel(params)
-        
-        # Return the file as a download
-        filename = os.path.basename(file_path)
-        
-        def iterfile():
-            with open(file_path, mode="rb") as file_like:
-                # Use a larger chunk size for better performance with large files
-                chunk_size = 1024 * 1024  # 1MB chunks
-                while chunk := file_like.read(chunk_size):
-                    yield chunk
-            # Clean up after sending
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                logger.info(f"Temporary file removed: {file_path}")
-        
-        headers = {
-            'Content-Disposition': f'attachment; filename="{filename}"',
-            'Access-Control-Expose-Headers': 'Content-Disposition, X-Operation-ID',
-            'X-Operation-ID': operation_id
-        }
-        
-        return StreamingResponse(
-            iterfile(),
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers=headers
-        )
-    except Exception as e:
-        logger.error(f"Error in export excel: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating excel: {str(e)}")
-
-# Import endpoints
-@app.post("/api/import/preview")
-async def import_preview(params: ImportParameters):
-    try:
-        # Log the request with masked sensitive information
-        masked_params = params.dict()
-        masked_params["password"] = "[REDACTED]"
-        logger.info(f"Import preview request received with parameters: {masked_params}")
-        
-        # Call the preview function
-        preview_result = preview_data_import(params)
-        
-        return preview_result
-    except Exception as e:
-        logger.error(f"Error in import preview: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating import preview: {str(e)}")
-
-@app.post("/api/import/excel", response_class=StreamingResponse)
-async def import_excel(params: ImportParameters):
-    try:
-        # Log the request with masked sensitive information
-        masked_params = params.dict()
-        masked_params["password"] = "[REDACTED]"
-        logger.info(f"Import excel request received with parameters: {masked_params}")
-        
-        # Check if this is a download-only request (for large datasets)
-        download_only = getattr(params, 'download_only', False)
-        operation_id = getattr(params, 'operation_id', None)
-        
-        if download_only and operation_id:
-            # This is a request to download a file that was already generated
-            logger.info(f"Download-only request received for operation ID: {operation_id}")
-            
-            # Import the operation tracker functions
-            from app.api.operation_tracker import get_operation_details
-            
-            # Get the operation details
-            operation_details = get_operation_details(operation_id)
-            
-            if not operation_details:
-                logger.warning(f"Operation ID {operation_id} not found")
-                raise HTTPException(status_code=404, detail=f"Operation ID {operation_id} not found")
-                
-            # Check if the operation is completed
-            if operation_details.get('status') != 'completed':
-                logger.info(f"Operation {operation_id} is not yet completed. Status: {operation_details.get('status')}")
-                raise HTTPException(status_code=404, detail=f"Excel file is still being generated")
-                
-            # Get the file path from the operation details
-            file_path = operation_details.get('file_path')
-            
-            if not file_path or not os.path.exists(file_path):
-                logger.warning(f"File for operation {operation_id} not found at {file_path}")
-                raise HTTPException(status_code=404, detail=f"Excel file not found")
-                
-            # Return the file as a download
-            filename = os.path.basename(file_path)
-            
-            logger.info(f"Returning existing Excel file for operation {operation_id}: {file_path}")
-        else:
-            # Normal flow - generate the Excel file
-            file_path, operation_id = generate_excel_import(params)
-            
-            # Return the file as a download
-            filename = os.path.basename(file_path)
-            
-            logger.info(f"Excel file generated for operation {operation_id}: {file_path}")
-        
-        # Stream the file to the client
-        def iterfile():
-            with open(file_path, mode="rb") as file_like:
-                # Use a larger chunk size for better performance with large files
-                chunk_size = 1024 * 1024  # 1MB chunks
-                while chunk := file_like.read(chunk_size):
-                    yield chunk
-            # Clean up after sending
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                logger.info(f"Temporary file removed: {file_path}")
-        
-        headers = {
-            'Content-Disposition': f'attachment; filename="{filename}"',
-            'Access-Control-Expose-Headers': 'Content-Disposition, X-Operation-ID',
-            'X-Operation-ID': operation_id
-        }
-        
-        return StreamingResponse(
-            iterfile(),
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers=headers
-        )
-    except HTTPException:
-        # Re-raise HTTP exceptions without modification
-        raise
-    except Exception as e:
-        logger.error(f"Error in import excel: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating import excel: {str(e)}")
-
-# Operation progress endpoint
-@app.get("/api/operation/{operation_id}/progress")
-async def get_operation_progress(operation_id: str):
-    try:
-        from app.api.operation_tracker import get_operation_details
-        
-        # Get operation details
         operation_details = get_operation_details(operation_id)
         
         if not operation_details:
-            raise HTTPException(status_code=404, detail=f"Operation ID {operation_id} not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Operation ID {operation_id} not found")
             
-        # Extract progress information
-        status = operation_details.get('status', 'unknown')
-        current = operation_details.get('progress_current', 0)
-        total = operation_details.get('progress_total', 0)
+        status_val = operation_details.get('status', 'unknown')
+        progress_dict = operation_details.get('progress', {})
+        current_val = progress_dict.get('current', 0)
+        total_val = progress_dict.get('total', 0)
         
-        # Calculate percentage completion
         percentage = 0
-        if total > 0:
-            percentage = min(int((current / total) * 100), 100)
+        if total_val > 0:
+            percentage = min(int((current_val / total_val) * 100), 100)
         
         return {
             "operation_id": operation_id,
-            "status": status,
-            "current": current,
-            "total": total,
+            "status": status_val,
+            "current": current_val,
+            "total": total_val,
             "percentage": percentage
         }
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting operation progress: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving operation progress: {str(e)}")
+        logger.error(f"Error getting operation progress for {operation_id}: {str(e)}", exc_info=True, extra={"operation_id": operation_id})
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error retrieving operation progress: {str(e)}")
 
-# Cleanup endpoint for database connections
-@app.post("/api/cleanup")
-async def cleanup_connection(params: dict):
-    try:
-        # This is a no-op endpoint that simply returns success
-        # Real cleanup happens automatically on the backend
-        return {"success": True, "message": "Cleanup completed successfully"}
-    except Exception as e:
-        logger.error(f"Error in cleanup: {str(e)}", exc_info=True)
-        # Don't raise an exception for cleanup failures
-        return {"success": False, "message": f"Cleanup failed: {str(e)}"}
+# Cleanup endpoint for database connections - kept in main.py
+@app.post("/api/cleanup", response_model=CleanupResponse) # Standardized path
+async def cleanup_connection_endpoint(params: Optional[Dict[Any, Any]] = None) -> Dict[str, Any]: # params not used, made optional
+    # This endpoint's purpose is unclear in a stateless API. DB connections are managed per request.
+    # If it's for client-side state cleanup, that's different.
+    # Assuming it's a no-op as per original.
+    logger.info("Cleanup endpoint called.", extra={"params": params if params else {}})
+    return {"success": True, "message": "Cleanup acknowledgement. Backend manages resources per request."}
 
-# Root endpoint for API health check
-@app.get("/")
-async def root():
-    return {"status": "healthy", "message": "DBExportHub API is running", "version": "1.0.0"}
+# Root endpoint for API health check - kept in main.py
+@app.get("/", response_model=HealthCheckResponse) # Standardized path
+async def root() -> Dict[str, str]:
+    return {"status": "healthy", "message": "DBExportHub API is running", "version": settings.API_VERSION if hasattr(settings, 'API_VERSION') else "1.0.0"}

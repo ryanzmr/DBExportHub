@@ -4,8 +4,8 @@ from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
 import uuid
 
-from .config import settings
-from .logger import db_logger, log_execution_time, mask_sensitive_data
+from ..config.settings import settings # Updated import
+from ..logging_operation.loggers import db_logger, log_execution_time, mask_sensitive_data # Updated import (anticipating logger.py move)
 
 # Enhanced database logging with emojis
 def db_log_info(message: str, **kwargs):
@@ -245,15 +245,20 @@ def execute_query(conn, query: str, params: Optional[List[Any]] = None) -> List[
         raise Exception(f"Error executing query: {str(e)}")
 
 @log_execution_time
-def query_to_dataframe(conn, query: str, params: Optional[List[Any]] = None) -> pd.DataFrame:
-    """Execute a SQL query and return results as a pandas DataFrame"""
+def query_to_dataframe(conn, query: str, params: Optional[List[Any]] = None, operation_id: Optional[str] = None, logger: Optional[Any] = None) -> pd.DataFrame:
+    """
+    Execute a SQL query and return results as a pandas DataFrame.
+    Accepts an optional operation_id and logger for more context in logs.
+    """
+    log_instance = logger if logger else db_logger # Use provided logger or default
+    log_prefix = f"[{operation_id}] " if operation_id else ""
+
     try:
-        # For logging, truncate very long queries
         log_query = query[:500] + "..." if len(query) > 500 else query
-        
-        db_logger.info(
-            f"Executing query to DataFrame: {log_query}",
+        log_instance.info(
+            f"{log_prefix}Executing query to DataFrame: {log_query}",
             extra={
+                "operation_id": operation_id,
                 "query_length": len(query),
                 "has_params": params is not None
             }
@@ -267,9 +272,10 @@ def query_to_dataframe(conn, query: str, params: Optional[List[Any]] = None) -> 
         
         execution_time = (pd.Timestamp.now() - start_time).total_seconds()
         
-        db_logger.info(
-            f"Query to DataFrame completed in {execution_time:.2f}s, returned {len(df)} rows and {len(df.columns)} columns",
+        log_instance.info(
+            f"{log_prefix}Query to DataFrame completed in {execution_time:.2f}s, returned {len(df)} rows and {len(df.columns)} columns",
             extra={
+                "operation_id": operation_id,
                 "row_count": len(df),
                 "column_count": len(df.columns),
                 "execution_time": execution_time
@@ -278,12 +284,13 @@ def query_to_dataframe(conn, query: str, params: Optional[List[Any]] = None) -> 
         
         return df
     except Exception as e:
-        db_logger.error(
-            f"Error executing query to DataFrame: {str(e)}",
+        log_instance.error(
+            f"{log_prefix}Error executing query to DataFrame: {str(e)}",
             extra={
+                "operation_id": operation_id,
                 "query": log_query,
                 "error": str(e)
             },
             exc_info=True
         )
-        raise Exception(f"Error executing query to DataFrame: {str(e)}")
+        raise Exception(f"{log_prefix}Error executing query to DataFrame: {str(e)}")
