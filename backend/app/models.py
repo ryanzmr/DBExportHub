@@ -32,7 +32,6 @@ class ExportParameters(BaseModel):
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
     force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
-    ignore_excel_limit: bool = Field(False, description="Alternative flag for forcing continuation despite Excel limit") # Added to match export_service logic
 
 # Import parameters model based on the stored procedure parameters
 class ImportParameters(BaseModel):
@@ -57,9 +56,6 @@ class ImportParameters(BaseModel):
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
     force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
-    download_only: bool = Field(False, description="If true, indicates a request to download an already generated file") # Added from import_service logic
-    operation_id: Optional[str] = Field(None, description="Operation ID, used for download_only requests") # Added from import_service logic
-
 
 # Export response model
 class ExportResponse(BaseModel):
@@ -77,7 +73,7 @@ class ExcelFormat(BaseModel):
     fontSize: int = 10
     headerStyle: HeaderStyle = HeaderStyle()
 
-class ExportRequest(BaseModel): # This seems like a duplicate/alternative to ExportParameters, keeping as is for now
+class ExportRequest(BaseModel):
     server: str
     database: str
     username: str
@@ -101,47 +97,5 @@ class ExportRequest(BaseModel): # This seems like a duplicate/alternative to Exp
 # Preview response model
 class PreviewResponse(BaseModel):
     data: List[Dict[str, Any]]
-    count: int # This was 'total_records' in export_service and 'total_count' in import_service. Standardizing to 'count'.
-    headers: Optional[List[str]] = None # Added from import_service preview response
-    first_row_hs: Optional[str] = None  # Added from import_service preview response
+    count: int
     excel_format: Optional[ExcelFormat] = None
-    operation_id: Optional[str] = None # Added as it's part of the response dict in services
-    total_records: Optional[int] = None # Keeping this for now if `count` is different contextually
-                                        # In export_service, total_records was record_count from execute_export_procedure
-                                        # In import_service, total_records was total_count from get_total_row_count_import
-                                        # This needs careful alignment in the service layer refactoring.
-
-# For operation progress response
-class OperationProgressResponse(BaseModel):
-    operation_id: str
-    status: str
-    current: int
-    total: int
-    percentage: int
-
-# For cancel operation response
-class CancelResponse(BaseModel):
-    message: str
-    operation_id: str
-    status: str
-
-# For test connection response
-class TestConnectionResponse(BaseModel):
-    success: bool
-    message: str
-
-# For /api/cleanup response
-class CleanupResponse(BaseModel):
-    success: bool
-    message: str
-
-# For root endpoint response
-class HealthCheckResponse(BaseModel):
-    status: str
-    message: str
-    version: str
-
-# For login response
-class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"

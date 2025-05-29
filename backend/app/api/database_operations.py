@@ -1,26 +1,27 @@
 import pandas as pd # Keep pandas for type hinting or specific cases if needed
 from typing import List, Dict, Any, Optional # Keep for type hinting
 
-# Updated imports based on new location:
-from ..config.settings import settings 
-# from ..database.connection import get_db_connection # Not directly used here, but path is ..database.connection
-from ..logging_operation.loggers import export_logger as logger 
-from ..database.generic_ops import ( 
+from ..config import settings # Keep settings
+from ..database import get_db_connection # Keep for connection management if needed by service layer
+from ..logger import export_logger as logger # Use specific logger
+from .generic_db_operations import (
     generic_execute_procedure,
     generic_get_preview_data,
     generic_get_first_row_hs_code,
     generic_get_column_headers,
     generic_get_total_row_count,
     generic_fetch_data_in_chunks,
-    _get_param_value 
+    _get_param_value # Helper for param mapping
 )
-from ..logging_operation.loggers import mask_sensitive_data 
-from ..utilities.operation_tracker import is_operation_cancelled 
+from ..utils import mask_sensitive_data # For logging if needed here, though generic might handle it
+from .operation_tracker import is_operation_cancelled # If direct cancellation checks are needed here
 
 # Specific configuration for Export operations
 VIEW_NAME = settings.EXPORT_VIEW
 PROCEDURE_NAME = settings.EXPORT_STORED_PROCEDURE
-HS_CODE_COLUMN = "Hs_Code" 
+HS_CODE_COLUMN = "Hs_Code" # As per current database_operations.py
+# EXPORT_ORDER_BY_COLUMN is (SELECT NULL) which is how SQL Server allows OFFSET without explicit sort.
+# This is passed directly to generic_fetch_data_in_chunks.
 EXPORT_ORDER_BY_COLUMN_FOR_CHUNKING = "(SELECT NULL)"
 
 
@@ -28,7 +29,7 @@ EXPORT_ORDER_BY_COLUMN_FOR_CHUNKING = "(SELECT NULL)"
 # Using a list of tuples to maintain order.
 EXPORT_PARAM_MAPPING = [
     ("fromMonth", lambda p: _get_param_value(p, "fromMonth")),
-    ("ToMonth", lambda p: _get_param_value(p, "toMonth")), 
+    ("ToMonth", lambda p: _get_param_value(p, "toMonth")), # Corrected: was "ToMonth" in original, params has "toMonth"
     ("hs", lambda p: _get_param_value(p, "hs")),
     ("prod", lambda p: _get_param_value(p, "prod")),
     ("Iec", lambda p: _get_param_value(p, "iec")),
@@ -38,8 +39,7 @@ EXPORT_PARAM_MAPPING = [
     ("port", lambda p: _get_param_value(p, "port"))
 ]
 
-# Renaming execute_export_procedure to execute_procedure to match base_file_service expectation
-def execute_procedure(conn: Any, params: Any, operation_id: str) -> tuple[int, bool]:
+def execute_export_procedure(conn, params, operation_id):
     """Execute the export stored procedure using the generic handler."""
     if is_operation_cancelled(operation_id):
         logger.info(f"[{operation_id}] Export operation cancelled before executing generic procedure.")
@@ -56,8 +56,7 @@ def execute_procedure(conn: Any, params: Any, operation_id: str) -> tuple[int, b
         param_mapping=EXPORT_PARAM_MAPPING
     )
 
-# get_preview_data already matches the expected signature in base_file_service for db_ops_module
-def get_preview_data(conn: Any, params: Any, operation_id: str) -> pd.DataFrame:
+def get_preview_data(conn, params, operation_id):
     """Get preview data for export using the generic handler."""
     if is_operation_cancelled(operation_id):
         logger.info(f"[{operation_id}] Export preview cancelled.")
@@ -71,10 +70,10 @@ def get_preview_data(conn: Any, params: Any, operation_id: str) -> pd.DataFrame:
         operation_id=operation_id, 
         view_name=VIEW_NAME, 
         logger=logger,
-        max_records=max_records 
+        max_records=max_records # Pass max_records to the generic function
     )
 
-def get_first_row_hs_code(conn: Any, operation_id: Optional[str] = None) -> List[Optional[str]]:
+def get_first_row_hs_code(conn, operation_id=None):
     """Get the first row's HS code for export using the generic handler."""
     if operation_id and is_operation_cancelled(operation_id): 
         logger.info(f"[{operation_id}] Get first row HS code for EXPORT cancelled.")
@@ -89,7 +88,7 @@ def get_first_row_hs_code(conn: Any, operation_id: Optional[str] = None) -> List
         hs_code_column_name=HS_CODE_COLUMN
     )
 
-def get_column_headers(conn: Any, operation_id: Optional[str] = None) -> List[str]:
+def get_column_headers(conn, operation_id=None):
     """Get column headers for export using the generic handler."""
     if operation_id and is_operation_cancelled(operation_id):
         logger.info(f"[{operation_id}] Get column headers for EXPORT cancelled.")
@@ -103,7 +102,7 @@ def get_column_headers(conn: Any, operation_id: Optional[str] = None) -> List[st
         logger=logger
     )
 
-def get_total_row_count(conn: Any, operation_id: Optional[str] = None) -> int:
+def get_total_row_count(conn, operation_id=None):
     """Get the total row count for export using the generic handler."""
     if operation_id and is_operation_cancelled(operation_id):
         logger.info(f"[{operation_id}] Get total row count for EXPORT cancelled.")
@@ -117,11 +116,12 @@ def get_total_row_count(conn: Any, operation_id: Optional[str] = None) -> int:
         logger=logger
     )
 
-# fetch_data_in_chunks signature matches what export_service.py (soon to be service.py) expects
-def fetch_data_in_chunks(conn: Any, chunk_size: int, offset: int, operation_id: str) -> pd.DataFrame: # Actually a generator
+def fetch_data_in_chunks(conn, chunk_size, offset, operation_id):
     """
     Fetch data in chunks for export using the generic handler.
     The generic function returns a generator of DataFrames.
+    This replaces the old behavior of returning a cursor.
+    The calling service (export_service.py) will need to be adapted.
     """
     if is_operation_cancelled(operation_id):
         logger.info(f"[{operation_id}] Fetch data in chunks for EXPORT cancelled at offset {offset}.")
@@ -129,7 +129,6 @@ def fetch_data_in_chunks(conn: Any, chunk_size: int, offset: int, operation_id: 
 
     logger.info(f"[{operation_id}] Calling generic_fetch_data_in_chunks for EXPORT. View: {VIEW_NAME}, Chunk: {chunk_size}, Offset: {offset}, OrderBy: {EXPORT_ORDER_BY_COLUMN_FOR_CHUNKING}")
     
-    # This returns a generator
     return generic_fetch_data_in_chunks(
         conn=conn,
         operation_id=operation_id,
@@ -140,6 +139,5 @@ def fetch_data_in_chunks(conn: Any, chunk_size: int, offset: int, operation_id: 
         order_by_column=EXPORT_ORDER_BY_COLUMN_FOR_CHUNKING
     )
 
-# Reminder for future refactoring of service layer:
-# The change in `fetch_data_in_chunks` return type (from cursor to generator of DataFrames)
-# requires changes in the calling service (currently `backend/app/api/export_service.py`).
+# Reminder: The change in `fetch_data_in_chunks` return type (from cursor to generator of DataFrames)
+# will require changes in `backend/app/api/export_service.py`.
