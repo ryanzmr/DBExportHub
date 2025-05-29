@@ -9,7 +9,7 @@ from pathlib import Path
 load_dotenv()
 
 # Base directory
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent # Adjusted BASE_DIR to be backend/
 
 # Create a settings class to hold configuration
 class Settings:
@@ -30,6 +30,7 @@ class Settings:
     IMPORT_VIEW = os.getenv("IMPORT_VIEW", "IMPDATA")
     
     DB_FETCH_BATCH_SIZE = int(os.getenv("DB_FETCH_BATCH_SIZE", 250000))
+    DB_FETCH_CHUNK_SIZE_IMPORT = int(os.getenv("DB_FETCH_CHUNK_SIZE_IMPORT", 100000)) # Added from import_service
 
     # File storage settings
     TEMP_DIR = os.getenv("TEMP_DIR", os.path.join(BASE_DIR, "temp"))
@@ -44,12 +45,20 @@ class Settings:
     # CORS settings
     BACKEND_CORS_ORIGINS = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173,http://192.168.56.1:3000")
     CORS_ORIGINS_LIST = [origin.strip() for origin in BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
+    
+    # Cache Expiry
+    CACHE_EXPIRY_MINUTES = int(os.getenv("CACHE_EXPIRY_MINUTES", 30))
+
 
 # Create an instance of the settings class
 settings = Settings()
 
 # Ensure temp directory exists
-os.makedirs(settings.TEMP_DIR, exist_ok=True)
+# This should ideally be done once when the application starts, not at module import.
+# For now, keeping it as is, but consider moving to main.py or startup event.
+if not os.path.exists(settings.TEMP_DIR):
+    os.makedirs(settings.TEMP_DIR, exist_ok=True)
 
 # Ensure logs directory exists
-os.makedirs(settings.LOG_DIR, exist_ok=True)
+if not os.path.exists(settings.LOG_DIR):
+    os.makedirs(settings.LOG_DIR, exist_ok=True)
