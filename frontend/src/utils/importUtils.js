@@ -331,3 +331,20 @@ export const getFreshImportFormState = () => ({
   port: '',
   shipper: ''
 });
+
+/**
+ * Cancel an ongoing import operation
+ * @param {string} operationId - The ID of the operation to cancel
+ * @returns {Promise} - Promise that resolves when the cancellation is complete
+ */
+export const cancelImportOperation = async (operationId) => {
+  try {
+    const response = await axios.post('http://localhost:8000/api/imports/cancel-import', {
+      operation_id: operationId
+    });
+    return response.data;
+  } catch (err) {
+    console.error('Cancel import error:', err);
+    throw err;
+  }
+};

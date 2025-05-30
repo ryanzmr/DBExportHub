@@ -344,3 +344,20 @@ export const getFreshFormState = () => {
     toMonth: ""     // Empty string instead of default month
   };
 };
+
+/**
+ * Cancel an ongoing export operation
+ * @param {string} operationId - The ID of the operation to cancel
+ * @returns {Promise} - Promise that resolves when the cancellation is complete
+ */
+export const cancelExportOperation = async (operationId) => {
+  try {
+    const response = await axios.post('http://localhost:8000/api/exports/cancel-export', {
+      operation_id: operationId
+    });
+    return response.data;
+  } catch (err) {
+    console.error('Cancel export error:', err);
+    throw err;
+  }
+};

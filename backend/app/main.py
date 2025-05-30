@@ -18,7 +18,8 @@ from .api.core.models import ExportParameters, ImportParameters, PreviewResponse
 from .api.exports.export import generate_excel, preview_data # Assuming export.py wraps service
 from .api.core.data_processing import CustomJSONEncoder # Assuming moved
 from .api.imports.import_module import generate_excel as generate_excel_import, preview_data as preview_data_import # Assuming import_module.py wraps service
-from .api.exports.cancel import cancel_router # Moved to exports
+from .api.exports.cancel_export import export_cancel_router # Export cancellation
+from .api.imports.cancel_import import import_cancel_router # Import cancellation
 from .api.core.logger import logger, access_logger # log_api_request might be elsewhere or unused
 from .api.core.config import settings
 
@@ -26,6 +27,31 @@ from .api.core.config import settings
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.JWT_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="DBExportHub",
+    description="A web-based application for exporting SQL Server data to Excel",
+    version="1.0.0"
+)
+
+# Configure CORS - IMPORTANT: This must be added before any routes
+# Get CORS origins from environment variable
+backend_cors_origins = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173")
+origins = [origin.strip() for origin in backend_cors_origins.split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Use origins from environment variable
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["Content-Disposition", "Content-Length"],  # Expose headers needed for file download
+)
+
+# Include the separate cancel routers for exports and imports
+app.include_router(export_cancel_router, prefix="/api/exports", tags=["exports"])
+app.include_router(import_cancel_router, prefix="/api/imports", tags=["imports"])
 
 # Universal token functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -96,30 +122,6 @@ def verify_token(token: str) -> dict:
             return payload
         except Exception as e:
             raise ValueError(f"Invalid token: {str(e)}")
-
-# Initialize FastAPI app
-app = FastAPI(
-    title="DBExportHub",
-    description="A web-based application for exporting SQL Server data to Excel",
-    version="1.0.0"
-)
-
-# Configure CORS - IMPORTANT: This must be added before any routes
-# Get CORS origins from environment variable
-backend_cors_origins = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173")
-origins = [origin.strip() for origin in backend_cors_origins.split(",") if origin.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # Use origins from environment variable
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["Content-Disposition", "Content-Length"],  # Expose headers needed for file download
-)
-
-# Include the cancel router for route registration
-app.include_router(cancel_router, prefix="/api", tags=["cancel"])
 
 # Custom middleware for request logging
 @app.middleware("http")
