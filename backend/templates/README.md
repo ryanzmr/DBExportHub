@@ -4,7 +4,9 @@ This directory contains Excel template files used by the DBExportHub application
 
 ## Template Files
 
-- **EXDPORT_Tamplate_JNPT.xlsx**: Main Excel template used for shipping/trade data exports
+- **EXDPORT_Tamplate_JNPT.xlsx**: Main Excel template used for both import and export operations
+  - Used by `excel_utils.py` for exports
+  - Used by `excel_utils_import.py` for imports
   
 ## How Templates Work
 

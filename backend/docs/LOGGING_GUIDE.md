@@ -82,6 +82,44 @@ async def my_endpoint(data: RequestModel):
     pass
 ```
 
+## Operation Tracking and Cancellation
+
+The system includes comprehensive logging for operation tracking and cancellation:
+
+### Operation States
+```python
+from app.core.operation_tracker import register_operation, update_operation_progress
+
+# Register a new operation
+operation_id = register_operation()
+
+# Update progress
+update_operation_progress(operation_id, current=50, total=100)
+```
+
+### Cancellation Logging
+```python
+from app.core.operation_tracker import check_operation_cancelled, cleanup_operation
+
+try:
+    # Check for cancellation during operation
+    if check_operation_cancelled(operation_id):
+        logger.info(f"Operation {operation_id} was cancelled")
+        
+finally:
+    # Always cleanup operation resources
+    cleanup_operation(operation_id)
+```
+
+The system automatically logs:
+- Operation registration
+- Progress updates
+- Cancellation requests
+- Resource cleanup
+- Operation completion or failure
+
+Each operation gets a unique ID that can be used to track its entire lifecycle in the logs.
+
 ## Configuration
 
 Logging settings can be configured through environment variables:
@@ -119,4 +157,4 @@ This will generate sample logs in all log files to verify that the logging syste
 
 4. **Structured format**:
    - Keep log messages concise and descriptive
-   - Put detailed information in the `extra` parameter for structured parsing 
+   - Put detailed information in the `extra` parameter for structured parsing

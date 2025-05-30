@@ -4,7 +4,7 @@ A modern web-based application for exporting and importing SQL Server trade/ship
 
 ## Project Overview
 
-DBExportHub is a comprehensive replacement for a legacy VB6 application, designed to efficiently extract, process, and export trade/shipping data from SQL Server databases to formatted Excel files. The application features a user-friendly interface for setting export parameters, previewing data, and downloading Excel reports. Additionally, it now includes an import functionality for reverse data flow operations.
+DBExportHub is a comprehensive replacement for a legacy VB6 application, designed to efficiently extract, process, and export trade/shipping data from SQL Server databases to formatted Excel files. The application features a user-friendly interface for setting export/import parameters, previewing data, and downloading Excel reports. It supports both export and import operations with robust cancellation support and progress tracking.
 
 ## Core Features
 

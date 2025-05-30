@@ -101,28 +101,44 @@ Ensure the following directories exist in the backend folder:
 mkdir -p logs temp templates
 ```
 
-### 5. Run the Backend Server
+### 5. Start the Application
 
-```bash
+The application comes with PowerShell scripts to automate the startup process:
+
+#### Start Backend Server:
+```powershell
+.\start-backend.ps1
+```
+The backend server will start running at http://localhost:8000
+
+#### Start Frontend Development Server:
+```powershell
+.\start-frontend.ps1
+```
+The frontend development server will start at http://localhost:3001
+
+These scripts will:
+1. Set up the required environment
+2. Install/update dependencies
+3. Create necessary directories and config files
+4. Start the development servers
+
+Note: You can also start the servers manually if needed:
+
+Backend:
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The backend server will start running at http://localhost:8000.
-
-## Frontend Setup
-
-### 1. Navigate to the Frontend Directory
-
-```bash
-cd ../frontend
-```
-
-### 2. Install Frontend Dependencies
-
-The frontend dependencies are listed in the `package.json` file. Install them using npm:
-
-```bash
+Frontend:
+```powershell
+cd frontend
 npm install
+npm run dev -- --port 3001
 ```
 
 This will install all the required packages including:
@@ -234,4 +250,4 @@ If you encounter any issues during installation or setup, please refer to:
 
 ## Next Steps
 
-After successful installation, refer to the EXPORT_CONFIGURATION_GUIDE.md for information on how to use the DBExportHub application for exporting SQL Server data to Excel.
+After successful installation, refer to the CONFIGURATION_GUIDE.md for detailed information on how to use the DBExportHub application for importing and exporting SQL Server data to Excel.
