@@ -9,12 +9,12 @@ import pathlib
 import gc
 from typing import List, Dict, Any, Optional
 
-from ..config import settings
-from ..database import get_db_connection
-from ..logger import export_logger, log_execution_time
+from ..core.config import settings
+from ..core.database import get_db_connection
+from ..core.logger import export_logger, log_execution_time
 
 # Import modularized components
-from .database_operations import (
+from ..database_operations.export_database import (
     execute_export_procedure,
     get_preview_data,
     get_first_row_hs_code,
@@ -22,7 +22,7 @@ from .database_operations import (
     get_total_row_count,
     fetch_data_in_chunks
 )
-from .logging_utils import (
+from ..core.logging_utils import (
     generate_operation_id,
     log_preview_start,
     log_preview_completion,
@@ -31,7 +31,7 @@ from .logging_utils import (
     log_excel_completion,
     log_excel_error
 )
-from .data_processing import (
+from ..core.data_processing import (
     CustomJSONEncoder,
     process_dataframe_for_json
 )
@@ -41,7 +41,7 @@ from .excel_utils import (
     create_excel_formats,
     write_excel_headers
 )
-from .operation_tracker import (
+from ..core.operation_tracker import (
     register_operation,
     update_operation_progress,
     mark_operation_completed,

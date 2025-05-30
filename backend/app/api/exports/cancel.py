@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
-from ..logger import logger
-from .operation_tracker import cancel_operation, get_operation_status
+from ..core.logger import logger
+from ..core.operation_tracker import cancel_operation, get_operation_status
 
 # Create a router for cancellation endpoints
 cancel_router = APIRouter()

@@ -2,8 +2,8 @@
 import os
 from datetime import datetime
 
-from ..config import settings
-from ..logger import import_logger
+from ..core.config import settings
+from ..core.logger import import_logger
 
 def create_filename_import(params, first_row_hs):
     """Create a filename for the Excel import based on the parameters"""

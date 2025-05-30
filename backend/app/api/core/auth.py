@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
-from ..database import test_connection
-from ..models import LoginRequest
+from .database import test_connection
+from .models import LoginRequest
 
 async def authenticate_user(connection_details: LoginRequest):
     """

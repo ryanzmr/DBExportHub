@@ -1,5 +1,5 @@
-# This file is now a wrapper around the modularized export functionality
-# Import the actual implementation from export_service.py
+# This file is a wrapper around the modularized import functionality
+# Import the actual implementation from import_service.py
 
 import uuid
 import os
@@ -8,23 +8,23 @@ import gc
 import numpy as np
 from datetime import datetime
 
-from ..config import settings
-from ..database import get_db_connection, query_to_dataframe
-from ..logger import export_logger, log_execution_time, mask_sensitive_data
+from ..core.config import settings
+from ..core.database import get_db_connection, query_to_dataframe
+from ..core.logger import import_logger, log_execution_time, mask_sensitive_data
 
-from .export_service import preview_data as preview_data_service
-from .export_service import generate_excel as generate_excel_service
+from .import_service import preview_data as preview_data_service
+from .import_service import generate_excel as generate_excel_service
 # Import CustomJSONEncoder from data_processing to maintain backward compatibility
-from .data_processing import CustomJSONEncoder
+from ..core.data_processing import CustomJSONEncoder
 
 # Re-export the functions with the same names to maintain backward compatibility
 @log_execution_time
 def preview_data(params):
     """
-    Generate a preview of the data based on the export parameters.
+    Generate a preview of the data based on the import parameters.
     Returns a limited number of records for preview in the UI.
     """
-    # Call the refactored implementation from export_service.py
+    # Call the refactored implementation from import_service.py
     # This will return a dictionary with data, operation_id, and total_records
     result = preview_data_service(params)
     
@@ -35,10 +35,10 @@ def preview_data(params):
 @log_execution_time
 def generate_excel(params):
     """
-    Generate an Excel file based on the export parameters.
+    Generate an Excel file based on the import parameters.
     Returns the path to the generated Excel file and the operation ID.
     """
-    # Call the refactored implementation from export_service.py
+    # Call the refactored implementation from import_service.py
     # This will return both the file path and the operation ID
     file_path, operation_id = generate_excel_service(params)
     
