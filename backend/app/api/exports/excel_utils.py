@@ -158,7 +158,7 @@ def write_excel_headers(worksheet, columns, header_format):
 def write_data_to_excel(worksheet, cursor, data_format, date_format, operation_id, total_count):
     """Write data to Excel worksheet in batches (NOTE: This function might be unused)"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled
+    from ..core.operation_tracker import is_operation_cancelled
     
     # Process data in chunks with optimized approach for large datasets
     batch_size = settings.DB_FETCH_BATCH_SIZE  # Use configured batch size

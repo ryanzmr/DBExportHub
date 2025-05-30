@@ -39,9 +39,9 @@ def db_log_debug(message: str, **kwargs):
     """Enhanced database debug logging with emojis"""
     db_logger.debug(f"🔬 {message}", extra=kwargs)
 
-def db_log_error(message: str, **kwargs):
+def db_log_error(message: str, exc_info: bool = False, **kwargs):
     """Enhanced database error logging with emojis"""
-    db_logger.error(f"❌ {message}", extra=kwargs)
+    db_logger.error(f"❌ {message}", extra=kwargs, exc_info=exc_info)
 
 def create_connection_string(server: str, database: str, username: str, password: str) -> str:
     """Create a connection string for SQL Server"""
@@ -99,8 +99,7 @@ def test_connection(server: str, database: str, username: str, password: str) ->
 def get_db_connection(server: str, database: str, username: str, password: str):
     """Context manager for database connections"""
     connection_id = str(uuid.uuid4())[:8]  # Use UUID instead of object id for more reliable unique identifiers
-    
-    # Log connection attempt with masked credentials
+      # Log connection attempt with masked credentials
     db_log_info(
         f"Opening database connection [ID: {connection_id}]",
         connection_id=connection_id,
@@ -123,12 +122,12 @@ def get_db_connection(server: str, database: str, username: str, password: str):
     except Exception as e:
         db_log_error(
             f"Database connection error [ID: {connection_id}]: {str(e)}",
+            exc_info=True,
             connection_id=connection_id,
             server=server,
             database=database,
             error=str(e),
-            operation="connection_error",
-            exc_info=True
+            operation="connection_error"
         )
         raise Exception(f"Database connection error: {str(e)}")
     finally:

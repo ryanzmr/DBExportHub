@@ -46,7 +46,7 @@ def _check_temp_table_exists(conn):
 def execute_export_procedure(conn, params, operation_id):
     """Execute the export stored procedure with the given parameters"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled
+    from ..core.operation_tracker import is_operation_cancelled
     
     # Check if operation has been cancelled before executing procedure
     if is_operation_cancelled(operation_id):
@@ -139,7 +139,7 @@ def execute_export_procedure(conn, params, operation_id):
 def get_preview_data(conn, params, operation_id):
     """Query the temp table for preview data"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled
+    from ..core.operation_tracker import is_operation_cancelled
     
     # Check if operation has been cancelled before executing query
     if is_operation_cancelled(operation_id):
@@ -176,7 +176,7 @@ def get_first_row_hs_code(conn, operation_id=None):
     # Check for cancellation if operation_id is provided
     if operation_id:
         # Import here to avoid circular imports
-        from .operation_tracker import is_operation_cancelled
+        from ..core.operation_tracker import is_operation_cancelled
         if is_operation_cancelled(operation_id):
             db_logger.info(f"[{operation_id}] Operation cancelled before getting HS code")
             raise Exception("Operation cancelled by user")
@@ -193,7 +193,7 @@ def get_column_headers(conn, operation_id=None):
     # Check for cancellation if operation_id is provided
     if operation_id:
         # Import here to avoid circular imports
-        from .operation_tracker import is_operation_cancelled
+        from ..core.operation_tracker import is_operation_cancelled
         if is_operation_cancelled(operation_id):
             db_logger.info(f"[{operation_id}] Operation cancelled before getting column headers")
             raise Exception("Operation cancelled by user")
@@ -209,7 +209,7 @@ def get_total_row_count(conn, operation_id=None):
     # Check for cancellation if operation_id is provided
     if operation_id:
         # Import here to avoid circular imports
-        from .operation_tracker import is_operation_cancelled
+        from ..core.operation_tracker import is_operation_cancelled
         if is_operation_cancelled(operation_id):
             db_logger.info(f"[{operation_id}] Operation cancelled before getting row count")
             raise Exception("Operation cancelled by user")
@@ -223,7 +223,7 @@ def get_total_row_count(conn, operation_id=None):
 def fetch_data_in_chunks(conn, chunk_size, offset, operation_id):
     """Fetch data from the export view in chunks"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled
+    from ..core.operation_tracker import is_operation_cancelled
     
     # Check if operation has been cancelled before executing query
     if is_operation_cancelled(operation_id):

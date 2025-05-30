@@ -308,17 +308,15 @@ async def import_excel(params: ImportParameters):
         masked_params = params.dict()
         masked_params["password"] = "[REDACTED]"
         logger.info(f"Import excel request received with parameters: {masked_params}")
-        
-        # Check if this is a download-only request (for large datasets)
+          # Check if this is a download-only request (for large datasets)
         download_only = getattr(params, 'download_only', False)
         operation_id = getattr(params, 'operation_id', None)
-        
         if download_only and operation_id:
             # This is a request to download a file that was already generated
             logger.info(f"Download-only request received for operation ID: {operation_id}")
             
             # Import the operation tracker functions
-            from app.api.operation_tracker import get_operation_details
+            from app.api.core.operation_tracker import get_operation_details
             
             # Get the operation details
             operation_details = get_operation_details(operation_id)
@@ -386,7 +384,7 @@ async def import_excel(params: ImportParameters):
 @app.get("/api/operation/{operation_id}/progress")
 async def get_operation_progress(operation_id: str):
     try:
-        from app.api.operation_tracker import get_operation_details
+        from app.api.core.operation_tracker import get_operation_details
         
         # Get operation details
         operation_details = get_operation_details(operation_id)
@@ -433,3 +431,16 @@ async def cleanup_connection(params: dict):
 @app.get("/")
 async def root():
     return {"status": "healthy", "message": "DBExportHub API is running", "version": "1.0.0"}
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    logger.info("Starting DBExportHub API server...")
+      # Run the server
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8080,  # Changed from 8000 to 8080 to avoid AI tool conflicts
+        reload=True,
+        log_level="info"
+    )
