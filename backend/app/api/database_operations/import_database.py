@@ -47,7 +47,7 @@ def _check_temp_table_exists(conn):
 def execute_import_procedure(conn, params, operation_id):
     """Execute the import stored procedure with the given parameters"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled
+    from ..core.operation_tracker import is_operation_cancelled
     
     # Check if operation has been cancelled before executing procedure
     if is_operation_cancelled(operation_id):
@@ -138,7 +138,7 @@ def get_preview_data_import(conn, operation_id, sample_size=100):
         DataFrame with preview data
     """
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled, update_operation_progress
+    from ..core.operation_tracker import is_operation_cancelled, update_operation_progress
     
     # Check if operation has been cancelled
     if is_operation_cancelled(operation_id):
@@ -229,7 +229,7 @@ def get_first_row_hs_code_import(conn, operation_id):
 def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
     """Fetch data in chunks to avoid memory issues - using cursor-based approach like the export system"""
     # Import here to avoid circular imports
-    from .operation_tracker import is_operation_cancelled, get_operation_details
+    from ..core.operation_tracker import is_operation_cancelled, get_operation_details
     
     if batch_size is None:
         batch_size = settings.DB_FETCH_BATCH_SIZE

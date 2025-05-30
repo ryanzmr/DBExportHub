@@ -10,15 +10,14 @@ const detectApiUrl = () => {
   // Check if we're on localhost
   const isLocalhost = window.location.hostname === 'localhost' || 
                      window.location.hostname === '127.0.0.1';
-  
-  // If we're on localhost, use localhost backend
+    // If we're on localhost, use localhost backend
   if (isLocalhost) {
-    return 'http://localhost:8000';
+    return 'http://localhost:8080';  // Changed from 8000 to 8080
   }
   
   // If we're accessing from a specific IP, use that same IP for backend
   // This assumes frontend and backend are on same machine
-  return `http://${window.location.hostname}:8000`;
+  return `http://${window.location.hostname}:8080`;  // Changed from 8000 to 8080
 };
 
 const API_URL = detectApiUrl();
