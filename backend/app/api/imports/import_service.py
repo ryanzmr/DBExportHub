@@ -45,15 +45,15 @@ def get_month_code(year_month):
         return f"UNK{year_month_str[-2:] if len(year_month_str) >= 2 else '??'}"
 
 # Import the operations lock and operations functions
-from .operation_tracker import _operations_lock, register_operation, mark_operation_completed, is_operation_cancelled, get_operation_details, update_operation_progress
+from ..core.operation_tracker import _operations_lock, register_operation, mark_operation_completed, is_operation_cancelled, get_operation_details, update_operation_progress
 
-from ..config import settings
-from ..database import get_db_connection
-from ..logger import import_logger, log_execution_time
-from .logging_utils import log_excel_completion, log_excel_error
+from ..core.config import settings
+from ..core.database import get_db_connection
+from ..core.logger import import_logger, log_execution_time
+from ..core.logging_utils import log_excel_completion, log_excel_error
 
 # Import modularized components
-from .database_operations_import import (
+from ..database_operations.import_database import (
     execute_import_procedure,
     get_preview_data_import,
     get_first_row_hs_code_import,
@@ -61,7 +61,7 @@ from .database_operations_import import (
     get_total_row_count_import,
     fetch_data_in_chunks_import
 )
-from .logging_utils import (
+from ..core.logging_utils import (
     generate_operation_id,
     log_preview_start,
     log_preview_completion,
@@ -70,17 +70,17 @@ from .logging_utils import (
     log_excel_completion,
     log_excel_error
 )
-from .data_processing import (
+from ..core.data_processing import (
     CustomJSONEncoder,
     process_dataframe_for_json
 )
-from .excel_utils import (
+from ..exports.excel_utils import (
     setup_excel_workbook,
     create_excel_formats,
     write_excel_headers
 )
 from .excel_utils_import import create_filename_import
-from .operation_tracker import (
+from ..core.operation_tracker import (
     register_operation,
     mark_operation_completed,
     is_operation_cancelled,

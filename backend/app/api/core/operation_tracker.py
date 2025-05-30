@@ -3,7 +3,7 @@ import time
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..logger import logger
+from .logger import logger
 
 # Dictionary to store active operations
 # Key: operation_id, Value: dict with status and other metadata

@@ -3,10 +3,8 @@ import pandas as pd
 from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
 import uuid
-
 from .config import settings
 from .logger import db_logger, log_execution_time, mask_sensitive_data
-
 # Enhanced database logging with emojis
 def db_log_info(message: str, **kwargs):
     """Enhanced database logging with emojis"""

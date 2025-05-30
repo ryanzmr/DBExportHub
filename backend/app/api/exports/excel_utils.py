@@ -10,9 +10,9 @@ import gc
 from typing import List, Dict, Any, Optional
 import xlsxwriter
 
-from ..config import settings
-from ..logger import export_logger, log_execution_time
-from .logging_utils import log_excel_completion
+from ..core.config import settings
+from ..core.logger import export_logger, log_execution_time
+from ..core.logging_utils import log_excel_completion
 
 def create_filename(params, first_row_hs):
     """Create a filename for the Excel export based on the parameters"""

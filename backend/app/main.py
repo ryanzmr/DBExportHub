@@ -13,13 +13,14 @@ import base64
 import logging
 
 # Import your existing modules
-from .database import get_db_connection, test_connection
-from .models import ExportParameters, ImportParameters, PreviewResponse, LoginRequest
-from .api.export import generate_excel, preview_data, CustomJSONEncoder
-from .api.import_module import generate_excel as generate_excel_import, preview_data as preview_data_import
-from .api.cancel import cancel_router
-from .logger import logger, access_logger, log_api_request
-from .config import settings
+from .api.core.database import get_db_connection, test_connection
+from .api.core.models import ExportParameters, ImportParameters, PreviewResponse, LoginRequest
+from .api.exports.export import generate_excel, preview_data # Assuming export.py wraps service
+from .api.core.data_processing import CustomJSONEncoder # Assuming moved
+from .api.imports.import_module import generate_excel as generate_excel_import, preview_data as preview_data_import # Assuming import_module.py wraps service
+from .api.exports.cancel import cancel_router # Moved to exports
+from .api.core.logger import logger, access_logger # log_api_request might be elsewhere or unused
+from .api.core.config import settings
 
 # JWT constants from config
 SECRET_KEY = settings.SECRET_KEY
@@ -118,7 +119,7 @@ app.add_middleware(
 )
 
 # Include the cancel router for route registration
-app.include_router(cancel_router)
+app.include_router(cancel_router, prefix="/api", tags=["cancel"])
 
 # Custom middleware for request logging
 @app.middleware("http")
