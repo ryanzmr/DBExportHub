@@ -187,15 +187,43 @@ $serverPort = if ([Environment]::GetEnvironmentVariable('SERVER_PORT')) {
     "8000" 
 }
 
+# Function to check if port is available
+function Test-PortAvailable {
+    param (
+        [int]$Port
+    )
+    try {
+        $portCheck = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        return $null -eq $portCheck
+    } catch {
+        return $true
+    }
+}
+
 # Check if port is available
-try {
-    $portCheck = Get-NetTCPConnection -LocalPort $serverPort -ErrorAction SilentlyContinue
-    if ($portCheck) {
-        Write-Error "Port $serverPort is already in use. Please free up the port or use a different port in .env file."
+if (-not (Test-PortAvailable $serverPort)) {
+    Write-Host "`nPort $serverPort is already in use."
+    Write-Host "You have two options:"
+    Write-Host "1. Kill the process using port $serverPort with command:"
+    Write-Host "   Stop-Process -Id (Get-NetTCPConnection -LocalPort $serverPort).OwningProcess -Force"
+    Write-Host "2. Change the port in your .env file"
+    
+    $response = Read-Host "Press 'k' to kill the process, or Enter to exit"
+    
+    if ($response -eq 'k') {
+        try {
+            $process = Get-NetTCPConnection -LocalPort $serverPort -ErrorAction Stop
+            Stop-Process -Id $process.OwningProcess -Force
+            Write-Host "Process using port $serverPort has been terminated."
+            Start-Sleep -Seconds 2  # Wait for port to be released
+        } catch {
+            Write-Error "Failed to kill process. Please try again or use a different port."
+            exit 1
+        }
+    } else {
+        Write-Error "Please update the SERVER_PORT in your .env file and try again."
         exit 1
     }
-} catch {
-    # If the command fails, it likely means the port is free
 }
 
 Write-Host "Starting backend server on http://${serverHost}:${serverPort}"
