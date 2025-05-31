@@ -88,8 +88,10 @@ from ..core.operation_tracker import (
     get_operation_details
 )
 
-# Constants
-EXCEL_ROW_LIMIT = 1048576  # Maximum number of rows in modern Excel
+# Constants - now configurable through settings
+def get_excel_row_limit():
+    """Get Excel row limit from configuration"""
+    return settings.EXCEL_ROW_LIMIT
 
 def cleanup_on_error(workbook, file_path):
     """Clean up resources when an error occurs during Excel generation"""
@@ -232,8 +234,8 @@ def generate_excel(params):
             import_logger.info(f"📊 [{operation_id}] Total rows to import: {total_count}")
             
             # Check if count exceeds Excel row limit and handle accordingly
-            if total_count > EXCEL_ROW_LIMIT and not params.force_continue_despite_limit:
-                import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit ({EXCEL_ROW_LIMIT}). Import operation paused waiting for user confirmation")
+            if total_count > get_excel_row_limit() and not params.force_continue_despite_limit:
+                import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit ({get_excel_row_limit()}). Import operation paused waiting for user confirmation")
                 
                 # Mark operation as paused but not completed
                 if operation_details:
@@ -245,20 +247,19 @@ def generate_excel(params):
                 # Return a structured JSON response instead of raising an exception
                 return None, {
                     "status": "limit_exceeded",
-                    "message": f"Total records ({total_count}) exceed Excel row limit ({EXCEL_ROW_LIMIT}).",
+                    "message": f"Total records ({total_count}) exceed Excel row limit ({get_excel_row_limit()}).",
                     "operation_id": operation_id,
                     "total_records": total_count,
-                    "limit": EXCEL_ROW_LIMIT
+                    "limit": get_excel_row_limit()
                 }
             else:
-                # User has confirmed to continue, so we'll limit to Excel max rows
-                if total_count > EXCEL_ROW_LIMIT:
-                    import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit. Processing only first {EXCEL_ROW_LIMIT} rows as per user confirmation")
+                # User has confirmed to continue, so we'll limit to Excel max rows                if total_count > get_excel_row_limit():
+                    import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit. Processing only first {get_excel_row_limit()} rows as per user confirmation")
                     
                     # Store the actual row limit for use in data processing
                     if operation_details:
                         with _operations_lock:
-                            operation_details["max_rows"] = EXCEL_ROW_LIMIT
+                            operation_details["max_rows"] = get_excel_row_limit()
             
             # Get first row HS code for filename generation
             first_row_hs = get_first_row_hs_code_import(conn, operation_id)
@@ -290,13 +291,12 @@ def generate_excel(params):
             max_widths = [len(header) for header in headers]  # Track maximum width for each column
             padding = 2  # Extra padding for column width
             min_width = 8  # Minimum column width
-            
-            # Optimize chunk processing similar to export_service but use the existing function correctly
-            chunk_size = 100000  # Use a larger batch size for even better performance
+              # Use configurable batch size from settings instead of hardcoded value
+            chunk_size = settings.get_batch_size('import')  # Uses optimized batch size for import module
             
             # Set the batch size for the generator function
             # This will be used inside fetch_data_in_chunks_import
-            total_row_count_to_process = min(total_count, EXCEL_ROW_LIMIT)
+            total_row_count_to_process = min(total_count, get_excel_row_limit())
             
             # Add a counter to track rows we've processed
             processed_row_count = 0
@@ -315,12 +315,12 @@ def generate_excel(params):
                 # Process each row in the chunk more efficiently, but limit to the Excel row limit
                 if chunk_size_actual > 0:
                     # First check if we need to process this chunk at all
-                    if processed_row_count >= EXCEL_ROW_LIMIT:
-                        import_logger.warning(f"[{operation_id}] Reached Excel row limit of {EXCEL_ROW_LIMIT}. Stopping processing.")
+                    if processed_row_count >= get_excel_row_limit():
+                        import_logger.warning(f"[{operation_id}] Reached Excel row limit of {get_excel_row_limit()}. Stopping processing.")
                         break
                     
                     # Calculate how many rows we can actually process from this chunk
-                    rows_left_to_process = EXCEL_ROW_LIMIT - processed_row_count
+                    rows_left_to_process = get_excel_row_limit() - processed_row_count
                     rows_to_process = min(chunk_size_actual, rows_left_to_process)
                     
                     # If we'll hit the limit within this chunk, log it
@@ -372,16 +372,15 @@ def generate_excel(params):
                 
                 # Update operation progress in the tracker
                 update_operation_progress(operation_id, total_rows, total_row_count_to_process)
-                
-                # Check if we've reached Excel's row limit - we do this at the batch level too
-                if processed_row_count >= EXCEL_ROW_LIMIT:
-                    import_logger.warning(f"[{operation_id}] Reached Excel row limit. Stopping at {EXCEL_ROW_LIMIT} rows.")
+                  # Check if we've reached Excel's row limit - we do this at the batch level too
+                if processed_row_count >= get_excel_row_limit():
+                    import_logger.warning(f"[{operation_id}] Reached Excel row limit. Stopping at {get_excel_row_limit()} rows.")
                     break
                 
                 # Log chunk progress for monitoring
-                progress_pct = min(100, int((total_rows / total_count) * 100))
+                progress_pct = min(100, int((total_rows / total_row_count_to_process) * 100))
                 import_logger.info(
-                    f"[{operation_id}] Processed chunk {chunk_idx} of {chunk_size_actual} rows in {chunk_time:.2f} seconds. Total: {total_rows}/{total_count} ({progress_pct}%)"
+                    f"[{operation_id}] Processed chunk {chunk_idx} of {chunk_size_actual} rows in {chunk_time:.2f} seconds. Total: {total_rows}/{total_row_count_to_process} ({progress_pct}%)"
                 )
                 
                 # Force garbage collection after each chunk
@@ -438,7 +437,7 @@ def generate_excel(params):
             execution_time = (datetime.now() - start_time).total_seconds()
             
             # Use the actual number of rows processed which is limited to Excel row limit
-            final_row_count = min(processed_row_count, EXCEL_ROW_LIMIT)
+            final_row_count = min(processed_row_count, get_excel_row_limit())
             
             # IMPORTANT: Pass parameters in the correct order to prevent 500 errors
             # Correct order: (operation_id, file_path, total_rows, execution_time)

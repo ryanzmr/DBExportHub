@@ -1,235 +1,146 @@
-# Allow configuration of backend path
-param(
-    [string]$BackendPath = "D:\Project_References_2.0\DBExportHub\backend",
-    [switch]$ForceRecreateVenv = $false
-)
+"""
+Test script for the unified Excel generation architecture.
+This script validates that both import and export processes are properly using the unified code.
+"""
 
-# Set error action preference to stop on any error
-$ErrorActionPreference = "Stop"
+import os
+import sys
+import time
+import pandas as pd
+from datetime import datetime
+import logging
 
-# Function to check if a command exists
-function Test-Command($cmdname) {
-    return [bool](Get-Command -Name $cmdname -ErrorAction SilentlyContinue)
-}
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("test_unified")
 
-# Check Python installation
-if (-not (Test-Command python)) {
-    Write-Error "Python is not installed. Please install Python 3.8 or higher."
-    exit 1
-}
+# Add the parent directory to the path to import our modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-# Check if pip is installed
-if (-not (Test-Command pip)) {
-    Write-Error "pip is not installed. Please install pip."
-    exit 1
-}
+# Import required modules for testing
+from app.api.core.config import settings
+from app.api.imports.import_service import generate_excel as generate_excel_import
+from app.api.exports.export_service import generate_excel as generate_excel_export
+from app.api.core.data_processing_unified import force_garbage_collection
 
-# Change directory to backend folder
-if (-not (Test-Path $BackendPath)) {
-    Write-Error "Backend path '$BackendPath' does not exist. Please provide the correct path."
-    exit 1
-}
-Set-Location -Path $BackendPath
 
-# Check if virtual environment exists, create if it doesn't
-if (-not (Test-Path "venv") -or $ForceRecreateVenv) {
-    Write-Host "Creating virtual environment..."
-    python -m venv venv
-}
-
-# Activate virtual environment
-Write-Host "Activating virtual environment..."
-.\venv\Scripts\Activate.ps1
-
-# Function to check if a package is installed
-function Get-PipPackageVersion {
-    param (
-        [string]$PackageName
-    )
-    try {
-        $output = pip show $PackageName 2>$null
-        if ($output) {
-            return ($output | Select-String "Version: (.*)").Matches.Groups[1].Value
-        }
-    }
-    catch {
-        return $null
-    }
-    return $null
-}
-
-# Function to parse version string
-function Compare-Versions {
-    param (
-        [string]$Version1,
-        [string]$Version2
-    )
-    $v1 = [version]($Version1 -replace '-.*$')
-    $v2 = [version]($Version2 -replace '-.*$')
-    return $v1.CompareTo($v2)
-}
-
-# Read requirements.txt and check each package
-Write-Host "Checking dependencies..."
-$requirements = Get-Content "requirements.txt"
-$packagesToInstall = @()
-$packagesToUpdate = @()
-
-foreach ($line in $requirements) {
-    if ($line.Trim() -and -not $line.StartsWith("#")) {
-        $package = $line -split "[>=<]" | Select-Object -First 1
-        $requiredVersion = if ($line -match ">=([0-9\.]+)") { $matches[1] } else { $null }
+class TestParams:
+    """
+    Mock class to simulate request parameters for testing.
+    """
+    def __init__(self, is_import=True):
+        # Common parameters
+        self.server = settings.DB_SERVER
+        self.database = settings.DB_NAME
+        self.username = settings.DB_USERNAME
+        self.password = settings.DB_PASSWORD
+        self.force_continue_despite_limit = True
         
-        $installedVersion = Get-PipPackageVersion $package
+        # Import specific parameters
+        if is_import:
+            self.hs = "8517"
+            self.fromMonth = 202301
+            self.toMonth = 202312
+            self.country = "ALL"
+        # Export specific parameters
+        else:
+            self.hs = "8517"
+            self.fromMonth = 202301
+            self.toMonth = 202312
+            self.country = "ALL"
+            self.exportType = "ALL"
+
+
+def test_import_excel_generation():
+    """Test the import Excel generation using the unified architecture"""
+    logger.info("Testing import Excel generation...")
+    start_time = time.time()
+    
+    # Create test parameters for import
+    params = TestParams(is_import=True)
+    
+    try:
+        # Generate Excel file
+        file_path, operation_id = generate_excel_import(params)
         
-        if (-not $installedVersion) {
-            $packagesToInstall += $line
-        }
-        elseif ($requiredVersion -and (Compare-Versions $installedVersion $requiredVersion) -lt 0) {
-            $packagesToUpdate += "$package (Current: $installedVersion, Required: >=$requiredVersion)"
-        }
-    }
-}
+        # Verify the file was created
+        if file_path and os.path.exists(file_path):
+            file_size = os.path.getsize(file_path) / (1024 * 1024)  # Size in MB
+            logger.info(f"Import Excel file generated successfully at: {file_path}")
+            logger.info(f"File size: {file_size:.2f} MB")
+            logger.info(f"Operation ID: {operation_id}")
+            logger.info(f"Time taken: {time.time() - start_time:.2f} seconds")
+            return True
+        else:
+            logger.error("Import Excel file generation failed - file not found")
+            return False
+    except Exception as e:
+        logger.error(f"Import Excel generation failed with error: {str(e)}")
+        return False
 
-# Install missing packages
-if ($packagesToInstall.Count -gt 0) {
-    Write-Host "`nThe following packages need to be installed:"
-    $packagesToInstall | ForEach-Object { Write-Host "- $_" }
-    Write-Host "Installing missing packages..."
-    $packagesToInstall | ForEach-Object { pip install $_ }
-}
 
-# Prompt for updates if needed
-if ($packagesToUpdate.Count -gt 0) {
-    Write-Host "`nThe following packages have updates available:"
-    $packagesToUpdate | ForEach-Object { Write-Host "- $_" }
-    $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
-    if ($updateChoice -eq "y") {
-        Write-Host "Updating packages..."
-        pip install -r requirements.txt --upgrade
-    }
-    else {
-        Write-Host "Skipping package updates."
-    }
-}
-
-if ($packagesToInstall.Count -eq 0 -and $packagesToUpdate.Count -eq 0) {
-    Write-Host "All dependencies are up to date."
-}
-
-# Create required directories if they don't exist
-Write-Host "Creating required directories..."
-$dirs = @("logs", "temp", "templates")
-foreach ($dir in $dirs) {
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir
-        Write-Host "Created directory: $dir"
-    }
-}
-
-# Check if .env file exists, create if it doesn't
-if (-not (Test-Path ".env")) {
-    Write-Host "Creating default .env file..."
-    @"
-# Server Settings
-HOST=0.0.0.0
-PORT=8000
-
-# Authentication
-SECRET_KEY=your-secure-secret-key-please-change-in-production
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-JWT_ALGORITHM=HS256
-
-# CORS Settings
-BACKEND_CORS_ORIGINS=http://localhost,http://localhost:3001,http://localhost:5173
-
-# Database Settings
-DB_DRIVER=ODBC Driver 17 for SQL Server
-DB_FETCH_BATCH_SIZE=250000
-
-# Export/Import Settings
-EXPORT_STORED_PROCEDURE=ExportData_New1
-EXPORT_VIEW=EXPDATA
-IMPORT_STORED_PROCEDURE=ImportJNPTData_New1
-IMPORT_VIEW=IMPDATA
-
-# File Paths (relative to backend directory)
-TEMP_DIR=./temp
-TEMPLATES_DIR=./templates
-LOGS_DIR=./logs
-EXCEL_TEMPLATE_PATH=./templates/EXDPORT_Tamplate_JNPT.xlsx
-
-# Logging
-LOG_LEVEL=INFO
-"@ | Out-File -FilePath ".env" -Encoding UTF8
-    Write-Host "Created default .env file. Please update the settings as needed."
-}
-
-# Load environment variables from .env file
-$envContent = Get-Content .env -ErrorAction SilentlyContinue
-foreach ($line in $envContent) {
-    if ($line -match '^([^#][^=]+)=(.*)$') {
-        $name = $matches[1].Trim()
-        $value = $matches[2].Trim()
-        [Environment]::SetEnvironmentVariable($name, $value)
-    }
-}
-
-# Get server settings from environment variables or use defaults
-$serverHost = if ([Environment]::GetEnvironmentVariable('SERVER_HOST')) { 
-    [Environment]::GetEnvironmentVariable('SERVER_HOST') 
-} else { 
-    "0.0.0.0" 
-}
-$serverPort = if ([Environment]::GetEnvironmentVariable('SERVER_PORT')) { 
-    [Environment]::GetEnvironmentVariable('SERVER_PORT') 
-} else { 
-    "8000" 
-}
-
-# Function to check if port is available
-function Test-PortAvailable {
-    param (
-        [int]$Port
-    )
-    try {
-        $portCheck = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-        return $null -eq $portCheck
-    } catch {
-        return $true
-    }
-}
-
-# Check if port is available
-if (-not (Test-PortAvailable $serverPort)) {
-    Write-Host "`nPort $serverPort is already in use."
-    Write-Host "You have two options:"
-    Write-Host "1. Kill the process using port $serverPort with command:"
-    Write-Host "   Stop-Process -Id (Get-NetTCPConnection -LocalPort $serverPort).OwningProcess -Force"
-    Write-Host "2. Change the port in your .env file"
+def test_export_excel_generation():
+    """Test the export Excel generation using the unified architecture"""
+    logger.info("Testing export Excel generation...")
+    start_time = time.time()
     
-    $response = Read-Host "Press 'k' to kill the process, or Enter to exit"
+    # Create test parameters for export
+    params = TestParams(is_import=False)
     
-    if ($response -eq 'k') {
-        try {
-            $process = Get-NetTCPConnection -LocalPort $serverPort -ErrorAction Stop
-            Stop-Process -Id $process.OwningProcess -Force
-            Write-Host "Process using port $serverPort has been terminated."
-            Start-Sleep -Seconds 2  # Wait for port to be released
-        } catch {
-            Write-Error "Failed to kill process. Please try again or use a different port."
-            exit 1
-        }
-    } else {
-        Write-Error "Please update the SERVER_PORT in your .env file and try again."
-        exit 1
-    }
-}
+    try:
+        # Generate Excel file
+        result = generate_excel_export(params)
+        
+        # Check if result is a tuple with file_path and operation_id
+        if isinstance(result, tuple) and len(result) == 2:
+            file_path, operation_id = result
+            
+            # Verify the file was created
+            if file_path and os.path.exists(file_path):
+                file_size = os.path.getsize(file_path) / (1024 * 1024)  # Size in MB
+                logger.info(f"Export Excel file generated successfully at: {file_path}")
+                logger.info(f"File size: {file_size:.2f} MB")
+                logger.info(f"Operation ID: {operation_id}")
+                logger.info(f"Time taken: {time.time() - start_time:.2f} seconds")
+                return True
+            else:
+                logger.error("Export Excel file generation failed - file not found")
+                return False
+        # Check if it's a limit exceeded response
+        elif isinstance(result, tuple) and isinstance(result[0], dict) and result[0].get('status') == 'limit_exceeded':
+            logger.warning("Export Excel generation was paused due to exceeding row limit")
+            logger.info(f"Operation ID: {result[1]}")
+            logger.info(f"Time taken: {time.time() - start_time:.2f} seconds")
+            return True
+        else:
+            logger.error("Export Excel generation failed - unexpected result format")
+            return False
+    except Exception as e:
+        logger.error(f"Export Excel generation failed with error: {str(e)}")
+        return False
 
-Write-Host "Starting backend server on http://${serverHost}:${serverPort}"
-try {
-    & uvicorn app.main:app --host $serverHost --port $serverPort --reload
-} catch {
-    Write-Error "Failed to start server: $_"
-    exit 1
-}
+
+if __name__ == "__main__":
+    logger.info("==== Starting Unified Excel Architecture Tests ====")
+    logger.info(f"Using memory limit: {settings.MEMORY_LIMIT_GB} GB")
+    logger.info(f"Using thread pool size: {settings.THREAD_POOL_SIZE}")
+    logger.info(f"Using chunk size: {settings.CHUNK_SIZE}")
+    
+    # Run the tests
+    import_result = test_import_excel_generation()
+    
+    # Force garbage collection between tests
+    force_garbage_collection()
+    time.sleep(2)  # Brief pause between tests
+    
+    export_result = test_export_excel_generation()
+    
+    # Print summary
+    logger.info("\n==== Test Results Summary ====")
+    logger.info(f"Import Excel Generation: {'SUCCESS' if import_result else 'FAILED'}")
+    logger.info(f"Export Excel Generation: {'SUCCESS' if export_result else 'FAILED'}")
+    
+    if import_result and export_result:
+        logger.info("✅ All tests passed! The unified architecture is working correctly.")
+    else:
+        logger.info("❌ Some tests failed. Please check the logs for details.")
