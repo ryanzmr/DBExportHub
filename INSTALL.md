@@ -172,11 +172,11 @@ VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-The frontend development server will start running at http://localhost:3000 or http://localhost:5173 (depending on Vite configuration).
+The frontend development server will start running at http://localhost:3001 by default.
 
 ## Accessing the Application
 
-Once both the backend and frontend servers are running, you can access the application by opening your web browser and navigating to the frontend URL (http://localhost:3000 or http://localhost:5173).
+Once both the backend and frontend servers are running, you can access the application by opening your web browser and navigating to http://localhost:3001.
 
 ## Authentication System
 
