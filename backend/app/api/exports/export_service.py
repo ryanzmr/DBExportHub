@@ -20,7 +20,7 @@ from ..database_operations.export_database import (
     get_first_row_hs_code,
     get_column_headers,
     get_total_row_count,
-    fetch_data_in_chunks
+    fetch_data_in_chunks_export  # Use the new optimized function
 )
 from ..core.logging_utils import (
     generate_operation_id,
@@ -48,8 +48,10 @@ from ..core.operation_tracker import (
     is_operation_cancelled
 )
 
-# Constants
-EXCEL_ROW_LIMIT = 1048576  # Maximum number of rows in modern Excel
+# Constants - now configurable through settings
+def get_excel_row_limit():
+    """Get Excel row limit from configuration"""
+    return settings.EXCEL_ROW_LIMIT
 
 def cleanup_on_error(workbook, file_path):
     """Clean up resources when an error occurs during Excel generation"""
@@ -153,19 +155,17 @@ def generate_excel(params):
             if is_operation_cancelled(operation_id):
                 export_logger.info(f"[{operation_id}] Export operation cancelled before execution")
                 raise Exception("Operation cancelled by user")
-                
-            # Execute the export procedure and get record count
+                  # Execute the export procedure and get record count
             start_time = datetime.now()
             record_count, cache_used = execute_export_procedure(conn, params, operation_id)
             
             # Check if the record count exceeds Excel's row limit
-            if record_count > EXCEL_ROW_LIMIT:
+            if record_count > get_excel_row_limit():
                 export_logger.warning(
-                    f"[{operation_id}] Record count ({record_count}) exceeds Excel row limit ({EXCEL_ROW_LIMIT}). "
-                    f"Only first {EXCEL_ROW_LIMIT} rows will be exported."
+                    f"[{operation_id}] Record count ({record_count}) exceeds Excel row limit ({get_excel_row_limit()}). "
+                    f"Only first {get_excel_row_limit()} rows will be exported."
                 )
-                
-                # If user hasn't explicitly confirmed to continue with limited data,
+                  # If user hasn't explicitly confirmed to continue with limited data,
                 # we'll check for a flag in params
                 if not params.force_continue_despite_limit:
                     # Check if the client explicitly instructed to continue despite the limit
@@ -174,10 +174,10 @@ def generate_excel(params):
                         # Return information about the limit being reached
                         return {
                             "status": "limit_exceeded",
-                            "message": f"Total records ({record_count}) exceeds Excel row limit ({EXCEL_ROW_LIMIT})",
+                            "message": f"Total records ({record_count}) exceeds Excel row limit ({get_excel_row_limit()})",
                             "operation_id": operation_id,
                             "total_records": record_count,
-                            "limit": EXCEL_ROW_LIMIT
+                            "limit": get_excel_row_limit()
                         }, operation_id
             
             # Check for cancellation after procedure execution
@@ -221,55 +221,48 @@ def generate_excel(params):
             max_widths = [len(str(h)) if h else 0 for h in columns]
             min_width = 8 # Ensure a minimum width
             padding = 1 # Padding for autofit
-            
-            # Get total row count for progress tracking
+              # Get total row count for progress tracking
             total_count = get_total_row_count(conn, operation_id)
             export_logger.info(f"[{operation_id}] Total rows to export: {total_count}")
-            
-            # If total count exceeds Excel limit, we'll only process up to the limit
-            if total_count > EXCEL_ROW_LIMIT:
+              # If total count exceeds Excel limit, we'll only process up to the limit
+            if total_count > get_excel_row_limit():
                 export_logger.warning(
-                    f"[{operation_id}] Limiting export to {EXCEL_ROW_LIMIT} rows out of {total_count} total records."
+                    f"[{operation_id}] Limiting export to {get_excel_row_limit()} rows out of {total_count} total records."
                 )
-                total_count = EXCEL_ROW_LIMIT
+                total_count = get_excel_row_limit()
+                
+                # Update operation details with the limited row count so database function uses correct limit
+                from ..core.operation_tracker import _operations_lock, get_operation_details
+                operation_details = get_operation_details(operation_id)
+                if operation_details:
+                    with _operations_lock:
+                        operation_details['max_rows'] = total_count
             
             # Optimize memory usage by using server-side cursor
             conn.execute("SET NOCOUNT ON")
             
             # Variables to track total rows processed
             total_rows = 0
-            offset = 0
-
-            # Loop until all data is processed or Excel limit is reached
-            while total_rows < total_count:
+            
+            # Use the new optimized fetch_data_in_chunks_export generator
+            for chunk_num, df in enumerate(fetch_data_in_chunks_export(conn, operation_id), 1):
                 # Check if operation has been cancelled before processing each chunk
                 if is_operation_cancelled(operation_id):
                     export_logger.info(f"[{operation_id}] Operation cancelled during Excel generation at row {total_rows}/{total_count}")
                     cleanup_on_error(workbook, file_path)
                     raise Exception("Operation cancelled by user")
-            
+                
                 chunk_start = datetime.now()
                 
-                # Fetch data in chunks using configured size
-                batch_size = settings.DB_FETCH_BATCH_SIZE
-                cursor = fetch_data_in_chunks(conn, batch_size, offset, operation_id)
-                
-                # Process all rows from this chunk's cursor
-                rows = cursor.fetchall()
-                cursor.close()
-                
-                if not rows:
-                    break
-                    
                 # Process this chunk of data
-                chunk_size_actual = len(rows)
+                chunk_size_actual = len(df)
                 row_idx = total_rows + 1  # Start from after the last processed row (1-based for Excel)
                 
                 # Write the chunk data to Excel
-                for row in rows:
+                for _, row in df.iterrows():
                     # Check if we've reached Excel's row limit
-                    if total_rows >= EXCEL_ROW_LIMIT:
-                        export_logger.warning(f"[{operation_id}] Reached Excel row limit. Stopping at {EXCEL_ROW_LIMIT} rows.")
+                    if total_rows >= get_excel_row_limit():
+                        export_logger.warning(f"[{operation_id}] Reached Excel row limit. Stopping at {get_excel_row_limit()} rows.")
                         break
                         
                     # Check for cancellation periodically 
@@ -291,9 +284,6 @@ def generate_excel(params):
                     row_idx += 1
                     total_rows += 1
                 
-                # Update counters for the next chunk using configured size
-                offset += batch_size
-                
                 # Calculate chunk processing time
                 chunk_time = (datetime.now() - chunk_start).total_seconds()
                 
@@ -301,14 +291,15 @@ def generate_excel(params):
                 update_operation_progress(operation_id, total_rows, total_count)
                 
                 # Check if we've reached Excel's row limit
-                if total_rows >= EXCEL_ROW_LIMIT:
+                if total_rows >= get_excel_row_limit():
                     break
                 
                 # Log the current chunk progress with accumulated totals
                 export_logger.info(
-                    f"[{operation_id}] Processed chunk of {chunk_size_actual} rows in {chunk_time:.6f} seconds. Total: {total_rows}/{total_count} ({min(100, int((total_rows / total_count) * 100))}%)",
+                    f"[{operation_id}] Processed chunk {chunk_num} of {chunk_size_actual} rows in {chunk_time:.2f} seconds. Total: {total_rows}/{total_count} ({min(100, int((total_rows / total_count) * 100))}%)",
                     extra={
                         "operation_id": operation_id,
+                        "chunk_num": chunk_num,
                         "rows_processed": chunk_size_actual,
                         "chunk_time": chunk_time,
                         "total_rows": total_rows,

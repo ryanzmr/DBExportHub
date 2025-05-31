@@ -143,11 +143,9 @@ def preview_data(params):
             if is_operation_cancelled(operation_id):
                 import_logger.info(f"[{operation_id}] Preview operation cancelled after procedure execution")
                 raise Exception("Operation cancelled by user")
-                
-            # Get the total row count
+                  # Get the total row count
             total_count = get_total_row_count_import(conn, operation_id)
-            
-            # Get preview data (limited to 100 rows)
+              # Get preview data (limited to configurable sample size from settings.PREVIEW_SAMPLE_SIZE)
             preview_data_df = get_preview_data_import(conn, operation_id)
             
             # Get column headers

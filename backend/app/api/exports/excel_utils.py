@@ -159,9 +159,8 @@ def write_data_to_excel(worksheet, cursor, data_format, date_format, operation_i
     """Write data to Excel worksheet in batches (NOTE: This function might be unused)"""
     # Import here to avoid circular imports
     from ..core.operation_tracker import is_operation_cancelled
-    
-    # Process data in chunks with optimized approach for large datasets
-    batch_size = settings.DB_FETCH_BATCH_SIZE  # Use configured batch size
+      # Process data in chunks with optimized approach for large datasets
+    batch_size = settings.get_batch_size('export')  # Use export-specific batch size
     row_idx = 1  # Start from row 1 (after header)
     total_rows = 0
     
