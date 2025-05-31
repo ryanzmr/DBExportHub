@@ -53,15 +53,15 @@ class Settings:
         )
 
         # Logging settings
-        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-
-        # CORS settings
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")        # CORS settings
         self.BACKEND_CORS_ORIGINS = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost")
         self.CORS_ORIGINS_LIST = [
             origin.strip() 
             for origin in self.BACKEND_CORS_ORIGINS.split(",") 
             if origin.strip()
-        ]        # Ensure required directories exist
+        ]
+        
+        # Ensure required directories exist
         self._create_required_dirs()
 
     def get_batch_size(self, module_type: str = 'default') -> int:
@@ -80,6 +80,15 @@ class Settings:
             return self.DB_BATCH_SIZE_EXPORT
         else:
             return self.DB_FETCH_BATCH_SIZE
+
+    def get_excel_row_limit(self) -> int:
+        """
+        Get the Excel row limit from configuration.
+        
+        Returns:
+            int: Maximum number of rows allowed in Excel files
+        """
+        return self.EXCEL_ROW_LIMIT
 
     def _resolve_path(self, path: str) -> str:
         """Convert relative paths to absolute paths relative to backend directory"""

@@ -233,10 +233,10 @@ def get_first_row_hs_code_import(conn, operation_id):
 def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
     """Fetch data in chunks to avoid memory issues - using cursor-based approach like the export system"""
     # Import here to avoid circular imports
-    from ..core.operation_tracker import is_operation_cancelled, get_operation_details
+    from ..core.operation_tracker import is_operation_cancelled, get_operation_details, _operations_lock
     
     if batch_size is None:
-        batch_size = settings.DB_FETCH_BATCH_SIZE
+        batch_size = settings.get_batch_size('import')
     
     # Get operation details which should already have total_count cached
     operation_details = get_operation_details(operation_id)
