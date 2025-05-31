@@ -37,7 +37,7 @@ app = FastAPI(
 
 # Configure CORS - IMPORTANT: This must be added before any routes
 # Get CORS origins from environment variable
-backend_cors_origins = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3000,http://localhost:5173")
+backend_cors_origins = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost,http://localhost:3001,http://localhost:5173")
 origins = [origin.strip() for origin in backend_cors_origins.split(",") if origin.strip()]
 
 app.add_middleware(

@@ -235,7 +235,7 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
    npm run dev
    ```
 
-5. Access the application at `http://localhost:3000` or `http://localhost:5173` (depending on Vite configuration)
+5. Access the application at `http://localhost:3001`
 
 ## Code Structure & Module Explanation
 

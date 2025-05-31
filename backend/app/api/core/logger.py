@@ -49,7 +49,7 @@ def setup_logging():
     Set up logging with both console and file handlers
     """
     # Create logs directory if it doesn't exist
-    logs_dir = Path(settings.LOG_DIR)
+    logs_dir = Path(settings.LOGS_DIR)
     os.makedirs(logs_dir, exist_ok=True)
     
     # Configure root logger

@@ -5,11 +5,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    // Use true to enable all interfaces but the server will display them nicely
-    host: true,
-    port: 3000,
-    strictPort: true,
-    cors: false,
+    host: true, // Enable all network interfaces
+    port: parseInt(process.env.VITE_PORT || '3001', 10),
+    strictPort: true, // Fail if port is not available
+    cors: true, // Enable CORS for development
     hmr: {
       overlay: false,
     },

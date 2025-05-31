@@ -1,3 +1,9 @@
+# Allow configuration of backend path
+param(
+    [string]$BackendPath = "D:\Project_References_2.0\DBExportHub\backend",
+    [switch]$ForceRecreateVenv = $false
+)
+
 # Set error action preference to stop on any error
 $ErrorActionPreference = "Stop"
 
@@ -19,12 +25,11 @@ if (-not (Test-Command pip)) {
 }
 
 # Change directory to backend folder
-Set-Location -Path $PSScriptRoot\backend
-
-# Allow for force recreation of virtual environment
-param(
-    [switch]$ForceRecreateVenv = $false
-)
+if (-not (Test-Path $BackendPath)) {
+    Write-Error "Backend path '$BackendPath' does not exist. Please provide the correct path."
+    exit 1
+}
+Set-Location -Path $BackendPath
 
 # Check if virtual environment exists, create if it doesn't
 if (-not (Test-Path "venv") -or $ForceRecreateVenv) {
@@ -36,9 +41,81 @@ if (-not (Test-Path "venv") -or $ForceRecreateVenv) {
 Write-Host "Activating virtual environment..."
 .\venv\Scripts\Activate.ps1
 
-# Install/Update dependencies
-Write-Host "Installing/Updating dependencies..."
-pip install -r requirements.txt
+# Function to check if a package is installed
+function Get-PipPackageVersion {
+    param (
+        [string]$PackageName
+    )
+    try {
+        $output = pip show $PackageName 2>$null
+        if ($output) {
+            return ($output | Select-String "Version: (.*)").Matches.Groups[1].Value
+        }
+    }
+    catch {
+        return $null
+    }
+    return $null
+}
+
+# Function to parse version string
+function Compare-Versions {
+    param (
+        [string]$Version1,
+        [string]$Version2
+    )
+    $v1 = [version]($Version1 -replace '-.*$')
+    $v2 = [version]($Version2 -replace '-.*$')
+    return $v1.CompareTo($v2)
+}
+
+# Read requirements.txt and check each package
+Write-Host "Checking dependencies..."
+$requirements = Get-Content "requirements.txt"
+$packagesToInstall = @()
+$packagesToUpdate = @()
+
+foreach ($line in $requirements) {
+    if ($line.Trim() -and -not $line.StartsWith("#")) {
+        $package = $line -split "[>=<]" | Select-Object -First 1
+        $requiredVersion = if ($line -match ">=([0-9\.]+)") { $matches[1] } else { $null }
+        
+        $installedVersion = Get-PipPackageVersion $package
+        
+        if (-not $installedVersion) {
+            $packagesToInstall += $line
+        }
+        elseif ($requiredVersion -and (Compare-Versions $installedVersion $requiredVersion) -lt 0) {
+            $packagesToUpdate += "$package (Current: $installedVersion, Required: >=$requiredVersion)"
+        }
+    }
+}
+
+# Install missing packages
+if ($packagesToInstall.Count -gt 0) {
+    Write-Host "`nThe following packages need to be installed:"
+    $packagesToInstall | ForEach-Object { Write-Host "- $_" }
+    Write-Host "Installing missing packages..."
+    $packagesToInstall | ForEach-Object { pip install $_ }
+}
+
+# Prompt for updates if needed
+if ($packagesToUpdate.Count -gt 0) {
+    Write-Host "`nThe following packages have updates available:"
+    $packagesToUpdate | ForEach-Object { Write-Host "- $_" }
+    $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
+    if ($updateChoice -eq "y") {
+        Write-Host "Updating packages..."
+        pip install -r requirements.txt --upgrade
+    }
+    else {
+        Write-Host "Skipping package updates."
+    }
+}
+
+if ($packagesToInstall.Count -eq 0 -and $packagesToUpdate.Count -eq 0) {
+    Write-Host "All dependencies are up to date."
+}
 
 # Create required directories if they don't exist
 Write-Host "Creating required directories..."
@@ -54,41 +131,77 @@ foreach ($dir in $dirs) {
 if (-not (Test-Path ".env")) {
     Write-Host "Creating default .env file..."
     @"
+# Server Settings
+HOST=0.0.0.0
+PORT=8000
+
 # Authentication
 SECRET_KEY=your-secure-secret-key-please-change-in-production
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+JWT_ALGORITHM=HS256
 
 # CORS Settings
-BACKEND_CORS_ORIGINS=http://localhost,http://localhost:3000,http://localhost:5173
+BACKEND_CORS_ORIGINS=http://localhost,http://localhost:3001,http://localhost:5173
 
 # Database Settings
 DB_DRIVER=ODBC Driver 17 for SQL Server
+DB_FETCH_BATCH_SIZE=250000
 
-# File Paths
+# Export/Import Settings
+EXPORT_STORED_PROCEDURE=ExportData_New1
+EXPORT_VIEW=EXPDATA
+IMPORT_STORED_PROCEDURE=ImportJNPTData_New1
+IMPORT_VIEW=IMPDATA
+
+# File Paths (relative to backend directory)
 TEMP_DIR=./temp
 TEMPLATES_DIR=./templates
 LOGS_DIR=./logs
+EXCEL_TEMPLATE_PATH=./templates/EXDPORT_Tamplate_JNPT.xlsx
+
+# Logging
+LOG_LEVEL=INFO
 "@ | Out-File -FilePath ".env" -Encoding UTF8
     Write-Host "Created default .env file. Please update the settings as needed."
 }
 
-# Check if port 8000 is available
+# Load environment variables from .env file
+$envContent = Get-Content .env -ErrorAction SilentlyContinue
+foreach ($line in $envContent) {
+    if ($line -match '^([^#][^=]+)=(.*)$') {
+        $name = $matches[1].Trim()
+        $value = $matches[2].Trim()
+        [Environment]::SetEnvironmentVariable($name, $value)
+    }
+}
+
+# Get server settings from environment variables or use defaults
+$serverHost = if ([Environment]::GetEnvironmentVariable('SERVER_HOST')) { 
+    [Environment]::GetEnvironmentVariable('SERVER_HOST') 
+} else { 
+    "0.0.0.0" 
+}
+$serverPort = if ([Environment]::GetEnvironmentVariable('SERVER_PORT')) { 
+    [Environment]::GetEnvironmentVariable('SERVER_PORT') 
+} else { 
+    "8000" 
+}
+
+# Check if port is available
 try {
-    $portCheck = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue
+    $portCheck = Get-NetTCPConnection -LocalPort $serverPort -ErrorAction SilentlyContinue
     if ($portCheck) {
-        Write-Error "Port 8000 is already in use. Please free up the port or use a different port."
+        Write-Error "Port $serverPort is already in use. Please free up the port or use a different port in .env file."
         exit 1
     }
 } catch {
     # If the command fails, it likely means the port is free
 }
 
-# Start the backend server
-Write-Host "Starting backend server on http://localhost:8000"
+Write-Host "Starting backend server on http://${serverHost}:${serverPort}"
 try {
-    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    & uvicorn app.main:app --host $serverHost --port $serverPort --reload
 } catch {
     Write-Error "Failed to start server: $_"
     exit 1
 }
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
