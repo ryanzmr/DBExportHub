@@ -53,47 +53,68 @@ function Compare-PackageVersions {
     }
 }
 
-# Check if node_modules exists
-if (-not (Test-Path "node_modules") -or $ForceInstall) {
+# First check for missing dependencies
+if (-not (Test-Path "node_modules")) {
     Write-Host "Node modules not found. Installing dependencies..."
     npm install
 }
-else {
-    # Read package.json
-    $packageJson = Get-Content "package.json" | ConvertFrom-Json
-    
-    # Check installed versions against package.json
-    Write-Host "Checking dependencies..."
-    $outdatedInfo = $null
-    try {
-        $outdatedJson = npm outdated --json 2>$null
-        if ($outdatedJson) {
-            $outdatedInfo = $outdatedJson | ConvertFrom-Json -AsHashtable
-        }
-    }
-    catch {
-        Write-Host "Unable to check for updates. Continuing with existing packages..."
-    }
 
-    if ($outdatedInfo -and $outdatedInfo.Count -gt 0) {
-        Write-Host "`nThe following packages have updates available:"
+# Check for outdated packages
+Write-Host "Checking package status..."
+$outdatedInfo = $null
+$missingPackages = @()
+$outdatedPackages = @()
+
+try {
+    # Check if any packages are missing or outdated
+    Write-Host "Running 'npm outdated' to check package versions..."
+    $outdatedJson = npm outdated --json 2>$null
+    if ($outdatedJson -and $outdatedJson.Trim() -ne "{}") {
+        $outdatedInfo = $outdatedJson | ConvertFrom-Json -AsHashtable
+        
+        # Separate missing and outdated packages
         foreach ($package in $outdatedInfo.Keys) {
             $info = $outdatedInfo[$package]
-            Write-Host "- $package (Current: $($info.current), Available: $($info.latest))"
+            if (-not $info.current) {
+                $missingPackages += $package
+            } else {
+                $outdatedPackages += @{
+                    Name = $package
+                    Current = $info.current
+                    Latest = $info.latest
+                }
+            }
         }
         
-        $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
-        if ($updateChoice -eq "y") {
-            Write-Host "Updating packages..."
-            npm install
+        # Install missing packages automatically
+        if ($missingPackages.Count -gt 0) {
+            Write-Host "`nInstalling missing packages: $($missingPackages -join ', ')"
+            npm install $($missingPackages -join ' ')
         }
-        else {
-            Write-Host "Skipping package updates."
+        
+        # Prompt for updates to existing packages
+        if ($outdatedPackages.Count -gt 0) {
+            Write-Host "`nThe following packages have updates available:"
+            foreach ($package in $outdatedPackages) {
+                Write-Host "- $($package.Name) (Current: $($package.Current), Available: $($package.Latest))"
+            }
+            
+            $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
+            if ($updateChoice -eq "y") {
+                Write-Host "Updating packages..."
+                npm install
+            }
+            else {
+                Write-Host "Skipping package updates."
+            }
         }
+    } else {
+        Write-Host "All packages are up to date."
     }
-    else {
-        Write-Host "All dependencies are up to date."
-    }
+}
+catch {
+    Write-Host "Note: Unable to check for package updates. This is normal if npm is not initialized or if there are no packages installed yet."
+    Write-Host "The script will continue with installation if needed."
 }
 
 # Check if the build is needed
@@ -115,14 +136,35 @@ function Test-PortAvailable {
     }
 }
 
-# Find an available port starting from the preferred port
-$currentPort = $Port
-while (-not (Test-PortAvailable $currentPort)) {
-    Write-Host "Port $currentPort is in use, trying next port..."
-    $currentPort++
+# Check if default port is in use
+if (-not (Test-PortAvailable $Port)) {
+    Write-Host "`nPort $Port is already in use."
+    Write-Host "You have two options:"
+    Write-Host "1. Kill the process using port $Port with command: 'Stop-Process -Id (Get-NetTCPConnection -LocalPort $Port).OwningProcess -Force'"
+    Write-Host "2. Use a different port by pressing Enter (will try port $(($Port + 1)))"
+    
+    $response = Read-Host "Press 'k' to kill the process, or Enter to use a different port"
+    
+    if ($response -eq 'k') {
+        try {
+            $process = Get-NetTCPConnection -LocalPort $Port -ErrorAction Stop
+            Stop-Process -Id $process.OwningProcess -Force
+            Write-Host "Process using port $Port has been terminated."
+            $currentPort = $Port
+            Start-Sleep -Seconds 2  # Wait for port to be released
+        } catch {
+            Write-Host "Failed to kill process. Will try alternative port."
+            $currentPort = $Port + 1
+        }
+    } else {
+        $currentPort = $Port + 1
+        Write-Host "Switching to port $currentPort"
+    }
+} else {
+    $currentPort = $Port
 }
 
 # Start the development server
-Write-Host "Starting frontend server on port $currentPort..."
+Write-Host "`nStarting frontend server on port $currentPort..."
 $env:VITE_PORT = $currentPort
 npm run dev -- --port=$currentPort --host
