@@ -29,7 +29,16 @@ class Settings:
         self.EXPORT_VIEW = os.getenv("EXPORT_VIEW", "EXPDATA")
         self.IMPORT_STORED_PROCEDURE = os.getenv("IMPORT_STORED_PROCEDURE", "ImportJNPTData_New1")
         self.IMPORT_VIEW = os.getenv("IMPORT_VIEW", "IMPDATA")
-        self.DB_FETCH_BATCH_SIZE = int(os.getenv("DB_FETCH_BATCH_SIZE", "250000"))
+        self.DB_FETCH_BATCH_SIZE = int(os.getenv("DB_FETCH_BATCH_SIZE", "150000"))  # Optimized universal batch size
+        
+        # Performance tuning settings
+        self.DB_CURSOR_ARRAY_SIZE = int(os.getenv("DB_CURSOR_ARRAY_SIZE", "10000"))
+        self.EXCEL_ROW_LIMIT = int(os.getenv("EXCEL_ROW_LIMIT", "1048576"))
+        self.PREVIEW_SAMPLE_SIZE = int(os.getenv("PREVIEW_SAMPLE_SIZE", "100"))
+        
+        # Module-specific batch size overrides (optional)
+        self.DB_BATCH_SIZE_IMPORT = int(os.getenv("DB_BATCH_SIZE_IMPORT", self.DB_FETCH_BATCH_SIZE))
+        self.DB_BATCH_SIZE_EXPORT = int(os.getenv("DB_BATCH_SIZE_EXPORT", self.DB_FETCH_BATCH_SIZE))
 
         # File paths (relative to backend directory)
         self._base_dir = Path(__file__).resolve().parent.parent.parent.parent
@@ -52,10 +61,25 @@ class Settings:
             origin.strip() 
             for origin in self.BACKEND_CORS_ORIGINS.split(",") 
             if origin.strip()
-        ]
-
-        # Ensure required directories exist
+        ]        # Ensure required directories exist
         self._create_required_dirs()
+
+    def get_batch_size(self, module_type: str = 'default') -> int:
+        """
+        Get batch size for specific module with fallback hierarchy.
+        
+        Args:
+            module_type: 'import', 'export', or 'default'
+            
+        Returns:
+            int: Appropriate batch size for the module
+        """
+        if module_type.lower() == 'import':
+            return self.DB_BATCH_SIZE_IMPORT
+        elif module_type.lower() == 'export':
+            return self.DB_BATCH_SIZE_EXPORT
+        else:
+            return self.DB_FETCH_BATCH_SIZE
 
     def _resolve_path(self, path: str) -> str:
         """Convert relative paths to absolute paths relative to backend directory"""

@@ -126,19 +126,23 @@ def execute_import_procedure(conn, params, operation_id):
         return _query_cache["record_count"], True
 
 @log_execution_time
-def get_preview_data_import(conn, operation_id, sample_size=100):
+def get_preview_data_import(conn, operation_id, sample_size=None):
     """Get a limited number of rows for preview
     
     Args:
         conn: Database connection
         operation_id: Operation ID for tracking
-        sample_size: Number of rows to fetch (default 100)
+        sample_size: Number of rows to fetch (uses configurable default if None)
     
     Returns:
         DataFrame with preview data
     """
     # Import here to avoid circular imports
     from ..core.operation_tracker import is_operation_cancelled, update_operation_progress
+    
+    # Use configurable sample size if not provided
+    if sample_size is None:
+        sample_size = settings.PREVIEW_SAMPLE_SIZE
     
     # Check if operation has been cancelled
     if is_operation_cancelled(operation_id):
@@ -293,9 +297,8 @@ def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
     # Set up cursor with optimized fetch settings
     cursor = conn.cursor()
     cursor.execute(query)
-    
-    # Set cursor options for better performance
-    cursor.arraysize = 10000  # Increased batch size for better performance
+      # Set cursor options for better performance - now configurable
+    cursor.arraysize = settings.DB_CURSOR_ARRAY_SIZE  # Configurable batch size for better performance
     
     try:
         # Process data in batches using cursor-based approach
