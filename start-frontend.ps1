@@ -167,4 +167,4 @@ if (-not (Test-PortAvailable $Port)) {
 # Start the development server
 Write-Host "`nStarting frontend server on port $currentPort..."
 $env:VITE_PORT = $currentPort
-npm run dev -- --port=$currentPort --host
+npm run dev

@@ -1,8 +1,7 @@
 {
   "name": "dbexporthub-frontend",
   "version": "0.1.0",
-  "private": true,
-  "scripts": {
+  "private": true,  "scripts": {
     "dev": "vite",
     "start": "vite",
     "build": "vite build",
