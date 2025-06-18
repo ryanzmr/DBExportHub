@@ -35,11 +35,12 @@ def _params_match(cached_params, new_params):
     
     return True
 
-def _check_temp_table_exists(conn):
+def _check_temp_table_exists(conn, view_name=None):
     """Check if the temporary table exists and has data"""
+    view_to_check = view_name or settings.EXPORT_VIEW
     try:
         cursor = conn.cursor()
-        cursor.execute(f"SELECT TOP 1 * FROM {settings.EXPORT_VIEW}")
+        cursor.execute(f"SELECT TOP 1 * FROM {view_to_check}")
         has_data = cursor.fetchone() is not None
         cursor.close()
         return has_data
@@ -57,7 +58,15 @@ def execute_export_procedure(conn, params, operation_id):
         db_logger.info(f"[{operation_id}] Operation cancelled before executing stored procedure")
         raise Exception("Operation cancelled by user")
     
-    # Build the query parameters for the stored procedure
+    # Determine which view to use based on selectedView parameter
+    selected_view_key = params.selectedView or "EXPORT_VIEW_1"
+    selected_view = settings.EXPORT_VIEWS.get(selected_view_key, {}).get("value", settings.EXPORT_VIEW)
+    
+    db_logger.info(
+        f"[{operation_id}] Using view: {selected_view}",
+        extra={"operation_id": operation_id, "selected_view": selected_view}
+    )
+      # Build the query parameters for the stored procedure
     sp_params = {
         "fromMonth": params.fromMonth,
         "ToMonth": params.toMonth,
@@ -70,8 +79,12 @@ def execute_export_procedure(conn, params, operation_id):
         "port": params.port or ""
     }
     
+    # Determine which view to use
+    selected_view_key = params.selectedView or "EXPORT_VIEW_1"
+    selected_view = settings.EXPORT_VIEWS.get(selected_view_key, {}).get("value", settings.EXPORT_VIEW)
+    
     # Check if we need to re-execute the stored procedure
-    cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn)
+    cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn, selected_view)
     
     if not cache_valid:
         db_logger.info(
@@ -150,8 +163,15 @@ def get_preview_data(conn, params, operation_id):
         db_logger.info(f"[{operation_id}] Preview operation cancelled before query execution")
         raise Exception("Operation cancelled by user")
     
-    preview_query = f"SELECT TOP {settings.PREVIEW_SAMPLE_SIZE} * FROM {settings.EXPORT_VIEW}"
-    db_logger.debug(f"[{operation_id}] Executing preview query: {preview_query}", extra={"operation_id": operation_id})
+    # Determine which view to use
+    selected_view_key = params.selectedView or "EXPORT_VIEW_1"
+    selected_view = settings.EXPORT_VIEWS.get(selected_view_key, {}).get("value", settings.EXPORT_VIEW)
+    
+    preview_query = f"SELECT TOP {settings.PREVIEW_SAMPLE_SIZE} * FROM {selected_view}"
+    db_logger.debug(
+        f"[{operation_id}] Executing preview query on view {selected_view}: {preview_query}", 
+        extra={"operation_id": operation_id, "selected_view": selected_view}
+    )
     
     query_start_time = datetime.now()
     
@@ -175,7 +195,7 @@ def get_preview_data(conn, params, operation_id):
     
     return df
 
-def get_first_row_hs_code(conn, operation_id=None):
+def get_first_row_hs_code(conn, operation_id=None, view_name=None):
     """Get the first row's HS code for the filename"""
     # Check for cancellation if operation_id is provided
     if operation_id:
@@ -185,7 +205,8 @@ def get_first_row_hs_code(conn, operation_id=None):
             db_logger.info(f"[{operation_id}] Operation cancelled before getting HS code")
             raise Exception("Operation cancelled by user")
     
-    hs_code_query = f"SELECT TOP 1 [Hs_Code] FROM {settings.EXPORT_VIEW}"
+    view_to_query = view_name or settings.EXPORT_VIEW
+    hs_code_query = f"SELECT TOP 1 [Hs_Code] FROM {view_to_query}"
     cursor = conn.cursor()
     cursor.execute(hs_code_query)
     first_row_hs = cursor.fetchone()
@@ -208,7 +229,7 @@ def get_column_headers(conn, operation_id=None):
     cursor.close()
     return columns
 
-def get_total_row_count(conn, operation_id=None):
+def get_total_row_count(conn, operation_id=None, view_name=None):
     """Get the total row count from the export view"""
     # Check for cancellation if operation_id is provided
     if operation_id:
@@ -218,8 +239,9 @@ def get_total_row_count(conn, operation_id=None):
             db_logger.info(f"[{operation_id}] Operation cancelled before getting row count")
             raise Exception("Operation cancelled by user")
     
+    view_to_query = view_name or settings.EXPORT_VIEW
     count_cursor = conn.cursor()
-    count_cursor.execute(f"SELECT COUNT(*) FROM {settings.EXPORT_VIEW}")
+    count_cursor.execute(f"SELECT COUNT(*) FROM {view_to_query}")
     total_count = count_cursor.fetchone()[0]
     count_cursor.close()
     return total_count
@@ -249,7 +271,7 @@ def fetch_data_in_chunks(conn, chunk_size, offset, operation_id):
     return cursor
 
 @log_execution_time
-def fetch_data_in_chunks_export(conn, operation_id, batch_size=None):
+def fetch_data_in_chunks_export(conn, operation_id, batch_size=None, params=None):
     """Fetch data in chunks to avoid memory issues - using optimized cursor-based approach like the import system"""
     # Import here to avoid circular imports
     from ..core.operation_tracker import is_operation_cancelled, get_operation_details
@@ -257,18 +279,25 @@ def fetch_data_in_chunks_export(conn, operation_id, batch_size=None):
     if batch_size is None:
         batch_size = settings.get_batch_size('export')
     
+    # Determine which view to use
+    selected_view = settings.EXPORT_VIEW
+    if params and hasattr(params, 'selectedView'):
+        selected_view_key = params.selectedView or "EXPORT_VIEW_1"
+        selected_view = settings.EXPORT_VIEWS.get(selected_view_key, {}).get("value", settings.EXPORT_VIEW)
+    
     # Get operation details which should already have total_count cached
     operation_details = get_operation_details(operation_id)
     
     # Use cached total count if available, otherwise fetch it (fallback)
     total_count = operation_details.get('total_count') if operation_details else None
     if total_count is None:
-        total_count = get_total_row_count(conn, operation_id)
+        total_count = get_total_row_count(conn, operation_id, selected_view)
         # Cache it if we had to look it up
         if operation_details:
             with _operations_lock:
                 operation_details['total_count'] = total_count
-      # Check if we need to limit the number of rows due to Excel row limit
+    
+    # Check if we need to limit the number of rows due to Excel row limit
     excel_row_limit = settings.get_excel_row_limit()
     
     # Check operation details for max_rows override (e.g., user confirmed Excel limit)
@@ -305,13 +334,14 @@ def fetch_data_in_chunks_export(conn, operation_id, batch_size=None):
     
     # Execute one query to get all the data and use a cursor-based approach like the import system
     # Build the main query once
-    query = f"SELECT * FROM {settings.EXPORT_VIEW}"
+    query = f"SELECT * FROM {selected_view}"
     
     db_logger.debug(
-        f"[{operation_id}] Executing main query and setting up cursor",
+        f"[{operation_id}] Executing main query on view {selected_view} and setting up cursor",
         extra={
             "operation_id": operation_id,
-            "rows_to_fetch": rows_to_fetch
+            "rows_to_fetch": rows_to_fetch,
+            "selected_view": selected_view
         }
     )
     

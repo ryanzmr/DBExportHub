@@ -139,26 +139,22 @@ function Test-PortAvailable {
 # Check if default port is in use
 if (-not (Test-PortAvailable $Port)) {
     Write-Host "`nPort $Port is already in use."
-    Write-Host "You have two options:"
-    Write-Host "1. Kill the process using port $Port with command: 'Stop-Process -Id (Get-NetTCPConnection -LocalPort $Port).OwningProcess -Force'"
-    Write-Host "2. Use a different port by pressing Enter (will try port $(($Port + 1)))"
     
-    $response = Read-Host "Press 'k' to kill the process, or Enter to use a different port"
+    # Try to find the next available port
+    $currentPort = $Port
+    $maxPortToTry = $Port + 10  # Try up to 10 ports after the specified one
     
-    if ($response -eq 'k') {
-        try {
-            $process = Get-NetTCPConnection -LocalPort $Port -ErrorAction Stop
-            Stop-Process -Id $process.OwningProcess -Force
-            Write-Host "Process using port $Port has been terminated."
-            $currentPort = $Port
-            Start-Sleep -Seconds 2  # Wait for port to be released
-        } catch {
-            Write-Host "Failed to kill process. Will try alternative port."
-            $currentPort = $Port + 1
+    while ($currentPort -lt $maxPortToTry) {
+        $currentPort++
+        if (Test-PortAvailable $currentPort) {
+            Write-Host "Switching to available port $currentPort"
+            break
         }
-    } else {
-        $currentPort = $Port + 1
-        Write-Host "Switching to port $currentPort"
+    }
+    
+    if ($currentPort -ge $maxPortToTry) {
+        Write-Host "Could not find an available port between $Port and $($maxPortToTry-1). Please specify a different port manually."
+        exit 1
     }
 } else {
     $currentPort = $Port

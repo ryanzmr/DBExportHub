@@ -29,6 +29,7 @@ import {
   SaveAlt
 } from '@mui/icons-material';
 import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../../pages/Dashboard/styles/DashboardStyles';
+import ViewSelector from './ViewSelector';
 
 /**
  * Form component for the Export page
@@ -109,6 +110,15 @@ const ExportForm = ({
           {error}
         </Alert>
       )}
+
+      <Box sx={{ mb: 3 }}>
+        <ViewSelector 
+          category="export" 
+          value={formData.selectedView}
+          onChange={(viewId) => handleChange({ target: { name: 'selectedView', value: viewId } })}
+          label="Select Export View"
+        />
+      </Box>
 
       <Box sx={styles.formContainer}>
         <Grid container spacing={2}>

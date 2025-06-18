@@ -3,11 +3,10 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  server: {
+  plugins: [react()],  server: {
     host: true, // Enable all network interfaces
     port: parseInt(process.env.VITE_PORT || '3001', 10),
-    strictPort: true, // Fail if port is not available
+    // Allow automatically finding an available port
     cors: true, // Enable CORS for development
     hmr: {
       overlay: false,

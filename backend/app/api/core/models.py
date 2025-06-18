@@ -32,6 +32,7 @@ class ExportParameters(BaseModel):
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
     force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
+    selectedView: Optional[str] = Field(None, description="Selected view for data extraction")
 
 # Import parameters model based on the stored procedure parameters
 class ImportParameters(BaseModel):
@@ -56,6 +57,7 @@ class ImportParameters(BaseModel):
     preview_only: bool = Field(True, description="If true, only return preview data")
     max_records: int = Field(100, description="Maximum number of records to return for preview")
     force_continue_despite_limit: bool = Field(False, description="If true, export will continue even if record count exceeds Excel limit")
+    selectedView: Optional[str] = Field(None, description="Selected view for data extraction")
 
 # Export response model
 class ExportResponse(BaseModel):

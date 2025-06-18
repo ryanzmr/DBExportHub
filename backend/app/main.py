@@ -434,6 +434,15 @@ async def cleanup_connection(params: dict):
 async def root():
     return {"status": "healthy", "message": "DBExportHub API is running", "version": "1.0.0"}
 
+# Add API endpoint to get available views
+@app.get("/api/views", tags=["configuration"])
+async def get_available_views():
+    """Get available views for export and import operations"""
+    return {
+        "export": list(settings.EXPORT_VIEWS.values()),
+        "import": list(settings.IMPORT_VIEWS.values())
+    }
+
 if __name__ == "__main__":
     import uvicorn
     
