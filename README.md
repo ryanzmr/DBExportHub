@@ -1,10 +1,12 @@
 # DBExportHub
 
-A modern web-based application for exporting and importing SQL Server trade/shipping data to Excel based on specific filtering conditions.
+A modern web-based application for exporting SQL Server trade/shipping data to Excel based on specific filtering conditions.
 
 ## Project Overview
 
-DBExportHub is a comprehensive replacement for a legacy VB6 application, designed to efficiently extract, process, and export trade/shipping data from SQL Server databases to formatted Excel files. The application features a user-friendly interface for setting export/import parameters, previewing data, and downloading Excel reports. It supports both export and import operations with robust cancellation support and progress tracking.
+DBExportHub is a comprehensive replacement for a legacy VB6 application, designed to efficiently extract, process, and export trade/shipping data from SQL Server databases to formatted Excel files. The application features a user-friendly interface for setting export parameters, previewing data, and downloading Excel reports. It supports both export and import trade data extraction operations with robust cancellation support and progress tracking.
+
+> **Note:** In the context of this application, "Export" refers to extracting export-related trade data from the database (via EXPDATA view), while "Import" refers to extracting import-related trade data (via IMPDATA view). Both functionalities export data to Excel files; the application does not import data into the database.
 
 ## Core Features
 
@@ -18,7 +20,7 @@ DBExportHub is a comprehensive replacement for a legacy VB6 application, designe
 - **Comprehensive Logging**: Detailed activity tracking for troubleshooting and auditing
 - **Error Handling**: Graceful error recovery with user-friendly messages
 - **Responsive UI**: Modern Material UI design that works across devices
-- **Data Import Capability**: Support for importing data back into SQL Server (new feature)
+- **Dual Data Source Support**: Extract data from both export-related (EXPDATA) and import-related (IMPDATA) database views
 
 ## Technical Architecture
 
@@ -66,7 +68,12 @@ The application implements a secure authentication flow:
 
 ### Data Export Process
 
-The export workflow is designed for efficiency and user experience:
+The application offers two parallel data extraction workflows:
+
+1. **Export Data**: Extracts export-related trade data from the EXPDATA database view
+2. **Import Data**: Extracts import-related trade data from the IMPDATA database view
+
+Both workflows follow the same process:
 
 1. **Parameter Selection**:
    - User selects date range (fromMonth, toMonth) and optional filters
@@ -74,14 +81,14 @@ The export workflow is designed for efficiency and user experience:
 
 2. **Preview Generation**:
    - Frontend requests a preview with preview_only=true parameter
-   - Backend executes the stored procedure with limited output (max_records=100)
+   - Backend executes the appropriate stored procedure with limited output (max_records=100)
    - Results are returned as JSON with column metadata
    - Frontend displays the preview in a data grid
 
 3. **Excel Generation**:
    - User initiates full export after reviewing preview
    - Backend creates a unique operation ID for tracking
-   - Stored procedure is executed with full data retrieval
+   - Appropriate stored procedure is executed with full data retrieval
    - Data is processed in chunks to optimize memory usage
    - Excel workbook is created with XlsxWriter in constant_memory mode
    - Progress updates are sent to frontend during processing
@@ -326,14 +333,24 @@ frontend/
   - Request: `{ server, database, username, password }`
   - Response: `{ token, user_info }`
 
-### Export Endpoints
+### Export Data Endpoints
 
-- `POST /api/export/preview`: Get a preview of export data
+- `POST /api/export/preview`: Get a preview of export data (from EXPDATA view)
   - Request: Export parameters (fromMonth, toMonth, filters)
   - Response: `{ data, operation_id, total_records }`
 
-- `POST /api/export/excel`: Generate and download Excel file
+- `POST /api/export`: Generate and download Excel file with export data
   - Request: Export parameters (fromMonth, toMonth, filters)
+  - Response: Excel file download
+
+### Import Data Endpoints
+
+- `POST /api/imports/preview`: Get a preview of import data (from IMPDATA view)
+  - Request: Import parameters (fromMonth, toMonth, filters)
+  - Response: `{ data, operation_id, total_records }`
+
+- `POST /api/imports`: Generate and download Excel file with import data
+  - Request: Import parameters (fromMonth, toMonth, filters)
   - Response: Excel file download
 
 ### Operation Endpoints
