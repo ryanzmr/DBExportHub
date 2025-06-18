@@ -33,6 +33,17 @@ const apiClient = axios.create({
 
 // API service functions
 const apiService = {
+  // Get available views
+  getViews: async () => {
+    try {
+      const response = await apiClient.get('/api/views');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching views:', error);
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Authentication
   login: async (credentials) => {
     try {

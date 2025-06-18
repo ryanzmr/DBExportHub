@@ -243,9 +243,8 @@ def generate_excel(params):
             
             # Variables to track total rows processed
             total_rows = 0
-            
-            # Use the new optimized fetch_data_in_chunks_export generator
-            for chunk_num, df in enumerate(fetch_data_in_chunks_export(conn, operation_id), 1):
+              # Use the new optimized fetch_data_in_chunks_export generator
+            for chunk_num, df in enumerate(fetch_data_in_chunks_export(conn, operation_id, params=params), 1):
                 # Check if operation has been cancelled before processing each chunk
                 if is_operation_cancelled(operation_id):
                     export_logger.info(f"[{operation_id}] Operation cancelled during Excel generation at row {total_rows}/{total_count}")

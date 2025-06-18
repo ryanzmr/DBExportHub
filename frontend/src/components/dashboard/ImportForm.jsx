@@ -29,6 +29,7 @@ import {
   CloudUpload
 } from '@mui/icons-material';
 import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../../pages/Dashboard/styles/DashboardStyles';
+import ViewSelector from './ViewSelector';
 
 /**
  * Form component for the Import page
@@ -109,6 +110,15 @@ const ImportForm = ({
           {error}
         </Alert>
       )}
+
+      <Box sx={{ mb: 3 }}>
+        <ViewSelector 
+          category="import" 
+          value={formData.selectedView}
+          onChange={(viewId) => handleChange({ target: { name: 'selectedView', value: viewId } })}
+          label="Select Import View"
+        />
+      </Box>
 
       <Box sx={styles.formContainer}>
         <Grid container spacing={2}>

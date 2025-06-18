@@ -9,7 +9,7 @@ import pathlib
 import gc
 import os
 import threading
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 # Month names mapping for dynamic month code generation
 month_names = {
@@ -142,17 +142,15 @@ def preview_data(params):
             # Check for cancellation after procedure execution
             if is_operation_cancelled(operation_id):
                 import_logger.info(f"[{operation_id}] Preview operation cancelled after procedure execution")
-                raise Exception("Operation cancelled by user")
-                  # Get the total row count
-            total_count = get_total_row_count_import(conn, operation_id)
-              # Get preview data (limited to configurable sample size from settings.PREVIEW_SAMPLE_SIZE)
-            preview_data_df = get_preview_data_import(conn, operation_id)
+                raise Exception("Operation cancelled by user")            # Get the total row count
+            total_count = get_total_row_count_import(conn, params, operation_id)# Get preview data (limited to configurable sample size from settings.PREVIEW_SAMPLE_SIZE)
+            preview_data_df = get_preview_data_import(conn, params, operation_id)
             
             # Get column headers
-            headers = get_column_headers_import(conn, operation_id)
+            headers = get_column_headers_import(conn, params, operation_id)
             
             # Get first row HS code for filename generation
-            first_row_hs = get_first_row_hs_code_import(conn, operation_id)
+            first_row_hs = get_first_row_hs_code_import(conn, params, operation_id)
             
             # Process the dataframe for JSON serialization
             preview_data_json = process_dataframe_for_json(preview_data_df)
@@ -211,14 +209,13 @@ def generate_excel(params):
                 
             # Execute the import procedure and get record count
             record_count, cache_used = execute_import_procedure(conn, params, operation_id)
-            
-            # Check for cancellation after procedure execution
+              # Check for cancellation after procedure execution
             if is_operation_cancelled(operation_id):
                 import_logger.info(f"[{operation_id}] Excel generation cancelled after procedure execution")
                 raise Exception("Operation cancelled by user")
                 
             # Get total row count - store this in operation_details for reuse
-            total_count = get_total_row_count_import(conn, operation_id)
+            total_count = get_total_row_count_import(conn, params, operation_id)
             
             # Cache the total count in operation details to avoid repeated database calls
             operation_details = get_operation_details(operation_id)
@@ -248,19 +245,18 @@ def generate_excel(params):
                     "message": f"Total records ({total_count}) exceed Excel row limit ({get_excel_row_limit()}).",
                     "operation_id": operation_id,
                     "total_records": total_count,
-                    "limit": get_excel_row_limit()
-                }
+                    "limit": get_excel_row_limit()                }
             else:
-                # User has confirmed to continue, so we'll limit to Excel max rows                if total_count > get_excel_row_limit():
+                # User has confirmed to continue, so we'll limit to Excel max rows
+                if total_count > get_excel_row_limit():
                     import_logger.warning(f"📊 [{operation_id}] Record count ({total_count}) exceeds Excel row limit. Processing only first {get_excel_row_limit()} rows as per user confirmation")
                     
                     # Store the actual row limit for use in data processing
                     if operation_details:
                         with _operations_lock:
                             operation_details["max_rows"] = get_excel_row_limit()
-            
-            # Get first row HS code for filename generation
-            first_row_hs = get_first_row_hs_code_import(conn, operation_id)
+              # Get first row HS code for filename generation
+            first_row_hs = get_first_row_hs_code_import(conn, params, operation_id)
             
             # Create a filename based on the parameters
             filename = create_filename_import(params, first_row_hs)
@@ -276,9 +272,8 @@ def generate_excel(params):
             
             # Add a worksheet
             worksheet = workbook.add_worksheet("Import Data")
-            
-            # Get column headers
-            headers = get_column_headers_import(conn, operation_id)
+              # Get column headers
+            headers = get_column_headers_import(conn, params, operation_id)
             
             # Write headers to the worksheet
             write_excel_headers(worksheet, headers, header_format)
@@ -298,10 +293,9 @@ def generate_excel(params):
             
             # Add a counter to track rows we've processed
             processed_row_count = 0
-            
-            # Get data in chunks using the existing generator function
+              # Get data in chunks using the existing generator function
             # Note: fetch_data_in_chunks_import is a generator that yields dataframes
-            for chunk_idx, chunk_df in enumerate(fetch_data_in_chunks_import(conn, operation_id, chunk_size), 1):
+            for chunk_idx, chunk_df in enumerate(fetch_data_in_chunks_import(conn, params, operation_id, chunk_size), 1):
                 # Check for cancellation before processing chunk
                 if is_operation_cancelled(operation_id):
                     import_logger.warning(f"[{operation_id}] Excel generation cancelled by user during chunk processing")

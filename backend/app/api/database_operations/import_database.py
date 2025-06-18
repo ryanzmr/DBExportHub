@@ -32,11 +32,12 @@ def _params_match(cached_params, new_params):
     
     return True
 
-def _check_temp_table_exists(conn):
+def _check_temp_table_exists(conn, view_name=None):
     """Check if the temporary table exists and has data"""
+    view_to_check = view_name or settings.IMPORT_VIEW
     try:
         cursor = conn.cursor()
-        cursor.execute(f"SELECT TOP 1 * FROM {settings.IMPORT_VIEW}")
+        cursor.execute(f"SELECT TOP 1 * FROM {view_to_check}")
         has_data = cursor.fetchone() is not None
         cursor.close()
         return has_data
@@ -54,7 +55,15 @@ def execute_import_procedure(conn, params, operation_id):
         import_logger.info(f"[{operation_id}] Operation cancelled before executing stored procedure")
         raise Exception("Operation cancelled by user")
     
-    # Build the query parameters for the stored procedure
+    # Determine which view to use based on selectedView parameter
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
+    
+    import_logger.info(
+        f"[{operation_id}] Using view: {selected_view}",
+        extra={"operation_id": operation_id, "selected_view": selected_view}
+    )
+      # Build the query parameters for the stored procedure
     sp_params = {
         "fromMonth": params.fromMonth,
         "ToMonth": params.toMonth,
@@ -67,8 +76,12 @@ def execute_import_procedure(conn, params, operation_id):
         "port": params.port or ""
     }
     
+    # Determine which view to use
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
+    
     # Check if we need to re-execute the stored procedure
-    cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn)
+    cache_valid = _params_match(_query_cache["params"], params) and _check_temp_table_exists(conn, selected_view)
     
     if not cache_valid:
         import_logger.info(
@@ -102,13 +115,12 @@ def execute_import_procedure(conn, params, operation_id):
                 "execution_time": sp_execution_time
             }
         )
-        
-        # Update cache
+          # Update cache
         _query_cache["params"] = params
         _query_cache["timestamp"] = datetime.now()
         
         # Get record count
-        record_count = get_total_row_count_import(conn, operation_id)
+        record_count = get_total_row_count_import(conn, params, operation_id)
         _query_cache["record_count"] = record_count
         
         return record_count, False
@@ -126,11 +138,12 @@ def execute_import_procedure(conn, params, operation_id):
         return _query_cache["record_count"], True
 
 @log_execution_time
-def get_preview_data_import(conn, operation_id, sample_size=None):
+def get_preview_data_import(conn, params, operation_id, sample_size=None):
     """Get a limited number of rows for preview
     
     Args:
         conn: Database connection
+        params: Import parameters including selectedView
         operation_id: Operation ID for tracking
         sample_size: Number of rows to fetch (uses configurable default if None)
     
@@ -149,13 +162,20 @@ def get_preview_data_import(conn, operation_id, sample_size=None):
         import_logger.info(f"[{operation_id}] Preview data fetch cancelled")
         raise Exception("Operation cancelled by user")
     
+    # Determine which view to use
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
+    
     # Update progress
     update_operation_progress(operation_id, 0, 100)
     
     # Get preview data with configurable row limit
-    query = f"SELECT TOP {sample_size} * FROM {settings.IMPORT_VIEW} ORDER BY [DATE]"
+    query = f"SELECT TOP {sample_size} * FROM {selected_view} ORDER BY [DATE]"
     
-    import_logger.debug(f"[{operation_id}] Executing preview query: {query}", extra={"operation_id": operation_id})
+    import_logger.debug(
+        f"[{operation_id}] Executing preview query on view {selected_view}: {query}", 
+        extra={"operation_id": operation_id, "selected_view": selected_view}
+    )
     
     # Execute query and convert to DataFrame
     start_time = datetime.now()
@@ -178,11 +198,15 @@ def get_preview_data_import(conn, operation_id, sample_size=None):
     return df
 
 @log_execution_time
-def get_total_row_count_import(conn, operation_id):
+def get_total_row_count_import(conn, params, operation_id):
     """Get the total number of rows in the result set"""
-    query = f"SELECT COUNT(*) FROM {settings.IMPORT_VIEW}"
+    # Determine which view to use
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
     
-    import_logger.debug(f"[{operation_id}] Executing count query: {query}", extra={"operation_id": operation_id})
+    query = f"SELECT COUNT(*) FROM {selected_view}"
+    
+    import_logger.debug(f"[{operation_id}] Executing count query: {query}", extra={"operation_id": operation_id, "selected_view": selected_view})
     
     # Execute query
     cursor = conn.cursor()
@@ -195,11 +219,15 @@ def get_total_row_count_import(conn, operation_id):
     return count
 
 @log_execution_time
-def get_column_headers_import(conn, operation_id):
+def get_column_headers_import(conn, params, operation_id):
     """Get the column headers from the result set"""
-    query = f"SELECT TOP 0 * FROM {settings.IMPORT_VIEW}"
+    # Determine which view to use
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
     
-    import_logger.debug(f"[{operation_id}] Executing headers query: {query}", extra={"operation_id": operation_id})
+    query = f"SELECT TOP 0 * FROM {selected_view}"
+    
+    import_logger.debug(f"[{operation_id}] Executing headers query: {query}", extra={"operation_id": operation_id, "selected_view": selected_view})
     
     # Execute query
     cursor = conn.cursor()
@@ -212,11 +240,18 @@ def get_column_headers_import(conn, operation_id):
     return headers
 
 @log_execution_time
-def get_first_row_hs_code_import(conn, operation_id):
+def get_first_row_hs_code_import(conn, params, operation_id):
     """Get the HS code from the first row for filename generation"""
-    query = f"SELECT TOP 1 hs_code FROM {settings.IMPORT_VIEW}"
+    # Determine which view to use
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
     
-    import_logger.debug(f"[{operation_id}] Executing HS code query: {query}", extra={"operation_id": operation_id})
+    query = f"SELECT TOP 1 * FROM {selected_view}"
+    
+    import_logger.debug(
+        f"[{operation_id}] Executing HS code query on view {selected_view}: {query}", 
+        extra={"operation_id": operation_id, "selected_view": selected_view}
+    )
     
     # Execute query
     cursor = conn.cursor()
@@ -230,7 +265,7 @@ def get_first_row_hs_code_import(conn, operation_id):
     return [hs_code] if hs_code else [None]
 
 @log_execution_time
-def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
+def fetch_data_in_chunks_import(conn, params, operation_id, batch_size=None):
     """Fetch data in chunks to avoid memory issues - using cursor-based approach like the export system"""
     # Import here to avoid circular imports
     from ..core.operation_tracker import is_operation_cancelled, get_operation_details, _operations_lock
@@ -244,7 +279,7 @@ def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
     # Use cached total count if available, otherwise fetch it (fallback)
     total_count = operation_details.get('total_count') if operation_details else None
     if total_count is None:
-        total_count = get_total_row_count_import(conn, operation_id)
+        total_count = get_total_row_count_import(conn, params, operation_id)
         # Cache it if we had to look it up
         if operation_details:
             with _operations_lock:
@@ -281,16 +316,20 @@ def fetch_data_in_chunks_import(conn, operation_id, batch_size=None):
                 "batch_size": batch_size
             }
         )
+      # Execute one query to get all the data and use a cursor-based approach like the export system
+    # Determine which view to use
+    selected_view_key = params.selectedView or "IMPORT_VIEW_1"
+    selected_view = settings.IMPORT_VIEWS.get(selected_view_key, {}).get("value", settings.IMPORT_VIEW)
     
-    # Execute one query to get all the data and use a cursor-based approach like the export system
     # Build the main query once
-    query = f"SELECT * FROM {settings.IMPORT_VIEW} ORDER BY [DATE]"
+    query = f"SELECT * FROM {selected_view} ORDER BY [DATE]"
     
     import_logger.debug(
-        f"[{operation_id}] Executing main query and setting up cursor",
+        f"[{operation_id}] Executing main query and setting up cursor on view {selected_view}",
         extra={
             "operation_id": operation_id,
-            "rows_to_fetch": rows_to_fetch
+            "rows_to_fetch": rows_to_fetch,
+            "selected_view": selected_view
         }
     )
     

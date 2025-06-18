@@ -36,9 +36,11 @@ const ImportPage = () => {
       navigate('/login');
     }
   }, [token, tokenExpiry, logout, navigate]);
-  
-  // State management
-  const [formData, setFormData] = useState(getFreshImportFormState());
+    // State management
+  const [formData, setFormData] = useState({
+    ...getFreshImportFormState(),
+    selectedView: null, // Add selectedView field
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState([]);
