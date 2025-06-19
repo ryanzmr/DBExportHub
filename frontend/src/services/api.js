@@ -32,14 +32,31 @@ const apiClient = axios.create({
 });
 
 // API service functions
-const apiService = {
-  // Get available views
+const apiService = {  // Get available views
   getViews: async () => {
     try {
       const response = await apiClient.get('/api/views');
       return response.data;
     } catch (error) {
       console.error('Error fetching views:', error);
+      throw error.response?.data || error.message;
+    }
+  },
+  
+  // Validate view existence in database
+  validateView: async (connectionDetails, viewId, category) => {
+    try {
+      const response = await apiClient.post('/api/views/validate', {
+        server: connectionDetails.server,
+        database: connectionDetails.database,
+        username: connectionDetails.username,
+        password: connectionDetails.password,
+        viewId,
+        category
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error validating view:', error);
       throw error.response?.data || error.message;
     }
   },

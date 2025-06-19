@@ -75,9 +75,15 @@ const ExportPage = () => {
     logout();
     navigate('/login');
   };
-  
-  // API handlers
+    // API handlers
   const handlePreview = async () => {
+    // Check if there are view validation errors before proceeding
+    const viewSelector = document.querySelector('.MuiFormControl-root.Mui-error');
+    if (viewSelector) {
+      setError('Please resolve the view validation error before proceeding.');
+      return;
+    }
+    
     setLoading(true);
     setError('');
     setIsOperationInProgress(true);
@@ -175,8 +181,14 @@ const ExportPage = () => {
       exportControllerRef.current = null;
     }
   };
-  
-  const handleExport = async () => {
+    const handleExport = async () => {
+    // Check if there are view validation errors before proceeding
+    const viewSelector = document.querySelector('.MuiFormControl-root.Mui-error');
+    if (viewSelector) {
+      setError('Please resolve the view validation error before proceeding.');
+      return;
+    }
+    
     setExporting(true);
     setError('');
     setExportCancelled(false);
