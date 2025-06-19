@@ -443,6 +443,47 @@ async def get_available_views():
         "import": list(settings.IMPORT_VIEWS.values())
     }
 
+@app.post("/api/views/validate", tags=["configuration"])
+async def validate_view(params: dict):
+    """Validate if a view exists in the database"""
+    try:
+        from app.api.core.view_validator import validate_view_exists
+        from app.api.core.config import settings
+        
+        # Extract parameters
+        server = params.get("server")
+        database = params.get("database")
+        username = params.get("username")
+        password = params.get("password")
+        view_id = params.get("viewId")
+        category = params.get("category")
+        
+        if not all([server, database, username, password, view_id, category]):
+            return {"success": False, "message": "Missing required parameters"}
+        
+        # Get the actual view name from the configuration
+        views_dict = settings.EXPORT_VIEWS if category == "export" else settings.IMPORT_VIEWS
+        view_info = views_dict.get(view_id)
+        
+        if not view_info:
+            return {"success": False, "message": f"View ID {view_id} not found in configuration"}
+        
+        view_name = view_info.get("value")
+        if not view_name:
+            return {"success": False, "message": f"View ID {view_id} has no 'value' defined in configuration"}
+        
+        # Validate the view exists in the database
+        exists, error_message = validate_view_exists(server, database, username, password, view_name)
+        
+        return {
+            "success": exists,
+            "message": error_message if not exists else f"View '{view_name}' exists in the database",
+            "viewName": view_name
+        }
+    except Exception as e:
+        logger.error(f"Error validating view: {str(e)}", exc_info=True)
+        return {"success": False, "message": f"Error validating view: {str(e)}"}
+
 if __name__ == "__main__":
     import uvicorn
     
