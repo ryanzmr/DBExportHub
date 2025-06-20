@@ -42,10 +42,16 @@ const ExportPage = () => {
       setViewValidationStatus(event.detail);
     };
     
+    const handleDateRangeValidation = (event) => {
+      setDateRangeValid(event.detail.isValid);
+    };
+    
     window.addEventListener('exportViewValidation', handleViewValidation);
+    window.addEventListener('exportDateRangeValidation', handleDateRangeValidation);
     
     return () => {
       window.removeEventListener('exportViewValidation', handleViewValidation);
+      window.removeEventListener('exportDateRangeValidation', handleDateRangeValidation);
     };
   }, []);
   // State management
@@ -54,6 +60,7 @@ const ExportPage = () => {
     selectedView: null, // Add selectedView field
   });
   const [viewValidationStatus, setViewValidationStatus] = useState('pending'); // 'pending', 'valid', 'invalid'
+  const [dateRangeValid, setDateRangeValid] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -93,6 +100,12 @@ const ExportPage = () => {
     // Check if the view is valid before proceeding
     if (viewValidationStatus === 'invalid') {
       setError('This view does not exist in the database. Please check with the DBA or select a different view.');
+      return;
+    }
+    
+    // Check if date range is valid
+    if (!dateRangeValid) {
+      setError('From Month must be earlier than or equal to To Month.');
       return;
     }
     
@@ -197,6 +210,12 @@ const ExportPage = () => {
     // Check if the view is valid before proceeding
     if (viewValidationStatus === 'invalid') {
       setError('This view does not exist in the database. Please check with the DBA or select a different view.');
+      return;
+    }
+    
+    // Check if date range is valid
+    if (!dateRangeValid) {
+      setError('From Month must be earlier than or equal to To Month.');
       return;
     }
     

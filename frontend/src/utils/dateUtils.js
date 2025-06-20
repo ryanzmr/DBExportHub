@@ -25,6 +25,44 @@ export const isValidYYYYMM = (value) => {
 };
 
 /**
+ * Check if fromMonth is less than or equal to toMonth
+ * 
+ * @param {string} fromMonth - The starting month in YYYYMM format
+ * @param {string} toMonth - The ending month in YYYYMM format
+ * @returns {boolean} - True if fromMonth is less than or equal to toMonth, or if either value is missing/invalid
+ */
+export const isValidDateRange = (fromMonth, toMonth) => {
+  // If either value is missing or invalid format, return true (validation will be handled elsewhere)
+  if (!fromMonth || !toMonth || !isValidYYYYMM(fromMonth) || !isValidYYYYMM(toMonth)) {
+    return true;
+  }
+  
+  // Convert to numbers for comparison
+  const fromValue = parseInt(fromMonth, 10);
+  const toValue = parseInt(toMonth, 10);
+  
+  // Return true if fromMonth is less than or equal to toMonth
+  return fromValue <= toValue;
+};
+
+/**
+ * Get error message for date range validation
+ * 
+ * @param {string} fromMonth - The starting month in YYYYMM format
+ * @param {string} toMonth - The ending month in YYYYMM format
+ * @returns {string} - Error message or empty string if no error
+ */
+export const getDateRangeErrorMessage = (fromMonth, toMonth) => {
+  if (!fromMonth || !toMonth || !isValidYYYYMM(fromMonth) || !isValidYYYYMM(toMonth)) {
+    return '';
+  }
+  
+  return isValidDateRange(fromMonth, toMonth) 
+    ? '' 
+    : 'From Month must be earlier than or equal to To Month';
+};
+
+/**
  * Formats a YYYYMM number to a readable date string
  * @param {string|number} yyyymm - The date in YYYYMM format
  * @param {string} format - The output format ('short', 'long', 'numeric')
