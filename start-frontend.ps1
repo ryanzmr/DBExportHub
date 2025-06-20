@@ -1,6 +1,6 @@
 # Allow configuration of frontend path and port
 param(
-    [string]$FrontendPath = "D:\Project_References_2.0\DBExportHub\frontend",
+    [string]$FrontendPath = (Join-Path $PSScriptRoot "frontend"),
     [int]$Port = 3001,
     [switch]$ForceInstall = $false
 )
@@ -8,25 +8,39 @@ param(
 # Set error action preference to stop on any error
 $ErrorActionPreference = "Stop"
 
-# Function to check if npm is installed
+# Function for colored output
+function Write-ColorOutput {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$ForegroundColor = "White"
+    )
+    
+    Write-Host $Message -ForegroundColor $ForegroundColor
+}
+
+# Function to check if a command exists
 function Test-Command($cmdname) {
     return [bool](Get-Command -Name $cmdname -ErrorAction SilentlyContinue)
 }
 
 # Check if npm is installed
 if (-not (Test-Command npm)) {
-    Write-Error "npm is not installed. Please install Node.js which includes npm."
+    Write-ColorOutput "ERROR: npm is not installed. Please install Node.js which includes npm." -ForegroundColor Red
     exit 1
 }
 
 # Check if the frontend path exists
 if (-not (Test-Path $FrontendPath)) {
-    Write-Error "Frontend path '$FrontendPath' does not exist. Please provide the correct path."
+    Write-ColorOutput "ERROR: Frontend path '$FrontendPath' does not exist. Please provide the correct path." -ForegroundColor Red
     exit 1
 }
 
 # Change directory to frontend
 Set-Location -Path $FrontendPath
+Write-ColorOutput "Navigated to frontend directory: $FrontendPath" -ForegroundColor Cyan
 
 # Function to check package version differences
 function Compare-PackageVersions {
@@ -55,19 +69,24 @@ function Compare-PackageVersions {
 
 # First check for missing dependencies
 if (-not (Test-Path "node_modules")) {
-    Write-Host "Node modules not found. Installing dependencies..."
+    Write-ColorOutput "Node modules not found. Installing dependencies..." -ForegroundColor Yellow
     npm install
+    if ($LASTEXITCODE -ne 0) {
+        Write-ColorOutput "ERROR: npm install failed with exit code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+    Write-ColorOutput "Dependencies installed successfully" -ForegroundColor Green
 }
 
 # Check for outdated packages
-Write-Host "Checking package status..."
+Write-ColorOutput "Checking package status..." -ForegroundColor Cyan
 $outdatedInfo = $null
 $missingPackages = @()
 $outdatedPackages = @()
 
 try {
     # Check if any packages are missing or outdated
-    Write-Host "Running 'npm outdated' to check package versions..."
+    Write-ColorOutput "Running 'npm outdated' to check package versions..." -ForegroundColor Cyan
     $outdatedJson = npm outdated --json 2>$null
     if ($outdatedJson -and $outdatedJson.Trim() -ne "{}") {
         $outdatedInfo = $outdatedJson | ConvertFrom-Json -AsHashtable
@@ -88,79 +107,143 @@ try {
         
         # Install missing packages automatically
         if ($missingPackages.Count -gt 0) {
-            Write-Host "`nInstalling missing packages: $($missingPackages -join ', ')"
+            Write-ColorOutput "`nInstalling missing packages: $($missingPackages -join ', ')" -ForegroundColor Yellow
             npm install $($missingPackages -join ' ')
+            if ($LASTEXITCODE -ne 0) {
+                Write-ColorOutput "WARNING: Some packages failed to install. The application may not work correctly." -ForegroundColor Yellow
+            } else {
+                Write-ColorOutput "Missing packages installed successfully." -ForegroundColor Green
+            }
         }
         
         # Prompt for updates to existing packages
         if ($outdatedPackages.Count -gt 0) {
-            Write-Host "`nThe following packages have updates available:"
+            Write-ColorOutput "`nThe following packages have updates available:" -ForegroundColor Yellow
             foreach ($package in $outdatedPackages) {
-                Write-Host "- $($package.Name) (Current: $($package.Current), Available: $($package.Latest))"
+                Write-ColorOutput "- $($package.Name) (Current: $($package.Current), Available: $($package.Latest))" -ForegroundColor Yellow
             }
             
             $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
             if ($updateChoice -eq "y") {
-                Write-Host "Updating packages..."
+                Write-ColorOutput "Updating packages..." -ForegroundColor Cyan
                 npm install
+                if ($LASTEXITCODE -ne 0) {
+                    Write-ColorOutput "WARNING: Some packages failed to update. The application may still work with older versions." -ForegroundColor Yellow
+                } else {
+                    Write-ColorOutput "Packages updated successfully." -ForegroundColor Green
+                }
             }
             else {
-                Write-Host "Skipping package updates."
+                Write-ColorOutput "Skipping package updates." -ForegroundColor Cyan
             }
         }
     } else {
-        Write-Host "All packages are up to date."
+        Write-ColorOutput "All packages are up to date." -ForegroundColor Green
     }
 }
 catch {
-    Write-Host "Note: Unable to check for package updates. This is normal if npm is not initialized or if there are no packages installed yet."
-    Write-Host "The script will continue with installation if needed."
+    Write-ColorOutput "Note: Unable to check for package updates. This is normal if npm is not initialized or if there are no packages installed yet." -ForegroundColor Yellow
+    Write-ColorOutput "The script will continue with installation if needed." -ForegroundColor Cyan
 }
 
 # Check if the build is needed
 if (-not (Test-Path "dist") -or $ForceInstall) {
-    Write-Host "Building the project..."
+    Write-ColorOutput "Building the project..." -ForegroundColor Cyan
     npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-ColorOutput "ERROR: Build failed with exit code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+    Write-ColorOutput "Build completed successfully" -ForegroundColor Green
 }
 
-# Function to check if port is available
-function Test-PortAvailable {
+# Function to get process info using a port
+function Get-ProcessInfoByPort {
     param (
         [int]$Port
     )
+    
     try {
-        $portCheck = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-        return $null -eq $portCheck
+        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        if ($connection) {
+            $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
+            return @{
+                InUse = $true
+                ProcessId = $connection.OwningProcess
+                ProcessName = if ($process) { $process.ProcessName } else { "Unknown" }
+                CommandLine = if ($process) { (Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($connection.OwningProcess)").CommandLine } else { "Unknown" }
+            }
+        }
+        return @{ InUse = $false }
     } catch {
-        return $true
+        Write-ColorOutput "Error checking port: $_" -ForegroundColor Red
+        return @{ InUse = $false }
     }
 }
 
-# Check if default port is in use
-if (-not (Test-PortAvailable $Port)) {
-    Write-Host "`nPort $Port is already in use."
+# Function to terminate a process
+function Stop-ProcessByPort {
+    param (
+        [int]$ProcessId
+    )
     
-    # Try to find the next available port
-    $currentPort = $Port
-    $maxPortToTry = $Port + 10  # Try up to 10 ports after the specified one
-    
-    while ($currentPort -lt $maxPortToTry) {
-        $currentPort++
-        if (Test-PortAvailable $currentPort) {
-            Write-Host "Switching to available port $currentPort"
-            break
+    try {
+        $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+        if ($process) {
+            Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 500
+            $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+            if ($process) {
+                # Fallback to taskkill
+                taskkill /F /PID $ProcessId 2>$null
+                Start-Sleep -Milliseconds 500
+                $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+            }
+            return ($null -eq $process)
         }
+        return $false
+    } catch {
+        Write-ColorOutput "Error stopping process: $_" -ForegroundColor Red
+        return $false
     }
+}
+
+# Check if port is in use
+$portInfo = Get-ProcessInfoByPort -Port $Port
+if ($portInfo.InUse) {
+    Write-ColorOutput "`nPort $Port is already in use!" -ForegroundColor Yellow
+    Write-ColorOutput "Process using the port: $($portInfo.ProcessId) ($($portInfo.ProcessName))" -ForegroundColor Yellow
     
-    if ($currentPort -ge $maxPortToTry) {
-        Write-Host "Could not find an available port between $Port and $($maxPortToTry-1). Please specify a different port manually."
+    # Determine if it's likely related to the app
+    $isLikelyApp = $portInfo.ProcessName -like "*node*" -or $portInfo.CommandLine -like "*vite*" -or $portInfo.CommandLine -like "*npm*" -or $portInfo.CommandLine -like "*frontend*"
+    
+    if ($isLikelyApp) {
+        Write-ColorOutput "This appears to be a related application process." -ForegroundColor Cyan
+        $killChoice = Read-Host "Do you want to terminate this process and start a new instance? (y/N)"
+        
+        if ($killChoice -eq "y") {
+            Write-ColorOutput "Attempting to terminate process $($portInfo.ProcessId)..." -ForegroundColor Cyan
+            $killed = Stop-ProcessByPort -ProcessId $portInfo.ProcessId
+            
+            if ($killed) {
+                Write-ColorOutput "Process terminated successfully." -ForegroundColor Green
+            } else {
+                Write-ColorOutput "Failed to terminate the process. Please close it manually." -ForegroundColor Red
+                exit 1
+            }
+        } else {
+            Write-ColorOutput "Exiting as requested. Please free up port $Port and try again." -ForegroundColor Cyan
+            exit 0
+        }
+    } else {
+        Write-ColorOutput "This appears to be an unrelated process." -ForegroundColor Yellow
+        Write-ColorOutput "For security reasons, the script will not attempt to terminate it." -ForegroundColor Yellow
+        Write-ColorOutput "Please free up port $Port manually and try again." -ForegroundColor Red
         exit 1
     }
-} else {
-    $currentPort = $Port
 }
 
 # Start the development server
-Write-Host "`nStarting frontend server on port $currentPort..."
-$env:VITE_PORT = $currentPort
+Write-ColorOutput "`nStarting frontend server on port $Port..." -ForegroundColor Green
+$env:VITE_PORT = $Port
 npm run dev
