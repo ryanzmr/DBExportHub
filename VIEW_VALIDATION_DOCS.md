@@ -8,65 +8,59 @@ The View Validation feature enhances the DBExportHub application by validating d
 
 ### Backend Components
 
-1. **View Validator Module** (`view_validator.py`):
-   - Core validation function `validate_view_exists()` checks if a view exists in the database
-   - Uses `INFORMATION_SCHEMA.VIEWS` for efficient validation
-   - Includes fallback methods for non-standard views
-   - Returns clear error messages for missing views
-
-2. **API Endpoint** (`main.py`):
-   - New endpoint `/api/views/validate` for validating view existence
-   - Accepts connection details and view information
+1. **API Endpoint**:
+   - Endpoint for validating view existence in the database
    - Returns validation status and appropriate error messages
 
 ### Frontend Components
 
-1. **Validation Utility** (`viewValidator.js`):
+1. **Shared Validation Module** (`viewValidationModule.js`):
    - Provides `validateViewExists()` function to check view existence
-   - Handles communication with backend API
-   - Manages error states and messages
+   - Includes `canProceedWithOperation()` to standardize validation checks
+   - Reused across both Import and Export workflows
 
-2. **View Selector Component** (`ViewSelector.jsx`):
-   - Enhanced to validate views when selected
-   - Displays validation errors inline using MUI Alert component
-   - Visually indicates validation state using form control error styling
+2. **View Selector Components**:
+   - **ImportViewSelector.jsx** & **ExportViewSelector.jsx**:
+     - Real-time validation with status indicators
+     - Communicates validation status to parent components
 
 3. **Form Integration**:
-   - Export and Import pages check for validation errors before proceeding
-   - Prevents preview and export operations when view validation fails
-   - Provides clear user feedback about the error
+   - Export and Import pages listen for validation status events
+   - Prevents preview and export operations when validation fails
+   - Provides clear user feedback with specific error messages
 
 ## Error Handling
 
-- **Validation Errors**: Displayed directly under the view selector
+- **Validation Status**: Shows valid/invalid indicators next to the view selector
 - **Operation Prevention**: Blocks preview and export operations when validation fails
-- **Custom Error Messages**: Provides specific message: "The selected view does not exist in the database. Please check with your DBA or select a different view."
+- **Custom Error Messages**: "This view does not exist in the database. Please check with the DBA or select a different view."
+- **Event-Based Communication**: Components emit validation events to notify parent components
 
 ## Technical Details
 
-1. **Database Check Method**:
-   ```sql
-   SELECT COUNT(*) 
-   FROM INFORMATION_SCHEMA.VIEWS 
-   WHERE TABLE_NAME = ?
-   ```
+- **Database Check**: The backend validates if the view exists in the database
+- **Validation Flow**: View selection → Backend validation → Status update → UI feedback
 
-2. **Fallback Check**:
-   ```sql
-   SET ROWCOUNT 1; 
-   SELECT * FROM {view_name}; 
-   SET ROWCOUNT 0;
-   ```
+## UI Enhancements
+
+1. **Dropdown Design**:
+   - Consistent styling across Import and Export interfaces
+   - Visual separation between view selection and parameter fields
+   - Clear display of both view name and database name
+
+2. **Validation Indicators**:
+   - Validation badges (✓ Valid) placed next to the dropdown labels
+   - Clear error messages for invalid views
 
 ## Benefits
 
 1. **Improved User Experience**: Users receive immediate feedback about view validity
 2. **Reduced Failed Operations**: Prevents errors later in the process
 3. **Enhanced Troubleshooting**: Clear error messages help resolve issues
-4. **Modular Design**: Implementation is isolated and reusable across the application
+4. **Consistent Design**: Uniform validation behavior across Import and Export workflows
 
 ## Maintenance Notes
 
 - The validation runs when a view is selected, not continuously
-- Error messages can be customized in the backend validation module
-- The validation is independent of the main workflow, making it easy to maintain
+- Error messages can be customized in the shared validation module
+- Components communicate via custom events to minimize tight coupling
