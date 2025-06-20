@@ -1,11 +1,24 @@
 # Allow configuration of backend path
 param(
-    [string]$BackendPath = "D:\Project_References_2.0\DBExportHub\backend",
+    [string]$BackendPath = (Join-Path $PSScriptRoot "backend"),
     [switch]$ForceRecreateVenv = $false
 )
 
 # Set error action preference to stop on any error
 $ErrorActionPreference = "Stop"
+
+# Function for colored output
+function Write-ColorOutput {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$ForegroundColor = "White"
+    )
+    
+    Write-Host $Message -ForegroundColor $ForegroundColor
+}
 
 # Function to check if a command exists
 function Test-Command($cmdname) {
@@ -14,32 +27,50 @@ function Test-Command($cmdname) {
 
 # Check Python installation
 if (-not (Test-Command python)) {
-    Write-Error "Python is not installed. Please install Python 3.8 or higher."
+    Write-ColorOutput "ERROR: Python is not installed. Please install Python 3.8 or higher." -ForegroundColor Red
     exit 1
 }
 
 # Check if pip is installed
 if (-not (Test-Command pip)) {
-    Write-Error "pip is not installed. Please install pip."
+    Write-ColorOutput "ERROR: pip is not installed. Please install pip." -ForegroundColor Red
     exit 1
 }
 
 # Change directory to backend folder
 if (-not (Test-Path $BackendPath)) {
-    Write-Error "Backend path '$BackendPath' does not exist. Please provide the correct path."
+    Write-ColorOutput "ERROR: Backend path '$BackendPath' does not exist. Please provide the correct path." -ForegroundColor Red
     exit 1
 }
 Set-Location -Path $BackendPath
+Write-ColorOutput "Navigated to backend directory: $BackendPath" -ForegroundColor Cyan
 
 # Check if virtual environment exists, create if it doesn't
 if (-not (Test-Path "venv") -or $ForceRecreateVenv) {
-    Write-Host "Creating virtual environment..."
+    Write-ColorOutput "Creating virtual environment..." -ForegroundColor Cyan
     python -m venv venv
+    if (-not $?) {
+        Write-ColorOutput "ERROR: Failed to create virtual environment. Please check your Python installation." -ForegroundColor Red
+        exit 1
+    }
+    Write-ColorOutput "Virtual environment created successfully." -ForegroundColor Green
 }
 
-# Activate virtual environment
-Write-Host "Activating virtual environment..."
-.\venv\Scripts\Activate.ps1
+# Try to activate virtual environment
+Write-ColorOutput "Activating virtual environment..." -ForegroundColor Cyan
+try {
+    if (Test-Path ".\venv\Scripts\Activate.ps1") {
+        & .\venv\Scripts\Activate.ps1
+    } else {
+        Write-ColorOutput "ERROR: Virtual environment activation script not found." -ForegroundColor Red
+        Write-ColorOutput "Expected path: .\venv\Scripts\Activate.ps1" -ForegroundColor Red
+        exit 1
+    }
+} catch {
+    Write-ColorOutput "ERROR: Failed to activate virtual environment: $_" -ForegroundColor Red
+    exit 1
+}
+Write-ColorOutput "Virtual environment activated successfully." -ForegroundColor Green
 
 # Function to check if a package is installed
 function Get-PipPackageVersion {
@@ -70,66 +101,81 @@ function Compare-Versions {
 }
 
 # Read requirements.txt and check each package
-Write-Host "Checking dependencies..."
-$requirements = Get-Content "requirements.txt"
-$packagesToInstall = @()
-$packagesToUpdate = @()
+Write-ColorOutput "Checking dependencies..." -ForegroundColor Cyan
+if (Test-Path "requirements.txt") {
+    $requirements = Get-Content "requirements.txt"
+    $packagesToInstall = @()
+    $packagesToUpdate = @()
 
-foreach ($line in $requirements) {
-    if ($line.Trim() -and -not $line.StartsWith("#")) {
-        $package = $line -split "[>=<]" | Select-Object -First 1
-        $requiredVersion = if ($line -match ">=([0-9\.]+)") { $matches[1] } else { $null }
-        
-        $installedVersion = Get-PipPackageVersion $package
-        
-        if (-not $installedVersion) {
-            $packagesToInstall += $line
+    foreach ($line in $requirements) {
+        if ($line.Trim() -and -not $line.StartsWith("#")) {
+            $package = $line -split "[>=<]" | Select-Object -First 1
+            $requiredVersion = if ($line -match ">=([0-9\.]+)") { $matches[1] } else { $null }
+            
+            $installedVersion = Get-PipPackageVersion $package
+            
+            if (-not $installedVersion) {
+                $packagesToInstall += $line
+            }
+            elseif ($requiredVersion -and (Compare-Versions $installedVersion $requiredVersion) -lt 0) {
+                $packagesToUpdate += "$package (Current: $installedVersion, Required: >=$requiredVersion)"
+            }
         }
-        elseif ($requiredVersion -and (Compare-Versions $installedVersion $requiredVersion) -lt 0) {
-            $packagesToUpdate += "$package (Current: $installedVersion, Required: >=$requiredVersion)"
+    }
+
+    # Install missing packages
+    if ($packagesToInstall.Count -gt 0) {
+        Write-ColorOutput "`nThe following packages need to be installed:" -ForegroundColor Yellow
+        $packagesToInstall | ForEach-Object { Write-ColorOutput "- $_" -ForegroundColor Yellow }
+        Write-ColorOutput "Installing missing packages..." -ForegroundColor Cyan
+        $packagesToInstall | ForEach-Object { 
+            Write-ColorOutput "Installing: $_" -ForegroundColor Cyan
+            pip install $_ 
+            if (-not $?) {
+                Write-ColorOutput "WARNING: Failed to install $_" -ForegroundColor Yellow
+            }
         }
     }
-}
 
-# Install missing packages
-if ($packagesToInstall.Count -gt 0) {
-    Write-Host "`nThe following packages need to be installed:"
-    $packagesToInstall | ForEach-Object { Write-Host "- $_" }
-    Write-Host "Installing missing packages..."
-    $packagesToInstall | ForEach-Object { pip install $_ }
-}
-
-# Prompt for updates if needed
-if ($packagesToUpdate.Count -gt 0) {
-    Write-Host "`nThe following packages have updates available:"
-    $packagesToUpdate | ForEach-Object { Write-Host "- $_" }
-    $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
-    if ($updateChoice -eq "y") {
-        Write-Host "Updating packages..."
-        pip install -r requirements.txt --upgrade
+    # Prompt for updates if needed
+    if ($packagesToUpdate.Count -gt 0) {
+        Write-ColorOutput "`nThe following packages have updates available:" -ForegroundColor Yellow
+        $packagesToUpdate | ForEach-Object { Write-ColorOutput "- $_" -ForegroundColor Yellow }
+        $updateChoice = Read-Host "Do you want to update these packages? (y/N)"
+        if ($updateChoice -eq "y") {
+            Write-ColorOutput "Updating packages..." -ForegroundColor Cyan
+            pip install -r requirements.txt --upgrade
+            if (-not $?) {
+                Write-ColorOutput "WARNING: Some packages may not have updated correctly." -ForegroundColor Yellow
+            } else {
+                Write-ColorOutput "Packages updated successfully." -ForegroundColor Green
+            }
+        }
+        else {
+            Write-ColorOutput "Skipping package updates." -ForegroundColor Cyan
+        }
     }
-    else {
-        Write-Host "Skipping package updates."
-    }
-}
 
-if ($packagesToInstall.Count -eq 0 -and $packagesToUpdate.Count -eq 0) {
-    Write-Host "All dependencies are up to date."
+    if ($packagesToInstall.Count -eq 0 -and $packagesToUpdate.Count -eq 0) {
+        Write-ColorOutput "All dependencies are up to date." -ForegroundColor Green
+    }
+} else {
+    Write-ColorOutput "WARNING: requirements.txt not found. Cannot check dependencies." -ForegroundColor Yellow
 }
 
 # Create required directories if they don't exist
-Write-Host "Creating required directories..."
+Write-ColorOutput "Creating required directories..." -ForegroundColor Cyan
 $dirs = @("logs", "temp", "templates")
 foreach ($dir in $dirs) {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir
-        Write-Host "Created directory: $dir"
+        Write-ColorOutput "Created directory: $dir" -ForegroundColor Green
     }
 }
 
 # Check if .env file exists, create if it doesn't
 if (-not (Test-Path ".env")) {
-    Write-Host "Creating default .env file..."
+    Write-ColorOutput "Creating default .env file..." -ForegroundColor Yellow
     @"
 # Server Settings
 HOST=0.0.0.0
@@ -162,7 +208,7 @@ EXCEL_TEMPLATE_PATH=./templates/EXDPORT_Tamplate_JNPT.xlsx
 # Logging
 LOG_LEVEL=INFO
 "@ | Out-File -FilePath ".env" -Encoding UTF8
-    Write-Host "Created default .env file. Please update the settings as needed."
+    Write-ColorOutput "Created default .env file. Please update the settings as needed." -ForegroundColor Yellow
 }
 
 # Load environment variables from .env file
@@ -176,13 +222,13 @@ foreach ($line in $envContent) {
 }
 
 # Get server settings from environment variables or use defaults
-$serverHost = if ([Environment]::GetEnvironmentVariable('SERVER_HOST')) { 
-    [Environment]::GetEnvironmentVariable('SERVER_HOST') 
+$serverHost = if ([Environment]::GetEnvironmentVariable('HOST')) { 
+    [Environment]::GetEnvironmentVariable('HOST') 
 } else { 
     "0.0.0.0" 
 }
-$serverPort = if ([Environment]::GetEnvironmentVariable('SERVER_PORT')) { 
-    [Environment]::GetEnvironmentVariable('SERVER_PORT') 
+$serverPort = if ([Environment]::GetEnvironmentVariable('PORT')) { 
+    [Environment]::GetEnvironmentVariable('PORT') 
 } else { 
     "8000" 
 }
@@ -197,11 +243,18 @@ function Get-PortProcessInfo {
         $tcpConn = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
         if ($tcpConn) {
             $process = Get-Process -Id $tcpConn.OwningProcess -ErrorAction SilentlyContinue
+            $cmdLine = $null
+            try {
+                $cmdLine = (Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($tcpConn.OwningProcess)").CommandLine
+            } catch {
+                $cmdLine = "Unknown"
+            }
+            
             return @{
                 InUse = $true
                 ProcessId = $tcpConn.OwningProcess
                 ProcessName = if ($process) { $process.ProcessName } else { "Unknown" }
-                CommandLine = if ($process) { $process.CommandLine } else { "Unknown" }
+                CommandLine = $cmdLine
             }
         }
         
@@ -221,7 +274,7 @@ function Get-PortProcessInfo {
             InUse = $false
         }
     } catch {
-        Write-Host "Error checking port: $_"
+        Write-ColorOutput "Error checking port: $_" -ForegroundColor Red
         return @{
             InUse = $false
             Error = $_.Exception.Message
@@ -246,7 +299,7 @@ function Stop-ProcessSafely {
         
         if ($process) {
             # Try alternative method - taskkill (more aggressive)
-            Write-Host "Using taskkill for process $ProcessId..."
+            Write-ColorOutput "Using taskkill for process $ProcessId..." -ForegroundColor Yellow
             $null = taskkill /F /PID $ProcessId 2>$null
             Start-Sleep -Milliseconds 500
         }
@@ -255,25 +308,25 @@ function Stop-ProcessSafely {
         $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
         return ($null -eq $process)
     } catch {
-        Write-Host "Error stopping process: $_"
+        Write-ColorOutput "Error stopping process: $_" -ForegroundColor Red
         return $false
     }
 }
 
 # Discover all processes that might be relevant and display them
 function Show-RelevantProcesses {
-    Write-Host "`nCurrently running processes that might be relevant:"
-    Write-Host "----------------------------------------------"
+    Write-ColorOutput "`nCurrently running processes that might be relevant:" -ForegroundColor Cyan
+    Write-ColorOutput "----------------------------------------------" -ForegroundColor Cyan
     
     # Show Python processes
     $pythonProcesses = Get-Process | Where-Object { $_.ProcessName -like "*python*" -or $_.MainWindowTitle -like "*python*" } | 
                       Select-Object Id, ProcessName, @{Name="WorkingSet";Expression={"$([math]::Round($_.WorkingSet / 1MB, 2)) MB"}}, StartTime, @{Name="RunTime";Expression={(Get-Date) - $_.StartTime}}
     
     if ($pythonProcesses) {
-        Write-Host "Python Processes:"
+        Write-ColorOutput "Python Processes:" -ForegroundColor Yellow
         $pythonProcesses | Format-Table -AutoSize | Out-String | Write-Host
     } else {
-        Write-Host "No Python processes found.`n"
+        Write-ColorOutput "No Python processes found.`n" -ForegroundColor Cyan
     }
     
     # Show processes using network ports
@@ -282,10 +335,10 @@ function Show-RelevantProcesses {
                    Select-Object LocalPort, @{Name="ProcessId";Expression={$_.OwningProcess}}, @{Name="ProcessName";Expression={(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName}}
     
     if ($netProcesses) {
-        Write-Host "Processes using web ports (5000-9000):"
+        Write-ColorOutput "Processes using web ports (5000-9000):" -ForegroundColor Yellow
         $netProcesses | Sort-Object LocalPort | Format-Table -AutoSize | Out-String | Write-Host
     } else {
-        Write-Host "No processes found using web ports (5000-9000).`n"
+        Write-ColorOutput "No processes found using web ports (5000-9000).`n" -ForegroundColor Cyan
     }
 }
 
@@ -293,27 +346,27 @@ function Show-RelevantProcesses {
 $portInfo = Get-PortProcessInfo -Port $serverPort
 
 if ($portInfo.InUse) {
-    Write-Host "`nPort $serverPort is already in use by process: $($portInfo.ProcessId) ($($portInfo.ProcessName))"
+    Write-ColorOutput "`nPort $serverPort is already in use by process: $($portInfo.ProcessId) ($($portInfo.ProcessName))" -ForegroundColor Yellow
     
     if ($portInfo.IsPython) {
-        Write-Host "Detected Python process that is likely a previous instance of this application."
+        Write-ColorOutput "Detected Python process that is likely a previous instance of this application." -ForegroundColor Yellow
     }
     
     # Show detailed information about running processes
     Show-RelevantProcesses
     
-    Write-Host "`nWhat would you like to do?"
-    Write-Host "1. Display more details about running processes"
-    Write-Host "2. Kill specific process by ID"
-    Write-Host "3. Kill all Python processes"
-    Write-Host "4. Use a different port"
-    Write-Host "5. Exit"
+    Write-ColorOutput "`nWhat would you like to do?" -ForegroundColor Cyan
+    Write-ColorOutput "1. Display more details about running processes" -ForegroundColor White
+    Write-ColorOutput "2. Kill specific process by ID" -ForegroundColor White
+    Write-ColorOutput "3. Kill all Python processes" -ForegroundColor White
+    Write-ColorOutput "4. Use a different port" -ForegroundColor White
+    Write-ColorOutput "5. Exit" -ForegroundColor White
     
     $response = Read-Host "Enter your choice (1-5)"
     
     if ($response -eq "1") {
         # Show more detailed process information
-        Write-Host "`nDetailed process information:"
+        Write-ColorOutput "`nDetailed process information:" -ForegroundColor Cyan
         Get-Process | Where-Object { $_.ProcessName -like "*python*" -or $_.Id -eq $portInfo.ProcessId } | 
         Select-Object Id, ProcessName, Path, StartTime, @{Name="Memory (MB)";Expression={[math]::Round($_.WorkingSet / 1MB, 2)}} | 
         Format-List | Out-String | Write-Host
@@ -330,31 +383,141 @@ if ($portInfo.InUse) {
         if ([int]::TryParse($pidToKill, [ref]$null)) {
             $confirmKill = Read-Host "Are you sure you want to kill process $pidToKill? (y/n)"
             if ($confirmKill -eq "y") {
-                Write-Host "Attempting to terminate process $pidToKill..."
+                Write-ColorOutput "Attempting to terminate process $pidToKill..." -ForegroundColor Cyan
                 $killed = Stop-ProcessSafely -ProcessId $pidToKill
                 
                 if ($killed) {
-                    Write-Host "Process $pidToKill has been terminated successfully."
+                    Write-ColorOutput "Process $pidToKill has been terminated successfully." -ForegroundColor Green
                     Start-Sleep -Seconds 2  # Wait for port to be released
+                    
+                    # Check if port is now available
+                    $portCheck = Get-PortProcessInfo -Port $serverPort
+                    if (-not $portCheck.InUse) {
+                        Write-ColorOutput "Port $serverPort is now available. Continuing with server startup..." -ForegroundColor Green
+                        # Will continue to server startup below
+                    } else {
+                        Write-ColorOutput "Port $serverPort is still in use. Please try another option." -ForegroundColor Yellow
+                        exit 1
+                    }
                 } else {
-                    Write-Host "Failed to kill process $pidToKill using standard methods. Trying taskkill..."
+                    Write-ColorOutput "Failed to kill process $pidToKill using standard methods. Trying taskkill..." -ForegroundColor Yellow
                     $null = taskkill /F /PID $pidToKill 2>$null
                     Start-Sleep -Seconds 2
+                    
+                    # Check if process is still running
+                    $process = Get-Process -Id $pidToKill -ErrorAction SilentlyContinue
+                    if ($process) {
+                        Write-ColorOutput "ERROR: Failed to terminate process $pidToKill. Please try to close it manually." -ForegroundColor Red
+                        exit 1
+                    } else {
+                        Write-ColorOutput "Process $pidToKill has been terminated successfully." -ForegroundColor Green
+                        
+                        # Check if port is now available
+                        $portCheck = Get-PortProcessInfo -Port $serverPort
+                        if (-not $portCheck.InUse) {
+                            Write-ColorOutput "Port $serverPort is now available. Continuing with server startup..." -ForegroundColor Green
+                            # Will continue to server startup below
+                        } else {
+                            Write-ColorOutput "Port $serverPort is still in use. Please try another option." -ForegroundColor Yellow
+                            exit 1
+                        }
+                    }
                 }
             }
         } else {
-            Write-Host "Invalid process ID"
+            Write-ColorOutput "Invalid process ID" -ForegroundColor Red
+            exit 1
         }
     }
     
     elseif ($response -eq "3") {
         $confirmKill = Read-Host "Are you sure you want to kill ALL Python processes? This may affect other applications. (y/n)"
         if ($confirmKill -eq "y") {
-            Write-Host "Attempting to terminate all Python processes..."
-            $null = taskkill /F /IM python.exe 2>$null
-            $null = taskkill /F /IM pythonw.exe 2>$null
+            Write-ColorOutput "Attempting to terminate all Python processes..." -ForegroundColor Cyan
+            
+            # Get all Python processes before attempting to kill them
+            $pythonProcessesBefore = Get-Process | Where-Object { $_.ProcessName -like "*python*" }
+            if ($pythonProcessesBefore.Count -eq 0) {
+                Write-ColorOutput "No Python processes found to terminate." -ForegroundColor Yellow
+            } else {
+                # Try to kill processes individually for better error handling
+                foreach ($process in $pythonProcessesBefore) {
+                    Write-ColorOutput "Terminating Python process with ID: $($process.Id)" -ForegroundColor Cyan
+                    try {
+                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    } catch {
+                        Write-ColorOutput "Failed to stop process $($process.Id) with Stop-Process" -ForegroundColor Yellow
+                    }
+                }
+                
+                # Additional attempt with taskkill as backup
+                $null = taskkill /F /IM python.exe 2>$null
+                # Ignore errors for pythonw.exe as it might not exist
+                $null = taskkill /F /IM pythonw.exe 2>$null
+            }
+            
             Start-Sleep -Seconds 2
-            Write-Host "Python processes have been terminated."
+            
+            # Check if any Python processes are still running
+            $pythonProcessesAfter = Get-Process | Where-Object { $_.ProcessName -like "*python*" }
+            if ($pythonProcessesAfter.Count -gt 0) {
+                Write-ColorOutput "WARNING: Some Python processes could not be terminated:" -ForegroundColor Yellow
+                $pythonProcessesAfter | ForEach-Object {
+                    Write-ColorOutput "  - Process ID: $($_.Id), Name: $($_.ProcessName)" -ForegroundColor Yellow
+                }
+                Write-ColorOutput "Please try to close them manually or use option 2 to kill specific processes." -ForegroundColor Yellow
+                
+                # Ask if user wants to retry with option 2
+                $retryChoice = Read-Host "Would you like to kill a specific process ID instead? (y/n)"
+                if ($retryChoice -eq "y") {
+                    $pidToKill = Read-Host "Enter the process ID to kill"
+                    if ([int]::TryParse($pidToKill, [ref]$null)) {
+                        Write-ColorOutput "Attempting to terminate process $pidToKill..." -ForegroundColor Cyan
+                        $killed = Stop-ProcessSafely -ProcessId $pidToKill
+                        
+                        if ($killed) {
+                            Write-ColorOutput "Process $pidToKill has been terminated successfully." -ForegroundColor Green
+                        } else {
+                            Write-ColorOutput "ERROR: Failed to terminate process $pidToKill. Please try to close it manually." -ForegroundColor Red
+                            exit 1
+                        }
+                    } else {
+                        Write-ColorOutput "Invalid process ID" -ForegroundColor Red
+                    }
+                }
+            } else {
+                Write-ColorOutput "All Python processes have been terminated successfully." -ForegroundColor Green
+            }
+            
+            # Regardless of whether all processes were killed, check if port is now available
+            $portCheck = Get-PortProcessInfo -Port $serverPort
+            if (-not $portCheck.InUse) {
+                Write-ColorOutput "Port $serverPort is now available. Continuing with server startup..." -ForegroundColor Green
+                # We don't need any special flag, just let it continue to server start
+            } else {
+                Write-ColorOutput "WARNING: Port $serverPort is still in use despite terminating Python processes." -ForegroundColor Yellow
+                Show-RelevantProcesses
+                
+                $finalChoice = Read-Host "Would you like to exit (e) or try a different port (p)?"
+                if ($finalChoice -eq "p") {
+                    # Find an available port
+                    $newPort = [int]$serverPort + 1
+                    while ((Get-PortProcessInfo -Port $newPort).InUse -eq $true) {
+                        $newPort++
+                        if ($newPort -gt 65535) {
+                            Write-ColorOutput "ERROR: No available ports found. Please manually set a port in your .env file." -ForegroundColor Red
+                            exit 1
+                        }
+                    }
+                    
+                    Write-ColorOutput "Using alternative port: $newPort" -ForegroundColor Green
+                    $serverPort = $newPort
+                    [Environment]::SetEnvironmentVariable("PORT", $newPort)
+                } else {
+                    Write-ColorOutput "Exiting as requested. Please resolve port conflicts manually and try again." -ForegroundColor Cyan
+                    exit 0
+                }
+            }
         }
     }
     
@@ -364,21 +527,23 @@ if ($portInfo.InUse) {
         while ((Get-PortProcessInfo -Port $newPort).InUse -eq $true) {
             $newPort++
             if ($newPort -gt 65535) {
-                Write-Error "No available ports found. Please manually set a port in your .env file."
+                Write-ColorOutput "ERROR: No available ports found. Please manually set a port in your .env file." -ForegroundColor Red
                 exit 1
             }
         }
         
-        Write-Host "Found available port: $newPort"
+        Write-ColorOutput "Found available port: $newPort" -ForegroundColor Green
+        Write-ColorOutput "WARNING: Using a different port may cause issues with frontend connectivity." -ForegroundColor Yellow
+        Write-ColorOutput "It's recommended to keep using port 8000 and resolve the port conflict instead." -ForegroundColor Yellow
         $confirmPort = Read-Host "Do you want to use port $newPort for this session? (y/n)"
         
         if ($confirmPort -eq "y") {
             # Update the port in the environment for this session
             $serverPort = $newPort
-            [Environment]::SetEnvironmentVariable("SERVER_PORT", $newPort)
+            [Environment]::SetEnvironmentVariable("PORT", $newPort)
             
             # Also suggest updating the .env file
-            Write-Host "Remember to update SERVER_PORT=$newPort in your .env file for future runs."
+            Write-ColorOutput "Remember to update PORT=$newPort in your .env file for future runs." -ForegroundColor Yellow
             $updateEnvFile = Read-Host "Would you like to update your .env file with this port? (y/n)"
             
             if ($updateEnvFile -eq "y") {
@@ -386,41 +551,66 @@ if ($portInfo.InUse) {
                 $envFilePath = Join-Path $BackendPath ".env"
                 if (Test-Path $envFilePath) {
                     $envContent = Get-Content $envFilePath -Raw
-                    # Check if SERVER_PORT already exists in the file
-                    if ($envContent -match "SERVER_PORT=[0-9]+") {
-                        # Replace existing SERVER_PORT
-                        $envContent = $envContent -replace "SERVER_PORT=[0-9]+", "SERVER_PORT=$newPort"
+                    # Check if PORT already exists in the file
+                    if ($envContent -match "PORT=[0-9]+") {
+                        # Replace existing PORT
+                        $envContent = $envContent -replace "PORT=[0-9]+", "PORT=$newPort"
                     } else {
-                        # Add SERVER_PORT at the end of the file
-                        $envContent = $envContent.TrimEnd() + "`nSERVER_PORT=$newPort`n"
+                        # Add PORT at the end of the file
+                        $envContent = $envContent.TrimEnd() + "`nPORT=$newPort`n"
                     }
                     Set-Content -Path $envFilePath -Value $envContent
-                    Write-Host ".env file updated with SERVER_PORT=$newPort"
+                    Write-ColorOutput ".env file updated with PORT=$newPort" -ForegroundColor Green
                 } else {
-                    Write-Host "No .env file found at $envFilePath. Please create one with SERVER_PORT=$newPort"
+                    Write-ColorOutput "No .env file found at $envFilePath. Please create one with PORT=$newPort" -ForegroundColor Yellow
                 }
             }
         } else {
-            Write-Error "Port selection cancelled. Please update your SERVER_PORT manually and try again."
+            Write-ColorOutput "Port selection cancelled. Please update your PORT manually and try again." -ForegroundColor Red
             exit 1
         }
     }
     
     elseif ($response -eq "5") {
-        Write-Error "Exiting as requested. Please update your SERVER_PORT in .env file or terminate the blocking process manually."
-        exit 1
+        Write-ColorOutput "Exiting as requested. Please update your PORT in .env file or terminate the blocking process manually." -ForegroundColor Cyan
+        exit 0
     }
     
     else {
-        Write-Error "Invalid option. Please try again with a valid option (1-5)."
+        Write-ColorOutput "Invalid option. Please try again with a valid option (1-5)." -ForegroundColor Red
         exit 1
     }
 }
 
-Write-Host "Starting backend server on http://${serverHost}:${serverPort}"
+Write-ColorOutput "Starting backend server on http://${serverHost}:${serverPort}" -ForegroundColor Green
 try {
-    & uvicorn app.main:app --host $serverHost --port $serverPort --reload
+    # Check if uvicorn is available
+    $uvicornInstalled = $false
+    try {
+        $uvicornInstalled = [bool](Get-Command -Name uvicorn -ErrorAction SilentlyContinue)
+    } catch {
+        $uvicornInstalled = $false
+    }
+    
+    if (-not $uvicornInstalled) {
+        Write-ColorOutput "uvicorn command not found. Attempting to start server using python -m uvicorn..." -ForegroundColor Yellow
+        & python -m uvicorn app.main:app --host $serverHost --port $serverPort --reload
+    } else {
+        & uvicorn app.main:app --host $serverHost --port $serverPort --reload
+    }
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-ColorOutput "ERROR: Server failed to start with exit code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
 } catch {
-    Write-Error "Failed to start server: $_"
+    Write-ColorOutput "ERROR: Failed to start server: $_" -ForegroundColor Red
+    
+    # Additional troubleshooting information
+    Write-ColorOutput "`nTroubleshooting information:" -ForegroundColor Yellow
+    Write-ColorOutput "1. Make sure uvicorn is installed: pip install uvicorn" -ForegroundColor Yellow
+    Write-ColorOutput "2. Check that app/main.py exists and contains a FastAPI app instance" -ForegroundColor Yellow
+    Write-ColorOutput "3. Verify virtual environment is activated correctly" -ForegroundColor Yellow
+    
     exit 1
 }
