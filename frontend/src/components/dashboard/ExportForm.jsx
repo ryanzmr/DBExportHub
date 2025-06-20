@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
@@ -31,6 +31,8 @@ import {
 } from '@mui/icons-material';
 import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../../pages/Dashboard/styles/DashboardStyles';
 import ExportViewSelector from './ExportViewSelector';
+import MonthYearPicker from './MonthYearPicker';
+import { isValidDateRange, getDateRangeErrorMessage, getCurrentYYYYMM } from '../../utils/dateUtils';
 
 /**
  * Form component for the Export page
@@ -64,6 +66,27 @@ const ExportForm = ({
   const styles = formContainerStyles;
   const headerStyles = cardHeaderStyles(theme);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [dateRangeError, setDateRangeError] = useState('');
+  
+  // Check date range validity whenever from/to months change
+  useEffect(() => {
+    const errorMessage = getDateRangeErrorMessage(formData.fromMonth, formData.toMonth);
+    setDateRangeError(errorMessage);
+    
+    // Dispatch validation event for date range
+    window.dispatchEvent(new CustomEvent('exportDateRangeValidation', { 
+      detail: { isValid: !errorMessage }
+    }));
+  }, [formData.fromMonth, formData.toMonth]);
+  
+  // Set default values for empty fields on component mount
+  useEffect(() => {
+    if (!formData.fromMonth && !formData.toMonth) {
+      const currentMonth = getCurrentYYYYMM().toString();
+      handleChange({ target: { name: 'fromMonth', value: currentMonth } });
+      handleChange({ target: { name: 'toMonth', value: currentMonth } });
+    }
+  }, []);
 
   return (
     <>
@@ -134,38 +157,36 @@ const ExportForm = ({
       <Box sx={styles.formContainer}>
         <Grid container spacing={2}>
           <Grid item xs={3}>
-            <TextField
+            <MonthYearPicker
               label="From Month"
               name="fromMonth"
               value={formData.fromMonth}
               onChange={handleChange}
-              fullWidth
-              size="small"
               required
-              placeholder="YYYYMM"
-              InputProps={{
-                startAdornment: <CalendarMonth sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
-              }}
               sx={commonTextFieldStyle}
+              error={!!dateRangeError}
             />
           </Grid>
 
           <Grid item xs={3}>
-            <TextField
+            <MonthYearPicker
               label="To Month"
               name="toMonth"
               value={formData.toMonth}
               onChange={handleChange}
-              fullWidth
-              size="small"
               required
-              placeholder="YYYYMM"
-              InputProps={{
-                startAdornment: <CalendarMonth sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 24 }} />
-              }}
               sx={commonTextFieldStyle}
+              error={!!dateRangeError}
             />
           </Grid>
+          
+          {dateRangeError && (
+            <Grid item xs={12}>
+              <Alert severity="error" sx={{ mt: -1, mb: 1 }}>
+                {dateRangeError}
+              </Alert>
+            </Grid>
+          )}
 
           <Grid item xs={3}>
             <TextField

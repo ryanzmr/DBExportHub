@@ -2,6 +2,7 @@
 // Contains utility functions and API calls for the ImportPage component
 
 import axios from 'axios';
+import { showToast } from './toastUtils';
 
 /**
  * Generate a preview of the import data based on the provided parameters
@@ -259,36 +260,15 @@ export const handleExcelDownload = (response, formData) => {
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
-    
-    // Clean up
+      // Clean up
     window.URL.revokeObjectURL(url);
     document.body.removeChild(link);
     
-    // Show a non-blocking toast or snackbar notification instead of modal
-    const toast = document.createElement('div');
-    toast.style.position = 'fixed';
-    toast.style.bottom = '20px';
-    toast.style.right = '20px';
-    toast.style.backgroundColor = '#4CAF50';
-    toast.style.color = 'white';
-    toast.style.padding = '16px';
-    toast.style.borderRadius = '4px';
-    toast.style.zIndex = '1000';
-    toast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    toast.style.transition = 'opacity 0.3s';
-    toast.textContent = 'Excel file download started successfully!';
-    
-    document.body.appendChild(toast);
-    
-    // Remove toast after 3 seconds
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-      }, 300);
-    }, 3000);
+    // Show a non-blocking toast notification
+    showToast('Import Excel file download started successfully!', {
+      type: 'success',
+      duration: 3000
+    });
     
     // Clean up any progress indicators immediately
     const progressIndicator = document.getElementById('import-progress-indicator');

@@ -2,6 +2,7 @@
 // Contains utility functions and API calls for the ExportPage component
 
 import axios from 'axios';
+import { showToast } from './toastUtils';
 
 /**
  * Generate a preview of the export data based on the provided parameters
@@ -273,29 +274,44 @@ export const generateExcelExport = async (connectionDetails, formData, signal, f
  * @param {Object} formData - Form data containing export parameters
  */
 export const handleExcelDownload = (response, formData) => {
-  // Create a download link
-  const url = window.URL.createObjectURL(new Blob([response.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  
-  // Get filename from content-disposition header or use default
-  const contentDisposition = response.headers['content-disposition'];
-  let filename = `export_${formData.fromMonth}_to_${formData.toMonth}.xlsx`;
-  
-  if (contentDisposition) {
-    const filenameMatch = contentDisposition.match(/filename="([^"]+)"/i);
-    if (filenameMatch && filenameMatch.length === 2) {
-      filename = filenameMatch[1];
+  try {
+    // Create a download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Get filename from content-disposition header or use default
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = `export_${formData.fromMonth}_to_${formData.toMonth}.xlsx`;
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/i);
+      if (filenameMatch && filenameMatch.length === 2) {
+        filename = filenameMatch[1];
+      }
     }
+    
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+      // Show a non-blocking toast notification
+    showToast('Export Excel file download started successfully!', {
+      type: 'success',
+      duration: 3000
+    });
+    
+    // Clean up any progress indicators immediately
+    const progressIndicator = document.getElementById('export-progress-indicator');
+    if (progressIndicator && document.body.contains(progressIndicator)) {
+      document.body.removeChild(progressIndicator);
+    }
+  } catch (error) {
+    console.error('Error handling Excel download:', error);
   }
-  
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  
-  // Clean up
-  window.URL.revokeObjectURL(url);
-  document.body.removeChild(link);
 };
 
 /**
