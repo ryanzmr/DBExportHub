@@ -10,6 +10,7 @@ import {
   Switch,
   Collapse,
   Typography,
+  Divider,
   useTheme
 } from '@mui/material';
 import {
@@ -29,7 +30,7 @@ import {
   CloudUpload
 } from '@mui/icons-material';
 import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../../pages/Dashboard/styles/DashboardStyles';
-import ViewSelector from './ViewSelector';
+import ImportViewSelector from './ImportViewSelector';
 
 /**
  * Form component for the Import page
@@ -108,17 +109,26 @@ const ImportForm = ({
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </Alert>
-      )}
-
-      <Box sx={{ mb: 3 }}>
-        <ViewSelector 
-          category="import" 
+        </Alert>      )}      <Box sx={{ mb: 1, display: 'flex', justifyContent: 'flex-start' }}>
+        <ImportViewSelector 
           value={formData.selectedView}
           onChange={(viewId) => handleChange({ target: { name: 'selectedView', value: viewId } })}
           label="Select Import View"
+          onValidationChange={(status) => window.dispatchEvent(new CustomEvent('importViewValidation', { detail: status }))}
         />
       </Box>
+      
+      <Divider 
+        sx={{ 
+          mb: 2, 
+          mt: 1.5, 
+          opacity: 0.7,
+          width: '100%',
+          borderStyle: 'solid',
+          borderWidth: '1px 0 0 0',
+          borderColor: (theme) => theme.palette.divider
+        }} 
+      />
 
       <Box sx={styles.formContainer}>
         <Grid container spacing={2}>

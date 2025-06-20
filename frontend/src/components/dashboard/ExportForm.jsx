@@ -10,6 +10,7 @@ import {
   Switch,
   Collapse,
   Typography,
+  Divider,
   useTheme
 } from '@mui/material';
 import {
@@ -29,7 +30,7 @@ import {
   SaveAlt
 } from '@mui/icons-material';
 import { commonTextFieldStyle, formContainerStyles, cardHeaderStyles } from '../../pages/Dashboard/styles/DashboardStyles';
-import ViewSelector from './ViewSelector';
+import ExportViewSelector from './ExportViewSelector';
 
 /**
  * Form component for the Export page
@@ -109,16 +110,26 @@ const ExportForm = ({
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
-      )}
-
-      <Box sx={{ mb: 3 }}>
-        <ViewSelector 
-          category="export" 
+      )}      <Box sx={{ mb: 1, display: 'flex', justifyContent: 'flex-start' }}>
+        <ExportViewSelector 
           value={formData.selectedView}
           onChange={(viewId) => handleChange({ target: { name: 'selectedView', value: viewId } })}
           label="Select Export View"
+          onValidationChange={(status) => window.dispatchEvent(new CustomEvent('exportViewValidation', { detail: status }))}
         />
       </Box>
+      
+      <Divider 
+        sx={{ 
+          mb: 2, 
+          mt: 1.5, 
+          opacity: 0.7,
+          width: '100%',
+          borderStyle: 'solid',
+          borderWidth: '1px 0 0 0',
+          borderColor: (theme) => theme.palette.divider
+        }} 
+      />
 
       <Box sx={styles.formContainer}>
         <Grid container spacing={2}>

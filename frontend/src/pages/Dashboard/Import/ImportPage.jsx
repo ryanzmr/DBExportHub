@@ -28,19 +28,32 @@ const EXCEL_ROW_LIMIT = 1048576; // Excel's maximum row limit
 const ImportPage = () => {
   const navigate = useNavigate();
   const { connectionDetails, logout, token, tokenExpiry } = useAuth();
-  
-  // Check token validity on component mount
+    // Check token validity on component mount
   useEffect(() => {
     if (!token || new Date(tokenExpiry) <= new Date()) {
       logout();
       navigate('/login');
     }
   }, [token, tokenExpiry, logout, navigate]);
-    // State management
+  
+  // Listen for view validation status changes
+  useEffect(() => {
+    const handleViewValidation = (event) => {
+      setViewValidationStatus(event.detail);
+    };
+    
+    window.addEventListener('importViewValidation', handleViewValidation);
+    
+    return () => {
+      window.removeEventListener('importViewValidation', handleViewValidation);
+    };
+  }, []);
+  // State management
   const [formData, setFormData] = useState({
     ...getFreshImportFormState(),
     selectedView: null, // Add selectedView field
   });
+  const [viewValidationStatus, setViewValidationStatus] = useState('pending'); // 'pending', 'valid', 'invalid'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -70,17 +83,16 @@ const ImportPage = () => {
     setFormData(getFreshImportFormState());
     setError(null);
   };
-  
-  const handleLogout = () => {
+    const handleLogout = () => {
     logout();
     navigate('/login');
   };
-    // API handlers
+    
+  // API handlers  
   const handlePreview = async () => {
-    // Check if there are view validation errors before proceeding
-    const viewSelector = document.querySelector('.MuiFormControl-root.Mui-error');
-    if (viewSelector) {
-      setError('Please resolve the view validation error before proceeding.');
+    // Check if the view is valid before proceeding
+    if (viewValidationStatus === 'invalid') {
+      setError('This view does not exist in the database. Please check with the DBA or select a different view.');
       return;
     }
     
@@ -200,12 +212,10 @@ const ImportPage = () => {
       setIsOperationInProgress(false);
       exportControllerRef.current = null;
     }
-  };
-    const handleExport = async () => {
-    // Check if there are view validation errors before proceeding
-    const viewSelector = document.querySelector('.MuiFormControl-root.Mui-error');
-    if (viewSelector) {
-      setError('Please resolve the view validation error before proceeding.');
+  };    const handleExport = async () => {
+    // Check if the view is valid before proceeding
+    if (viewValidationStatus === 'invalid') {
+      setError('This view does not exist in the database. Please check with the DBA or select a different view.');
       return;
     }
     
