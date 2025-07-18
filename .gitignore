@@ -24,6 +24,10 @@ wheels/
 venv/
 env/
 ENV/
+backend/venv/
+backend/portable_python/
+frontend/node_modules/
+portable_node/
 
 # Node.js
 node_modules/
@@ -62,3 +66,4 @@ Excel_formatting_code.vbp
 *.log.*.*.*.*
 *.log.*.*.*.*.* 
 .qodo
+backend_Logs/
