@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Button, 
-  Box, 
-  Tabs, 
-  Tab, 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
   IconButton,
   Menu,
   MenuItem,
@@ -19,21 +17,25 @@ import {
   Divider,
   Avatar,
   Badge,
-  Chip
+  Chip,
+  Tooltip,
+  Stack,
+  ListItemButton
 } from '@mui/material';
-import { 
-  LogoutOutlined, 
-  Menu as MenuIcon, 
+import {
+  LogoutOutlined,
+  Menu as MenuIcon,
   HomeOutlined,
   CloudDownloadOutlined,
   CloudUploadOutlined,
   SettingsOutlined,
   AnalyticsOutlined,
   HelpOutlineOutlined,
-  Notifications,
-  Help,
+  NotificationsOutlined,
+  HelpOutline,
   Storage,
-  AccountCircle
+  AccountCircle,
+  KeyboardArrowDown
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../App';
@@ -45,11 +47,11 @@ const Header = ({ title }) => {
   const { isAuthenticated, logout, connectionDetails } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
   const [notificationCount, setNotificationCount] = useState(0);
-  
+
   // Get current date for display
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -57,250 +59,409 @@ const Header = ({ title }) => {
     month: 'long',
     day: 'numeric'
   });
-  
+
   // Check if current page is homepage
   const isHomePage = location.pathname === '/home' || location.pathname === '/';
 
-  const handleMenuClick = (event) => {
-    setAnchorEl(event.currentTarget);
+  const handleUserMenuOpen = (event) => {
+    setUserMenuAnchor(event.currentTarget);
   };
-  
-  const handleMenuClose = () => {
-    setAnchorEl(null);
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
   };
-  
+
   const handleLogout = () => {
+    handleUserMenuClose();
     logout();
     navigate('/login');
   };
-  
-  const getTabValue = () => {
-    const path = location.pathname;
-    if (path === '/home' || path === '/') return 0;
-    if (path === '/export') return 1;
-    if (path === '/import') return 2;
-    if (path === '/analytics') return 3;
-    if (path === '/settings') return 4;
-    return false;
-  };
-  
-  const handleTabChange = (event, newValue) => {
-    switch (newValue) {
-      case 0:
-        navigate('/home');
-        break;
-      case 1:
-        navigate('/export');
-        break;
-      case 2:
-        navigate('/import');
-        break;
-      case 3:
-        // Analytics page not yet implemented
-        break;
-      case 4:
-        // Settings page not yet implemented
-        break;
-      default:
-        break;
+
+  const isPathActive = (path) => {
+    if (path === '/home') {
+      return location.pathname === '/home' || location.pathname === '/';
     }
+    return location.pathname === path;
   };
-  
+
   const handleMobileMenuToggle = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
-  
+
   const handleNavigate = (path) => {
     navigate(path);
     setMobileMenuOpen(false);
   };
-  
+
   const navigationItems = [
-    { label: 'Home', icon: <HomeOutlined />, path: '/home', disabled: false },
-    { label: 'Export', icon: <CloudDownloadOutlined />, path: '/export', disabled: false },
-    { label: 'Import', icon: <CloudUploadOutlined />, path: '/import', disabled: false },
-    { label: 'Analytics', icon: <AnalyticsOutlined />, path: '/analytics', disabled: true },
-    { label: 'Settings', icon: <SettingsOutlined />, path: '/settings', disabled: true },
-    { label: 'Help', icon: <HelpOutlineOutlined />, path: '/help', disabled: true }
+    { label: 'Home', path: '/home', disabled: false },
+    { label: 'Export', path: '/export', disabled: false },
+    { label: 'Import', path: '/import', disabled: false },
+    { label: 'Analytics', path: '/analytics', disabled: true },
+    { label: 'Settings', path: '/settings', disabled: true }
   ];
 
   return (
-    <AppBar 
-      position="static" 
-      sx={{ 
+    <AppBar
+      position="static"
+      elevation={0}
+      sx={{
         mb: 0,
-        background: 'linear-gradient(90deg, #455a64 0%, #37474f 100%)',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+        background: '#1e293b',
+        borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}
     >
-      <Toolbar sx={{ minHeight: '56px', py: 0.5, px: {xs: 1, sm: 2} }}>
-        {isMobile && isAuthenticated && (
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleMobileMenuToggle}
-            sx={{ mr: 1, color: 'white' }}
-          >
-            <MenuIcon />
-          </IconButton>
-        )}
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-          <Storage sx={{ mr: 1.5, fontSize: 26, color: 'white' }} />
-          <Typography 
-            variant="h5" 
-            component="div" 
+      <Toolbar sx={{ minHeight: '64px', px: { xs: 1.5, sm: 2, md: 3 } }}>
+        {/* Left section: Logo and hamburger menu */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {isMobile && isAuthenticated && (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleMobileMenuToggle}
+              sx={{ mr: 1, color: 'white' }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+
+          <Box
             sx={{
-              fontWeight: 700,
-              letterSpacing: '0.01em',
-              color: 'white',
-              fontSize: {xs: '1.2rem', sm: '1.4rem'},
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(255,255,255,0.05)',
+              py: 0.75,
+              px: 1.5,
+              borderRadius: 1.5,
               mr: 2
             }}
           >
-            {title || 'DBExportHub'}
-          </Typography>
-          
-          {/* Only show connection details if not on homepage */}
-          {connectionDetails && !isHomePage && (
-            <Chip
-              label={`${connectionDetails?.database} @ ${connectionDetails?.server}`}
+            <Storage sx={{ mr: 1, fontSize: 22, color: '#5A4FFF' }} />
+            <Typography
+              variant="h6"
+              component="div"
               sx={{
-                bgcolor: 'rgba(255,255,255,0.2)',
+                fontWeight: 700,
+                letterSpacing: '0.01em',
                 color: 'white',
+                fontSize: '1.1rem'
+              }}
+            >
+              {title || 'DBExportHub'}
+            </Typography>
+          </Box>
+
+          {/* Connection details chip */}
+          {connectionDetails && (
+            <Chip
+              icon={<Storage sx={{ color: '#8bc1f7 !important', fontSize: '1rem' }} />}
+              label={`${connectionDetails?.database} @ ${connectionDetails?.server || connectionDetails?.hostname}`}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.08)',
+                color: '#8bc1f7',
                 fontWeight: 500,
-                fontSize: '0.8rem',
+                fontSize: '0.75rem',
                 height: 28,
+                border: '1px solid rgba(139, 193, 247, 0.3)',
                 '& .MuiChip-label': {
-                  px: 1.5
+                  px: 1
+                },
+                '& .MuiChip-icon': {
+                  color: '#8bc1f7'
                 }
               }}
             />
           )}
-          
-          {/* Only show date if not on homepage */}
-          {!isHomePage && (
-            <Typography variant="body2" sx={{ 
-              ml: 2, 
-              color: 'rgba(255,255,255,0.9)', 
-              display: { xs: 'none', md: 'block' },
-              fontWeight: 500,
-              letterSpacing: '0.01em',
-              fontSize: '0.9rem'
-            }}>
-              {currentDate}
-            </Typography>
-          )}
         </Box>
-        
+
+        {/* Center section: Navigation */}
         {isAuthenticated && !isMobile && (
-          <Tabs 
-            value={getTabValue()} 
-            onChange={handleTabChange}
-            textColor="inherit"
-            indicatorColor="secondary"
-            sx={{ 
-              mx: 2,
-              '& .MuiTab-root': {
-                color: 'rgba(255,255,255,0.8)',
-                '&.Mui-selected': {
-                  color: 'white'
-                }
-              }
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            flexGrow: 1,
+            mx: 2
+          }}>
+            <Stack
+              direction="row"
+              spacing={0.5}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.03)',
+                borderRadius: 1.5,
+                p: 0.5
+              }}
+            >
+              {navigationItems.map((item) => (
+                <Button
+                  key={item.label}
+                  disabled={item.disabled}
+                  onClick={() => !item.disabled && handleNavigate(item.path)}
+                  sx={{
+                    color: isPathActive(item.path) ? 'white' : 'rgba(255,255,255,0.7)',
+                    px: 2,
+                    py: 0.75,
+                    minWidth: 'auto',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    textTransform: 'none',
+                    borderRadius: 1,
+                    bgcolor: isPathActive(item.path) ? 'rgba(90, 79, 255, 0.8)' : 'transparent',
+                    '&:hover': {
+                      bgcolor: isPathActive(item.path)
+                        ? 'rgba(90, 79, 255, 0.9)'
+                        : 'rgba(255,255,255,0.1)'
+                    },
+                    '&.Mui-disabled': {
+                      color: 'rgba(255,255,255,0.4)'
+                    }
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        )}
+
+        {/* Right section: User controls */}
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
+          {/* Date display */}
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'rgba(255,255,255,0.7)',
+              display: { xs: 'none', lg: 'block' },
+              mr: 3,
+              fontSize: '0.8rem'
             }}
           >
-            <Tab label="HOME" />
-            <Tab label="EXPORT" />
-            <Tab label="IMPORT" />
-            <Tab label="ANALYTICS" disabled />
-            <Tab label="SETTINGS" disabled />
-          </Tabs>
-        )}
-        
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton color="inherit" sx={{ color: 'white' }}>
-            <Badge badgeContent={notificationCount} color="error" invisible={notificationCount === 0}>
-              <Notifications />
-            </Badge>
-          </IconButton>
-          
-          <IconButton color="inherit" sx={{ ml: 1, color: 'white' }}>
-            <Help />
-          </IconButton>
-          
-          {isAuthenticated && (
-            <Button 
-              variant="contained"
-              color="secondary"
-              onClick={handleLogout}
-              startIcon={<LogoutOutlined />}
+            {currentDate}
+          </Typography>
+
+          {/* Notification button */}
+          <Tooltip title="Notifications">
+            <IconButton
+              size="small"
               sx={{
-                ml: 2,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 500,
-                px: 2,
-                py: 0.5,
-                bgcolor: 'rgba(255,255,255,0.15)',
+                color: 'rgba(255,255,255,0.7)',
+                bgcolor: 'rgba(255,255,255,0.05)',
+                mr: 1,
                 '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.25)'
+                  bgcolor: 'rgba(255,255,255,0.1)',
                 }
               }}
             >
-              Logout
-            </Button>
+              <Badge badgeContent={notificationCount} color="error" invisible={notificationCount === 0}>
+                <NotificationsOutlined fontSize="small" />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+
+          {/* Help button */}
+          <Tooltip title="Help">
+            <IconButton
+              size="small"
+              sx={{
+                color: 'rgba(255,255,255,0.7)',
+                bgcolor: 'rgba(255,255,255,0.05)',
+                mr: 2,
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                }
+              }}
+            >
+              <HelpOutline fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          {/* User menu */}
+          {isAuthenticated && (
+            <>
+              <Button
+                onClick={handleUserMenuOpen}
+                endIcon={<KeyboardArrowDown />}
+                sx={{
+                  color: 'white',
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                  borderRadius: 1.5,
+                  px: 1.5,
+                  py: 0.75,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                  }
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    bgcolor: theme.palette.primary.main,
+                    fontSize: '0.8rem',
+                    mr: 1
+                  }}
+                >
+                  {connectionDetails?.username ? connectionDetails.username.charAt(0).toUpperCase() : 'U'}
+                </Avatar>
+                {connectionDetails?.username || 'User'}
+              </Button>
+              <Menu
+                anchorEl={userMenuAnchor}
+                open={Boolean(userMenuAnchor)}
+                onClose={handleUserMenuClose}
+                PaperProps={{
+                  elevation: 2,
+                  sx: {
+                    mt: 1.5,
+                    minWidth: 180,
+                    borderRadius: 1,
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    '& .MuiMenuItem-root': {
+                      fontSize: '0.875rem',
+                      py: 1
+                    }
+                  }
+                }}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              >
+                <MenuItem onClick={handleUserMenuClose}>
+                  <ListItemIcon>
+                    <AccountCircle fontSize="small" />
+                  </ListItemIcon>
+                  Profile
+                </MenuItem>
+                <MenuItem onClick={handleUserMenuClose}>
+                  <ListItemIcon>
+                    <SettingsOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Settings
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <LogoutOutlined fontSize="small" />
+                  </ListItemIcon>
+                  Logout
+                </MenuItem>
+              </Menu>
+            </>
           )}
         </Box>
       </Toolbar>
-      
+
       {/* Mobile Navigation Drawer */}
       <Drawer
         anchor="left"
         open={mobileMenuOpen}
         onClose={handleMobileMenuToggle}
+        PaperProps={{
+          sx: {
+            width: 280,
+            bgcolor: '#1e293b',
+            color: 'white'
+          }
+        }}
       >
-        <Box sx={{ width: 250 }} role="presentation">
-          <List>
-            <ListItem sx={{ bgcolor: theme.palette.primary.main, color: 'white' }}>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Storage />
-              </ListItemIcon>
-              <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
-                DBExportHub
-              </Typography>
-            </ListItem>
-            <Divider />
-            
+        <Box sx={{ width: '100%' }} role="presentation">
+          <Box sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
+            <Storage sx={{ mr: 1.5, fontSize: 24, color: theme.palette.primary.main }} />
+            <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
+              DBExportHub
+            </Typography>
+          </Box>
+
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+
+          <List sx={{ pt: 1 }}>
             {navigationItems.map((item) => (
-              <ListItem 
-                button 
+              <ListItem
                 key={item.label}
-                onClick={() => !item.disabled && handleNavigate(item.path)}
-                disabled={item.disabled}
-                selected={location.pathname === item.path}
+                disablePadding
+                sx={{ mb: 0.5 }}
               >
-                <ListItemIcon>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.label} />
-                {item.disabled && (
-                  <Typography variant="caption" color="text.secondary">
-                    Soon
-                  </Typography>
-                )}
+                <ListItemButton
+                  onClick={() => !item.disabled && handleNavigate(item.path)}
+                  disabled={item.disabled}
+                  selected={isPathActive(item.path)}
+                  sx={{
+                    borderRadius: 1,
+                    mx: 1,
+                    '&.Mui-selected': {
+                      bgcolor: 'rgba(90, 79, 255, 0.15)',
+                      '&:hover': {
+                        bgcolor: 'rgba(90, 79, 255, 0.2)',
+                      }
+                    }
+                  }}
+                >
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontSize: '0.9rem',
+                      fontWeight: isPathActive(item.path) ? 600 : 400
+                    }}
+                  />
+                  {item.disabled && (
+                    <Chip
+                      label="Soon"
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        color: 'rgba(255,255,255,0.7)'
+                      }}
+                    />
+                  )}
+                </ListItemButton>
               </ListItem>
             ))}
           </List>
-          <Divider />
-          <List>
-            <ListItem button onClick={handleLogout}>
-              <ListItemIcon>
-                <LogoutOutlined />
-              </ListItemIcon>
-              <ListItemText primary="Logout" />
-            </ListItem>
-          </List>
+
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 1 }} />
+
+          <Box sx={{ p: 2 }}>
+            {connectionDetails && (
+              <Box
+                sx={{
+                  p: 1.5,
+                  bgcolor: 'rgba(255,255,255,0.05)',
+                  borderRadius: 1,
+                  mb: 2
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: '#8bc1f7', mb: 0.5, fontSize: '0.75rem' }}>
+                  CONNECTED TO
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'white', fontWeight: 500 }}>
+                  {connectionDetails.server || connectionDetails.hostname}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>
+                  Database: {connectionDetails.database}
+                </Typography>
+              </Box>
+            )}
+
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<LogoutOutlined />}
+              onClick={handleLogout}
+              sx={{
+                borderColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  bgcolor: 'rgba(255,255,255,0.05)'
+                }
+              }}
+            >
+              Logout
+            </Button>
+          </Box>
         </Box>
       </Drawer>
     </AppBar>
