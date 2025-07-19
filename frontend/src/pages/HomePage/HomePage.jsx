@@ -1,270 +1,394 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  CardActions, 
+import {
+  Box,
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
   Button,
-  Paper,
+  Chip,
   Divider,
-  useTheme,
-  Chip
+  Paper,
+  Stack,
+  useTheme
 } from '@mui/material';
-import { 
-  CloudDownloadOutlined, 
-  CloudUploadOutlined, 
-  AnalyticsOutlined, 
-  SettingsOutlined, 
-  HelpOutlineOutlined,
-  DashboardOutlined
+import {
+  CloudDownloadOutlined,
+  CloudUploadOutlined,
+  StorageOutlined,
+  DataObjectOutlined
 } from '@mui/icons-material';
 
 import { useAuth } from '../../App';
 import Header from '../../components/Header';
 import Navigation from '../../components/Navigation';
 
-const FeatureCard = ({ title, description, icon, actionText, onClick, disabled = false }) => {
-  const theme = useTheme();
-  
+const CompactFeatureCard = ({ title, description, icon, actionText, onClick, color }) => {
   return (
-    <Card 
+    <Card
       elevation={1}
-      sx={{ 
-        height: '100%', 
-        display: 'flex', 
+      sx={{
+        height: '100%',
+        display: 'flex',
         flexDirection: 'column',
-        transition: 'transform 0.2s, box-shadow 0.2s',
         borderRadius: '8px',
         overflow: 'hidden',
-        '&:hover': {
-          transform: 'translateY(-3px)',
-          boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
-          ...(disabled ? {} : { cursor: 'pointer' })
-        },
         position: 'relative',
-        opacity: disabled ? 0.75 : 1,
+        transition: 'all 0.2s ease-in-out',
         border: '1px solid',
-        borderColor: theme.palette.divider
+        borderColor: 'rgba(0, 0, 0, 0.08)',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.08)',
+          '& .card-icon': {
+            color: color
+          }
+        }
       }}
-      onClick={disabled ? undefined : onClick}
     >
-      {disabled && (
-        <Chip
-          label="Coming Soon"
-          size="small"
-          color="default"
-          sx={{ 
-            position: 'absolute', 
-            top: 8, 
-            right: 8,
-            fontWeight: 500,
-            fontSize: '0.65rem',
-            height: 20
-          }}
-        />
-      )}
-      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', p: 1.5 }}>
-        <Box sx={{ 
-          mb: 1, 
-          color: disabled ? theme.palette.text.secondary : theme.palette.grey[800], 
-          fontSize: 32,
-          p: 1,
-          borderRadius: '50%',
-          bgcolor: disabled ? 'rgba(0,0,0,0.04)' : 'rgba(0,0,0,0.06)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
-          {icon}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          bgcolor: color
+        }}
+      />
+
+      <CardContent sx={{
+        flexGrow: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        p: 2.5
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Box
+            className="card-icon"
+            sx={{
+              mr: 1.5,
+              color: 'text.secondary',
+              transition: 'color 0.2s ease-in-out',
+              display: 'flex'
+            }}
+          >
+            {icon}
+          </Box>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{
+              fontWeight: 600,
+              fontSize: '1.1rem',
+              color: 'text.primary'
+            }}
+          >
+            {title}
+          </Typography>
         </Box>
-        <Typography variant="subtitle1" component="h2" gutterBottom align="center" sx={{ 
-          fontWeight: 600, 
-          color: disabled ? theme.palette.text.secondary : theme.palette.grey[800],
-          mb: 0.5
-        }}>
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ fontSize: '0.8rem' }}>
-          {description}
-        </Typography>
-      </CardContent>
-      <CardActions sx={{ justifyContent: 'center', py: 1, bgcolor: 'rgba(0,0,0,0.02)' }}>
-        <Button 
-          variant="contained" 
-          color={disabled ? "inherit" : "primary"}
-          onClick={disabled ? undefined : onClick}
-          disabled={disabled}
-          size="small"
+
+        <Typography
+          variant="body2"
           sx={{
-            borderRadius: 1.5,
-            textTransform: 'none',
-            fontWeight: 500,
-            px: 2,
-            py: 0.5,
-            fontSize: '0.8rem'
+            color: 'text.secondary',
+            mb: 2,
+            lineHeight: 1.5
           }}
         >
-          {actionText}
-        </Button>
-      </CardActions>
+          {description}
+        </Typography>
+
+        <Box sx={{ mt: 'auto' }}>
+          <Button
+            variant="outlined"
+            size="medium"
+            onClick={onClick}
+            sx={{
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              borderColor: color,
+              color: color,
+              '&:hover': {
+                borderColor: color,
+                bgcolor: `${color}10`
+              }
+            }}
+          >
+            {actionText}
+          </Button>
+        </Box>
+      </CardContent>
     </Card>
   );
 };
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, connectionDetails } = useAuth();
+  const { connectionDetails } = useAuth();
   const theme = useTheme();
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Box sx={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        bgcolor: '#f8f9fa'
+      }}
+    >
+      <Box sx={{ boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>
         <Header title="DBExportHub" />
       </Box>
 
-      <Container maxWidth="xl" sx={{ mt: 2, mb: 2, px: {xs: 1.5, sm: 2} }}>
-        <Box sx={{ mb: 1.5 }}>
+      <Container maxWidth="lg" sx={{ py: 3, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{ mb: 2 }}>
           <Navigation />
         </Box>
 
-        <Box sx={{ mb: 2 }}>
-          <Card elevation={1} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={8}>
-                  <Typography variant="h6" component="h1" gutterBottom sx={{ color: theme.palette.grey[800], fontWeight: 600, mb: 1 }}>
-                    Welcome to DBExportHub
-                  </Typography>
-                  
-                  <Typography variant="body2" sx={{ mb: 0 }}>
-                    Your centralized hub for database management operations. Select a feature below to get started.
-                  </Typography>
-                </Grid>
-                
-                {connectionDetails && (
-                  <Grid item xs={12} md={4}>
-                    <Paper 
-                      elevation={0}
-                      sx={{ 
-                        p: 1.5, 
-                        borderRadius: '6px',
-                        bgcolor: 'rgba(0,0,0,0.02)',
-                        border: '1px solid',
-                        borderColor: theme.palette.divider
-                      }}
-                    >
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.grey[700] }}>
-                        Connected to: {connectionDetails.server || connectionDetails.hostname}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                        Database: {connectionDetails.database}
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                )}
+        {/* Welcome Section - Compact */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: '8px',
+            border: '1px solid',
+            borderColor: 'rgba(0, 0, 0, 0.08)',
+            bgcolor: 'white'
+          }}
+        >
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={7}>
+              <Typography
+                variant="h5"
+                component="h1"
+                sx={{
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  mb: 1,
+                  fontSize: { xs: '1.5rem', sm: '1.75rem' }
+                }}
+              >
+                Welcome to DBExportHub
+              </Typography>
+
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ mb: 0 }}
+              >
+                Your centralized platform for database management operations. Select a feature below to get started.
+              </Typography>
+            </Grid>
+
+            {connectionDetails && (
+              <Grid item xs={12} md={5}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    p: 1.5,
+                    borderRadius: '6px',
+                    bgcolor: 'rgba(0, 0, 0, 0.02)',
+                    border: '1px solid',
+                    borderColor: 'rgba(0, 0, 0, 0.06)'
+                  }}
+                >
+                  <StorageOutlined sx={{ color: 'text.secondary', mr: 1.5, fontSize: '1.25rem' }} />
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+                      Connected to: {connectionDetails.server || connectionDetails.hostname}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                      Database: {connectionDetails.database}
+                    </Typography>
+                  </Box>
+                </Box>
               </Grid>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center' }}>
-          <Typography 
-            variant="subtitle1" 
-            component="h2" 
-            sx={{ 
-              fontWeight: 600, 
-              color: theme.palette.grey[800],
-            }}
-          >
-            Available Features
-          </Typography>
-          <Divider sx={{ flexGrow: 1, ml: 2, borderColor: 'rgba(0,0,0,0.08)' }} />
-        </Box>
-        
-        <Grid container spacing={1.5}>
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <FeatureCard 
-              title="Export Data" 
-              description="Export your database data in various formats with customizable options."
-              icon={<CloudDownloadOutlined fontSize="inherit" />}
-              actionText="Go to Export"
+            )}
+          </Grid>
+        </Paper>
+
+        {/* Feature Cards - Compact Layout */}
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <CompactFeatureCard
+              title="Export Data"
+              description="Export your database data in various formats with customizable filtering options and column selection."
+              icon={<CloudDownloadOutlined sx={{ fontSize: '1.5rem' }} />}
+              actionText="Start Export"
               onClick={() => navigate('/export')}
+              color={theme.palette.primary.main}
             />
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <FeatureCard 
-              title="Import Data" 
-              description="Import data from different sources into your database with validation."
-              icon={<CloudUploadOutlined fontSize="inherit" />}
-              actionText="Go to Import"
+
+          <Grid item xs={12} md={6}>
+            <CompactFeatureCard
+              title="Import Data"
+              description="Import data from external sources into your database with validation, error handling, and progress tracking."
+              icon={<CloudUploadOutlined sx={{ fontSize: '1.5rem' }} />}
+              actionText="Start Import"
               onClick={() => navigate('/import')}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <FeatureCard 
-              title="Analytics" 
-              description="Visualize and analyze your database metrics and performance."
-              icon={<AnalyticsOutlined fontSize="inherit" />}
-              actionText="View Analytics"
-              onClick={() => {}}
-              disabled={true}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <FeatureCard 
-              title="Settings" 
-              description="Configure your database connection and application preferences."
-              icon={<SettingsOutlined fontSize="inherit" />}
-              actionText="Go to Settings"
-              onClick={() => {}}
-              disabled={true}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <FeatureCard 
-              title="Documentation" 
-              description="Access comprehensive guides and documentation for DBExportHub."
-              icon={<HelpOutlineOutlined fontSize="inherit" />}
-              actionText="View Docs"
-              onClick={() => {}}
-              disabled={true}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4} lg={3}>
-            <FeatureCard 
-              title="System Status" 
-              description="Monitor the status and health of your database connections."
-              icon={<DashboardOutlined fontSize="inherit" />}
-              actionText="Check Status"
-              onClick={() => {}}
-              disabled={true}
+              color={theme.palette.secondary.main}
             />
           </Grid>
         </Grid>
+
+        {/* Quick Stats Section */}
+        <Box sx={{ mt: 3 }}>
+          <Divider sx={{ my: 3 }} />
+
+          <Typography
+            variant="subtitle1"
+            sx={{
+              mb: 2,
+              fontWeight: 600,
+              color: 'text.primary',
+              fontSize: '1rem'
+            }}
+          >
+            System Information
+          </Typography>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                  bgcolor: 'white'
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'primary.light',
+                      color: 'white'
+                    }}
+                  >
+                    <DataObjectOutlined />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      Database Type
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      SQL Server
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                  bgcolor: 'white'
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'success.light',
+                      color: 'white'
+                    }}
+                  >
+                    <StorageOutlined />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      Connection Status
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Connected
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                  bgcolor: 'white'
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'info.light',
+                      color: 'white'
+                    }}
+                  >
+                    <CloudDownloadOutlined />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      Available Operations
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Export, Import
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
       </Container>
-      
+
       <Box
         component="footer"
         sx={{
-          py: 1.5,
+          py: 2,
           px: 2,
           mt: 'auto',
-          backgroundColor: 'rgba(0,0,0,0.03)',
+          bgcolor: 'white',
           borderTop: '1px solid',
-          borderColor: theme.palette.divider
+          borderColor: 'rgba(0, 0, 0, 0.08)'
         }}
       >
-        <Container maxWidth="md">
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ fontSize: '0.8rem' }}>
+        <Container maxWidth="lg">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            align="center"
+          >
             DBExportHub — Streamlining Database Operations
           </Typography>
         </Container>
@@ -273,4 +397,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage; 
+export default HomePage;
