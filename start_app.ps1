@@ -42,9 +42,28 @@ if (-not $CorsOrigins.Contains($FrontendUrl)) {
 }
 
 # Ensure required directories exist
-$TempDir = Join-Path $BackendDir (Get-EnvValue -filePath $BackendEnvFile -key "TEMP_DIR" -defaultValue "./temp").TrimStart("./")
-$LogsDir = Join-Path $BackendDir (Get-EnvValue -filePath $BackendEnvFile -key "LOGS_DIR" -defaultValue "./logs").TrimStart("./")
-$TemplatesDir = Join-Path $BackendDir (Get-EnvValue -filePath $BackendEnvFile -key "TEMPLATES_DIR" -defaultValue "./templates").TrimStart("./")
+# Helper function to resolve directory paths (handles both absolute and relative paths)
+function Resolve-DirectoryPath {
+    param(
+        [string]$basePath,
+        [string]$envPath,
+        [string]$defaultPath
+    )
+    
+    $path = Get-EnvValue -filePath $BackendEnvFile -key $envPath -defaultValue $defaultPath
+    
+    # If path is absolute (starts with drive letter or UNC path), use it as-is
+    if ([System.IO.Path]::IsPathRooted($path)) {
+        return $path
+    }
+    
+    # If path is relative, combine with base path
+    return Join-Path $basePath $path.TrimStart("./")
+}
+
+$TempDir = Resolve-DirectoryPath -basePath $BackendDir -envPath "TEMP_DIR" -defaultPath "./temp"
+$LogsDir = Resolve-DirectoryPath -basePath $BackendDir -envPath "LOGS_DIR" -defaultPath "./logs"
+$TemplatesDir = Resolve-DirectoryPath -basePath $BackendDir -envPath "TEMPLATES_DIR" -defaultPath "./templates"
 
 Ensure-Directory -path $TempDir
 Ensure-Directory -path $LogsDir

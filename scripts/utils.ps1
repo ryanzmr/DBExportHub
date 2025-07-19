@@ -83,9 +83,22 @@ function Ensure-Directory {
         [string]$path
     )
     
-    if (-not (Test-Path $path)) {
-        New-Item -ItemType Directory -Path $path -Force | Out-Null
-        Write-Host "Created directory: $path" -ForegroundColor Green
+    try {
+        # Clean and normalize the path
+        $normalizedPath = $path.Replace("/", "\").TrimEnd("\")
+        Write-InfoLog "Attempting to create directory: $normalizedPath"
+        
+        if (-not (Test-Path $normalizedPath)) {
+            New-Item -ItemType Directory -Path $normalizedPath -Force | Out-Null
+            Write-SuccessLog "Created directory: $normalizedPath"
+        } else {
+            Write-InfoLog "Directory already exists: $normalizedPath"
+        }
+    }
+    catch {
+        Write-ErrorLog "Failed to create directory: $normalizedPath"
+        Write-ErrorLog "Error: $($_.Exception.Message)"
+        throw
     }
 }
 
